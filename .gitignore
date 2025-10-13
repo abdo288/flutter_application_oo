@@ -1,0 +1,156 @@
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+.metadata
+
+# Generated files
+*.g.dart
+*.freezed.dart
+*.gr.dart
+*.config.dart
+
+# IDE - JetBrains
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# IDE - VS Code
+.vscode/
+.history/
+
+# IDE - Android Studio
+.gradle/
+local.properties
+
+# IDE - Cursor
+.cursor/
+
+# OS - macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# OS - Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# OS - Linux
+*~
+.directory
+
+# Desktop folder (duplicate in your case)
+Desktop/
+
+# Local database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Log files
+*.log
+
+# Sensitive - Environment
+.env
+.env.local
+.env.*.local
+
+# Sensitive - Firebase (keep example, ignore actual)
+google-services.json
+GoogleService-Info.plist
+firebase.json
+
+# Sensitive - API Keys
+**/apikeys.dart
+**/secrets.dart
+
+# Coverage
+coverage/
+.test_coverage.dart
+
+# Web
+.dart_tool/
+web/favicon.png
+web/icons/
+web/manifest.json
+
+# macOS/iOS
+*.mode1v3
+*.mode2v3
+*.moved-aside
+*.pbxuser
+*.perspectivev3
+**/*.xcuserstate
+**/xcshareddata/WorkspaceSettings.xcsettings
+
+# Android
+*.jks
+*.keystore
+android/app/debug/
+android/app/profile/
+android/app/release/
+android/.gradle/
+android/captures/
+android/gradlew
+android/gradlew.bat
+android/local.properties
+android/key.properties
+
+# iOS
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Flutter/.last_build_id
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/app.flx
+**/ios/Flutter/app.zip
+**/ios/Flutter/flutter_assets/
+**/ios/ServiceDefinitions.json
+**/ios/Runner/GeneratedPluginRegistrant.*
+**/ios/.symlinks/
+**/ios/**/.symlinks/
+**/ios/**/Pods/
+**/ios/**/.generated/
+
+# Firebase cache
+.firebase/
+*-debug.log
+*-error.log
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Node (if using Firebase functions)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# FVM (Flutter Version Management)
+.fvm/flutter_sdk
+.fvm/fvm_config.json
+
+# Test
+.test/
+
+# Documentation
+doc/api/
+
+# VS Code History
+.history/
+
+# Cursor
+.cursor/
+
+# VS Code History
+.history/
+
+# Cursor
+.cursor/

@@ -1,0 +1,72 @@
+{
+    // === إعدادات Dart & Flutter ===
+    "dart.debugExternalPackageLibraries": true,
+    "dart.debugSdkLibraries": false,
+    "dart.evaluateToStringInDebugViews": true,
+    "dart.previewFlutterUiGuides": true,
+    "dart.previewFlutterUiGuidesCustomTracking": true,
+    // === إعدادات DevTools ===
+    "dart.openDevTools": "flutter",
+    "dart.devToolsTheme": "dark",
+    "dart.devToolsPort": 9100,
+    // === إعدادات السجلات ===
+    "dart.flutterRunLogFile": "${workspaceFolder}/logs/flutter_run.log",
+    "dart.flutterTestLogFile": "${workspaceFolder}/logs/flutter_test.log",
+    "dart.extensionLogFile": "${workspaceFolder}/logs/extension.log",
+    // === إعدادات Debug Console ===
+    "debug.console.fontSize": 13,
+    "debug.console.lineHeight": 18,
+    "debug.console.wordWrap": true,
+    "debug.internalConsoleOptions": "openOnSessionStart",
+    // === إعدادات Logpoints ===
+    "debug.showBreakpointsInOverviewRuler": true,
+    "debug.showInlineBreakpointCandidates": true,
+    // === إعدادات التنسيق ===
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": true,
+    "dart.lineLength": 80,
+    // === إعدادات التحليل ===
+    "dart.analysisServerFolding": true,
+    "dart.showTodos": true,
+    "dart.showLintNames": true,
+    // === إعدادات الأداء ===
+    "dart.analyzerVmServicePort": 9200,
+    "dart.vmServiceLogFile": "${workspaceFolder}/logs/vm_service.log",
+    // === إعدادات الاختبارات ===
+    "dart.runTestsInParallel": true,
+    // === استبعاد الملفات ===
+    "files.watcherExclude": {
+        "**/.git/objects/**": true,
+        "**/.git/subtree-cache/**": true,
+        "**/node_modules/*/**": true,
+        "**/.hg/store/**": true,
+        "**/build/**": true,
+        "**/.dart_tool/**": true,
+        "**/ios/Pods/**": true,
+        "**/android/.gradle/**": true
+    },
+    // === إعدادات البحث ===
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/bower_components": true,
+        "**/*.code-search": true,
+        "**/build/**": true,
+        "**/.dart_tool/**": true,
+        "**/ios/Pods/**": true
+    },
+    // === إعدادات عامة ===
+    "editor.suggestSelection": "first",
+    "editor.minimap.enabled": true,
+    "editor.rulers": [
+        80,
+        120
+    ],
+    "files.encoding": "utf8",
+    "files.eol": "\n",
+    // === تمييز الأخطاء ===
+    "workbench.colorCustomizations": {
+        "debugConsole.errorForeground": "#ff6b6b",
+        "debugConsole.warningForeground": "#ffa500",
+        "debugConsole.infoForeground": "#4dabf7"
+    }
+}

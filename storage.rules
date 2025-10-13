@@ -1,0 +1,124 @@
+rules_version = '2';
+
+// Craft rules based on data in your Firestore database
+// allow write: if firestore.get(
+//    /databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin;
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // ========== قواعد المصادقة العامة ==========
+    
+    // التحقق من أن المستخدم مسجل دخول
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // التحقق من أن المستخدم هو صاحب الملف
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    // التحقق من أن المستخدم هو المدير
+    function isAdmin() {
+      return isAuthenticated() && 
+             firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+             firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // التحقق من أن المستخدم هو بائع
+    function isSeller() {
+      return isAuthenticated() && 
+             firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+             firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'seller';
+    }
+    
+    // التحقق من صحة نوع الملف
+    function isValidFileType() {
+      return resource.contentType.matches('image/.*') ||
+             resource.contentType.matches('application/pdf') ||
+             resource.contentType.matches('text/csv') ||
+             resource.contentType.matches('application/json') ||
+             resource.contentType.matches('text/plain') ||
+             resource.contentType.matches('application/zip');
+    }
+    
+    // التحقق من حجم الملف (10MB كحد أقصى)
+    function isValidFileSize() {
+      return resource.size < 10 * 1024 * 1024; // 10MB
+    }
+    
+    // التحقق من صحة اسم الملف
+    function isValidFileName() {
+      return resource.name.matches('^[a-zA-Z0-9._-]+$') &&
+             resource.name.size() < 255;
+    }
+    
+    // ========== قواعد ملفات المستخدمين ==========
+    
+    match /users/{userId}/{allPaths=**} {
+      // يمكن للمستخدم إنشاء وتحديث ملفاته الخاصة فقط
+      allow create, update: if isAuthenticated() && 
+                               isOwner(userId) &&
+                               isValidFileType() &&
+                               isValidFileSize() &&
+                               isValidFileName();
+      
+      // يمكن للمستخدم قراءة ملفاته الخاصة فقط
+      allow read: if isAuthenticated() && isOwner(userId);
+      
+      // يمكن للمدير قراءة جميع ملفات المستخدمين
+      allow read: if isAdmin();
+      
+      // يمكن للمستخدم حذف ملفاته الخاصة فقط، والمدير يمكنه حذف أي ملف
+      allow delete: if isAuthenticated() && 
+                       (isOwner(userId) || isAdmin());
+    }
+    
+    // ========== قواعد النسخ الاحتياطية ==========
+    
+    match /backups/{userId}/{allPaths=**} {
+      // يمكن للبائعين والمديرين إنشاء نسخ احتياطية
+      allow create: if (isSeller() || isAdmin()) && 
+                       isOwner(userId) &&
+                       resource.contentType.matches('application/json') &&
+                       isValidFileSize() &&
+                       isValidFileName();
+      
+      // يمكن للبائعين قراءة نسخهم الاحتياطية فقط، والمدير يمكنه قراءة جميع النسخ
+      allow read: if isAuthenticated() && 
+                     (isOwner(userId) || isAdmin());
+      
+      // يمكن للبائعين حذف نسخهم الاحتياطية فقط، والمدير يمكنه حذف أي نسخة
+      allow delete: if isAuthenticated() && 
+                       (isOwner(userId) || isAdmin());
+      
+      // لا يمكن تحديث النسخ الاحتياطية بعد إنشائها
+      allow update: if false;
+    }
+    
+    // ========== قواعد الصور والملفات العامة ==========
+    
+    match /public/{allPaths=**} {
+      // يمكن للجميع قراءة الملفات العامة
+      allow read: if true;
+      
+      // يمكن للبائعين والمديرين فقط رفع الملفات العامة
+      allow create, update: if (isSeller() || isAdmin()) &&
+                               isValidFileType() &&
+                               isValidFileSize() &&
+                               isValidFileName();
+      
+      // يمكن للمدير فقط حذف الملفات العامة
+      allow delete: if isAdmin();
+    }
+    
+    // ========== قواعد عامة ==========
+    
+    // رفض جميع الوصولات الأخرى
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+

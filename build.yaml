@@ -1,0 +1,12 @@
+targets:
+  $default:
+    builders:
+      drift_dev:
+        options:
+          # Generate both .drift.dart and .g.dart files
+          generate_connect_constructor: true
+          # Drift generator options
+          # generate_connect_constructor is no longer needed per drift warning
+          sqlite: {}
+
+

@@ -1,0 +1,213 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Enhanced rules for real-time sync with security
+    match /products/{productId} {
+      // Allow read/write for authenticated users only
+      allow read, write: if request.auth != null && request.auth.uid != null;
+      
+      // Data validation - support both formats (legacy and current)
+      allow create: if request.auth != null 
+        && request.auth.uid != null
+        && (
+          // Current format (snake_case)
+          (
+            request.resource.data.keys().hasAll(['name', 'retail_price', 'created_at'])
+            && request.resource.data.name is string
+            && request.resource.data.retail_price is number
+            && request.resource.data.retail_price >= 0
+            && (!request.resource.data.keys().hasAny(['wholesale_price']) || 
+                (request.resource.data.wholesale_price is number && request.resource.data.wholesale_price >= 0))
+          ) || (
+            // Legacy format (camelCase)
+            request.resource.data.keys().hasAll(['name', 'price', 'createdAt'])
+            && request.resource.data.name is string
+            && request.resource.data.price is number
+            && request.resource.data.price >= 0
+          )
+        );
+        
+      allow update: if request.auth != null 
+        && request.auth.uid != null
+        && (
+          // Current format (snake_case)
+          (
+            request.resource.data.keys().hasAll(['name', 'retail_price'])
+            && request.resource.data.name is string
+            && request.resource.data.retail_price is number
+            && request.resource.data.retail_price >= 0
+            && (!request.resource.data.keys().hasAny(['wholesale_price']) || 
+                (request.resource.data.wholesale_price is number && request.resource.data.wholesale_price >= 0))
+            && (request.resource.data.keys().hasAny(['last_modified', 'updatedAt']))
+          ) || (
+            // Legacy format (camelCase)
+            request.resource.data.keys().hasAll(['name', 'price'])
+            && request.resource.data.name is string
+            && request.resource.data.price is number
+            && request.resource.data.price >= 0
+            && (request.resource.data.keys().hasAny(['updatedAt']))
+          )
+        );
+    }
+    
+    match /quantities/{quantityId} {
+      // Allow read/write for authenticated users only
+      allow read, write: if request.auth != null && request.auth.uid != null;
+      
+      // Data validation - more flexible for updates
+      allow create: if request.auth != null 
+        && request.auth.uid != null
+        && request.resource.data.quantity is number
+        && request.resource.data.quantity >= 0;
+        
+      allow update: if request.auth != null 
+        && request.auth.uid != null
+        && request.resource.data.quantity is number
+        && request.resource.data.quantity >= 0
+        && (request.resource.data.keys().hasAny(['last_modified', 'updatedAt']));
+    }
+    
+    match /audit_logs/{auditId} {
+      // Allow read/write for authenticated users only
+      allow read, write: if request.auth != null && request.auth.uid != null;
+      
+      // Data validation
+      allow create: if request.auth != null 
+        && request.auth.uid != null
+        && request.resource.data.keys().hasAll(['action', 'timestamp', 'userId'])
+        && request.resource.data.action is string
+        && request.resource.data.timestamp is timestamp
+        && request.resource.data.userId is string;
+    }
+    
+    match /inventory_alerts/{alertId} {
+      // Allow read/write for authenticated users only
+      allow read, write: if request.auth != null && request.auth.uid != null;
+      
+      // Data validation for alerts
+      allow create: if request.auth != null 
+        && request.auth.uid != null
+        && request.resource.data.keys().hasAll(['productName', 'alertType', 'alertDate', 'isRead'])
+        && request.resource.data.productName is string
+        && request.resource.data.alertType is string
+        && request.resource.data.alertDate is timestamp
+        && request.resource.data.isRead is bool;
+        
+      allow update: if request.auth != null 
+        && request.auth.uid != null
+        && (request.resource.data.keys().hasAny(['isRead', 'lastModified']));
+    }
+    
+    match /alert_settings/{settingId} {
+      // Allow read/write for authenticated users only
+      allow read, write: if request.auth != null && request.auth.uid != null;
+      
+      // Data validation for settings
+      allow create, update: if request.auth != null 
+        && request.auth.uid != null
+        && request.resource.data.keys().hasAll(['enableOutOfStockAlert', 'enableLowStockAlert', 'enableExpiringAlert'])
+        && request.resource.data.enableOutOfStockAlert is bool
+        && request.resource.data.enableLowStockAlert is bool
+        && request.resource.data.enableExpiringAlert is bool;
+    }
+    
+    // Sales collection rules
+    match /sales/{saleId} {
+      // Allow read/write for authenticated users only
+      allow read, write: if request.auth != null && request.auth.uid != null;
+      
+      // Data validation for sales
+      allow create: if request.auth != null 
+        && request.auth.uid != null
+        && request.resource.data.keys().hasAll(['productId', 'quantity', 'totalPrice', 'timestamp'])
+        && request.resource.data.productId is string
+        && request.resource.data.quantity is number
+        && request.resource.data.quantity > 0
+        && request.resource.data.totalPrice is number
+        && request.resource.data.totalPrice >= 0
+        && request.resource.data.timestamp is timestamp;
+        
+      allow update: if request.auth != null 
+        && request.auth.uid != null
+        && request.resource.data.keys().hasAny(['last_modified', 'updatedAt']);
+    }
+    
+    // Reports collection rules
+    match /reports/{reportId} {
+      // Allow read/write for authenticated users only
+      allow read, write: if request.auth != null && request.auth.uid != null;
+      
+      // Data validation for reports
+      allow create: if request.auth != null 
+        && request.auth.uid != null
+        && request.resource.data.keys().hasAll(['reportType', 'generatedAt', 'data'])
+        && request.resource.data.reportType is string
+        && request.resource.data.generatedAt is timestamp
+        && request.resource.data.data is map;
+    }
+    
+    // Analytics collection rules
+    match /analytics/{analyticsId} {
+      // Allow read/write for authenticated users only
+      allow read, write: if request.auth != null && request.auth.uid != null;
+      
+      // Data validation for analytics
+      allow create: if request.auth != null 
+        && request.auth.uid != null
+        && request.resource.data.keys().hasAll(['metric', 'value', 'timestamp'])
+        && request.resource.data.metric is string
+        && request.resource.data.value is number
+        && request.resource.data.timestamp is timestamp;
+    }
+    
+    // Users collection rules
+    match /users/{userId} {
+      // Allow read/write for authenticated users only
+      allow read, write: if request.auth != null && request.auth.uid != null;
+      
+      // Users can only access their own data
+      allow read, write: if request.auth != null 
+        && request.auth.uid != null
+        && request.auth.uid == userId;
+    }
+    
+    // Settings collection rules
+    match /settings/{settingId} {
+      // Allow read/write for authenticated users only
+      allow read, write: if request.auth != null && request.auth.uid != null;
+      
+      // Data validation for settings
+      allow create, update: if request.auth != null 
+        && request.auth.uid != null
+        && request.resource.data.keys().hasAll(['settingName', 'settingValue', 'userId'])
+        && request.resource.data.settingName is string
+        && request.resource.data.settingValue is string
+        && request.resource.data.userId is string
+        && request.resource.data.userId == request.auth.uid;
+    }
+    
+    // Sessions collection rules
+    match /sessions/{sessionId} {
+      // Allow read/write for authenticated users only
+      allow read, write: if request.auth != null && request.auth.uid != null;
+      
+      // Data validation for sessions
+      allow create: if request.auth != null 
+        && request.auth.uid != null
+        && request.resource.data.keys().hasAll(['userId', 'startTime', 'isActive'])
+        && request.resource.data.userId is string
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.startTime is timestamp
+        && request.resource.data.isActive is bool;
+    }
+    
+    // General rule for other documents with security
+    match /{document=**} {
+      // Allow read/write for authenticated users only
+      allow read, write: if request.auth != null && request.auth.uid != null;
+    }
+  }
+}
+
+
