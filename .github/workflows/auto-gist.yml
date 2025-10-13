@@ -1,4 +1,3 @@
-
 name: 🚀 Auto Update 12 Gists
 
 on:
@@ -6,437 +5,220 @@ on:
     branches: [main, master]
     paths:
       - 'lib/**'
-      - 'pubspec.yaml'
   workflow_dispatch:
 
 jobs:
-  update-all-gists:
+  update-gists:
     name: 📤 Update All 12 Gists
     runs-on: ubuntu-latest
     
     steps:
-      - name: 📥 Checkout Repository
+      - name: 📥 Checkout
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
       
-      - name: 🔧 Install Dependencies
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y jq
+      - name: 🔧 Install jq
+        run: sudo apt-get update -qq && sudo apt-get install -y jq
       
-      # ========== Gist 1: Services ==========
-      - name: 📤 Update Services Gist
+      # Services
+      - name: 📤 Services
         env:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
         run: |
-          echo "📦 Processing services..."
+          > combined.dart
+          [ -d "lib/services" ] && find lib/services -name "*.dart" -exec cat {} + >> combined.dart
+          [ ! -s combined.dart ] && echo "// Empty" > combined.dart
           
-          # Create combined file
-          > combined_services.dart
+          SIZE=$(wc -c < combined.dart)
+          [ "$SIZE" -gt 900000 ] && head -c 900000 combined.dart > combined.dart.tmp && mv combined.dart.tmp combined.dart && echo "// Truncated" >> combined.dart
           
-          # Check if directory exists
-          if [ -d "lib/services" ]; then
-            # Find all .dart files and combine them
-            find lib/services -type f -name "*.dart" -print0 | while IFS= read -r -d '' file; do
-              if [ -f "$file" ]; then
-                echo "// File: $file" >> combined_services.dart
-                cat "$file" >> combined_services.dart
-                echo "" >> combined_services.dart
-              fi
-            done
-          fi
-          
-          # If file is empty, add placeholder
-          if [ ! -s combined_services.dart ]; then
-            echo "// No services files found" > combined_services.dart
-          fi
-          
-          # Convert to JSON
-          CONTENT=$(jq -Rs . < combined_services.dart)
-          
-          # Update Gist
-          HTTP_CODE=$(curl -w "%{http_code}" -o response.json -X PATCH \
-            -H "Authorization: token ${GIST_TOKEN}" \
-            -H "Accept: application/vnd.github.v3+json" \
+          CONTENT=$(jq -Rs . < combined.dart)
+          curl -X PATCH -H "Authorization: token ${GIST_TOKEN}" \
             "https://api.github.com/gists/e80061ac176f7dee39a2cb4866ff77a1" \
-            -d "{\"files\":{\"services.dart\":{\"content\":$CONTENT}}}")
-          
-          if [ "$HTTP_CODE" -eq 200 ]; then
-            echo "✅ Services Gist updated successfully!"
-          else
-            echo "❌ Failed with HTTP $HTTP_CODE"
-            cat response.json
-            exit 1
-          fi
+            -d "{\"files\":{\"services.dart\":{\"content\":$CONTENT}}}"
       
-      # ========== Gist 2: Screens ==========
-      - name: 📤 Update Screens Gist
+      # Screens
+      - name: 📤 Screens
         env:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
         run: |
-          echo "📦 Processing screens..."
-          > combined_screens.dart
+          > combined.dart
+          [ -d "lib/screens" ] && find lib/screens -name "*.dart" -exec cat {} + >> combined.dart
+          [ ! -s combined.dart ] && echo "// Empty" > combined.dart
           
-          if [ -d "lib/screens" ]; then
-            find lib/screens -type f -name "*.dart" -print0 | while IFS= read -r -d '' file; do
-              if [ -f "$file" ]; then
-                echo "// File: $file" >> combined_screens.dart
-                cat "$file" >> combined_screens.dart
-                echo "" >> combined_screens.dart
-              fi
-            done
-          fi
+          SIZE=$(wc -c < combined.dart)
+          [ "$SIZE" -gt 900000 ] && head -c 900000 combined.dart > combined.dart.tmp && mv combined.dart.tmp combined.dart && echo "// Truncated" >> combined.dart
           
-          if [ ! -s combined_screens.dart ]; then
-            echo "// No screens files found" > combined_screens.dart
-          fi
-          
-          CONTENT=$(jq -Rs . < combined_screens.dart)
-          
-          HTTP_CODE=$(curl -w "%{http_code}" -o response.json -X PATCH \
-            -H "Authorization: token ${GIST_TOKEN}" \
-            -H "Accept: application/vnd.github.v3+json" \
+          CONTENT=$(jq -Rs . < combined.dart)
+          curl -X PATCH -H "Authorization: token ${GIST_TOKEN}" \
             "https://api.github.com/gists/039e9caabed2ffa2db29d45d97ce246e" \
-            -d "{\"files\":{\"screens.dart\":{\"content\":$CONTENT}}}")
-          
-          if [ "$HTTP_CODE" -eq 200 ]; then
-            echo "✅ Screens Gist updated!"
-          else
-            echo "❌ Failed with HTTP $HTTP_CODE"
-            cat response.json
-            exit 1
-          fi
+            -d "{\"files\":{\"screens.dart\":{\"content\":$CONTENT}}}"
       
-      # ========== Gist 3: Repositories ==========
-      - name: 📤 Update Repositories Gist
+      # Repositories
+      - name: 📤 Repositories
         env:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
         run: |
-          echo "📦 Processing repositories..."
-          > combined_repositories.dart
+          > combined.dart
+          [ -d "lib/repositories" ] && find lib/repositories -name "*.dart" -exec cat {} + >> combined.dart
+          [ ! -s combined.dart ] && echo "// Empty" > combined.dart
           
-          if [ -d "lib/repositories" ]; then
-            find lib/repositories -type f -name "*.dart" -print0 | while IFS= read -r -d '' file; do
-              if [ -f "$file" ]; then
-                echo "// File: $file" >> combined_repositories.dart
-                cat "$file" >> combined_repositories.dart
-                echo "" >> combined_repositories.dart
-              fi
-            done
-          fi
+          SIZE=$(wc -c < combined.dart)
+          [ "$SIZE" -gt 900000 ] && head -c 900000 combined.dart > combined.dart.tmp && mv combined.dart.tmp combined.dart
           
-          if [ ! -s combined_repositories.dart ]; then
-            echo "// No repositories files found" > combined_repositories.dart
-          fi
-          
-          CONTENT=$(jq -Rs . < combined_repositories.dart)
-          
-          HTTP_CODE=$(curl -w "%{http_code}" -o response.json -X PATCH \
-            -H "Authorization: token ${GIST_TOKEN}" \
-            -H "Accept: application/vnd.github.v3+json" \
+          CONTENT=$(jq -Rs . < combined.dart)
+          curl -X PATCH -H "Authorization: token ${GIST_TOKEN}" \
             "https://api.github.com/gists/67c002b02179bd84ad65bd67d49ca79f" \
-            -d "{\"files\":{\"repositories.dart\":{\"content\":$CONTENT}}}")
-          
-          if [ "$HTTP_CODE" -eq 200 ]; then
-            echo "✅ Repositories Gist updated!"
-          else
-            echo "❌ Failed with HTTP $HTTP_CODE"
-            exit 1
-          fi
+            -d "{\"files\":{\"repositories.dart\":{\"content\":$CONTENT}}}"
       
-      # ========== Gist 4: Providers ==========
-      - name: 📤 Update Providers Gist
+      # Providers
+      - name: 📤 Providers
         env:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
         run: |
-          echo "📦 Processing providers..."
-          > combined_providers.dart
+          > combined.dart
+          [ -d "lib/providers" ] && find lib/providers -name "*.dart" -exec cat {} + >> combined.dart
+          [ ! -s combined.dart ] && echo "// Empty" > combined.dart
           
-          if [ -d "lib/providers" ]; then
-            find lib/providers -type f -name "*.dart" -print0 | while IFS= read -r -d '' file; do
-              if [ -f "$file" ]; then
-                echo "// File: $file" >> combined_providers.dart
-                cat "$file" >> combined_providers.dart
-                echo "" >> combined_providers.dart
-              fi
-            done
-          fi
+          SIZE=$(wc -c < combined.dart)
+          [ "$SIZE" -gt 900000 ] && head -c 900000 combined.dart > combined.dart.tmp && mv combined.dart.tmp combined.dart
           
-          if [ ! -s combined_providers.dart ]; then
-            echo "// No providers files found" > combined_providers.dart
-          fi
-          
-          CONTENT=$(jq -Rs . < combined_providers.dart)
-          
-          curl -X PATCH \
-            -H "Authorization: token ${GIST_TOKEN}" \
-            -H "Accept: application/vnd.github.v3+json" \
+          CONTENT=$(jq -Rs . < combined.dart)
+          curl -X PATCH -H "Authorization: token ${GIST_TOKEN}" \
             "https://api.github.com/gists/f5638b458a1ab1884eb536b565bc711e" \
             -d "{\"files\":{\"providers.dart\":{\"content\":$CONTENT}}}"
-          
-          echo "✅ Providers Gist updated!"
       
-      # ========== Gist 5: Models ==========
-      - name: 📤 Update Models Gist
+      # Models
+      - name: 📤 Models
         env:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
         run: |
-          echo "📦 Processing models..."
-          > combined_models.dart
+          > combined.dart
+          [ -d "lib/models" ] && find lib/models -name "*.dart" -exec cat {} + >> combined.dart
+          [ ! -s combined.dart ] && echo "// Empty" > combined.dart
           
-          if [ -d "lib/models" ]; then
-            find lib/models -type f -name "*.dart" -print0 | while IFS= read -r -d '' file; do
-              if [ -f "$file" ]; then
-                echo "// File: $file" >> combined_models.dart
-                cat "$file" >> combined_models.dart
-                echo "" >> combined_models.dart
-              fi
-            done
-          fi
+          SIZE=$(wc -c < combined.dart)
+          [ "$SIZE" -gt 900000 ] && head -c 900000 combined.dart > combined.dart.tmp && mv combined.dart.tmp combined.dart
           
-          if [ ! -s combined_models.dart ]; then
-            echo "// No models files found" > combined_models.dart
-          fi
-          
-          CONTENT=$(jq -Rs . < combined_models.dart)
-          
-          curl -X PATCH \
-            -H "Authorization: token ${GIST_TOKEN}" \
-            -H "Accept: application/vnd.github.v3+json" \
+          CONTENT=$(jq -Rs . < combined.dart)
+          curl -X PATCH -H "Authorization: token ${GIST_TOKEN}" \
             "https://api.github.com/gists/b068baa86e4413cdfccf702e0b3bd465" \
             -d "{\"files\":{\"models.dart\":{\"content\":$CONTENT}}}"
-          
-          echo "✅ Models Gist updated!"
       
-      # ========== Gist 6: L10n ==========
-      - name: 📤 Update L10n Gist
+      # L10n
+      - name: 📤 L10n
         env:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
         run: |
-          echo "📦 Processing l10n..."
-          > combined_l10n.dart
+          > combined.dart
+          [ -d "lib/l10n" ] && find lib/l10n -name "*.dart" -exec cat {} + >> combined.dart
+          [ ! -s combined.dart ] && echo "// Empty" > combined.dart
           
-          if [ -d "lib/l10n" ]; then
-            find lib/l10n -type f -name "*.dart" -print0 | while IFS= read -r -d '' file; do
-              if [ -f "$file" ]; then
-                echo "// File: $file" >> combined_l10n.dart
-                cat "$file" >> combined_l10n.dart
-                echo "" >> combined_l10n.dart
-              fi
-            done
-          fi
+          SIZE=$(wc -c < combined.dart)
+          [ "$SIZE" -gt 900000 ] && head -c 900000 combined.dart > combined.dart.tmp && mv combined.dart.tmp combined.dart
           
-          if [ ! -s combined_l10n.dart ]; then
-            echo "// No l10n files found" > combined_l10n.dart
-          fi
-          
-          CONTENT=$(jq -Rs . < combined_l10n.dart)
-          
-          curl -X PATCH \
-            -H "Authorization: token ${GIST_TOKEN}" \
-            -H "Accept: application/vnd.github.v3+json" \
+          CONTENT=$(jq -Rs . < combined.dart)
+          curl -X PATCH -H "Authorization: token ${GIST_TOKEN}" \
             "https://api.github.com/gists/d876a368dfd70f471a7600cc79308e12" \
             -d "{\"files\":{\"l10n.dart\":{\"content\":$CONTENT}}}"
-          
-          echo "✅ L10n Gist updated!"
       
-      # ========== Gist 7: Theme ==========
-      - name: 📤 Update Theme Gist
+      # Theme
+      - name: 📤 Theme
         env:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
         run: |
-          echo "📦 Processing theme..."
-          > combined_theme.dart
+          > combined.dart
+          [ -d "lib/theme" ] && find lib/theme -name "*.dart" -exec cat {} + >> combined.dart
+          [ ! -s combined.dart ] && echo "// Empty" > combined.dart
           
-          if [ -d "lib/theme" ]; then
-            find lib/theme -type f -name "*.dart" -print0 | while IFS= read -r -d '' file; do
-              if [ -f "$file" ]; then
-                echo "// File: $file" >> combined_theme.dart
-                cat "$file" >> combined_theme.dart
-                echo "" >> combined_theme.dart
-              fi
-            done
-          fi
+          SIZE=$(wc -c < combined.dart)
+          [ "$SIZE" -gt 900000 ] && head -c 900000 combined.dart > combined.dart.tmp && mv combined.dart.tmp combined.dart
           
-          if [ ! -s combined_theme.dart ]; then
-            echo "// No theme files found" > combined_theme.dart
-          fi
-          
-          CONTENT=$(jq -Rs . < combined_theme.dart)
-          
-          curl -X PATCH \
-            -H "Authorization: token ${GIST_TOKEN}" \
-            -H "Accept: application/vnd.github.v3+json" \
+          CONTENT=$(jq -Rs . < combined.dart)
+          curl -X PATCH -H "Authorization: token ${GIST_TOKEN}" \
             "https://api.github.com/gists/dfd557d59ac19536c44844cf5ff4568b" \
             -d "{\"files\":{\"theme.dart\":{\"content\":$CONTENT}}}"
-          
-          echo "✅ Theme Gist updated!"
       
-      # ========== Gist 8: Utils ==========
-      - name: 📤 Update Utils Gist
+      # Utils
+      - name: 📤 Utils
         env:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
         run: |
-          echo "📦 Processing utils..."
-          > combined_utils.dart
+          > combined.dart
+          [ -d "lib/utils" ] && find lib/utils -name "*.dart" -exec cat {} + >> combined.dart
+          [ ! -s combined.dart ] && echo "// Empty" > combined.dart
           
-          if [ -d "lib/utils" ]; then
-            find lib/utils -type f -name "*.dart" -print0 | while IFS= read -r -d '' file; do
-              if [ -f "$file" ]; then
-                echo "// File: $file" >> combined_utils.dart
-                cat "$file" >> combined_utils.dart
-                echo "" >> combined_utils.dart
-              fi
-            done
-          fi
+          SIZE=$(wc -c < combined.dart)
+          [ "$SIZE" -gt 900000 ] && head -c 900000 combined.dart > combined.dart.tmp && mv combined.dart.tmp combined.dart
           
-          if [ ! -s combined_utils.dart ]; then
-            echo "// No utils files found" > combined_utils.dart
-          fi
-          
-          CONTENT=$(jq -Rs . < combined_utils.dart)
-          
-          curl -X PATCH \
-            -H "Authorization: token ${GIST_TOKEN}" \
-            -H "Accept: application/vnd.github.v3+json" \
+          CONTENT=$(jq -Rs . < combined.dart)
+          curl -X PATCH -H "Authorization: token ${GIST_TOKEN}" \
             "https://api.github.com/gists/0410b221a5ee7030ade77a45df0e2bd9" \
             -d "{\"files\":{\"utils.dart\":{\"content\":$CONTENT}}}"
-          
-          echo "✅ Utils Gist updated!"
       
-      # ========== Gist 9: Widgets ==========
-      - name: 📤 Update Widgets Gist
+      # Widgets
+      - name: 📤 Widgets
         env:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
         run: |
-          echo "📦 Processing widgets..."
-          > combined_widgets.dart
+          > combined.dart
+          [ -d "lib/widgets" ] && find lib/widgets -name "*.dart" -exec cat {} + >> combined.dart
+          [ ! -s combined.dart ] && echo "// Empty" > combined.dart
           
-          if [ -d "lib/widgets" ]; then
-            find lib/widgets -type f -name "*.dart" -print0 | while IFS= read -r -d '' file; do
-              if [ -f "$file" ]; then
-                echo "// File: $file" >> combined_widgets.dart
-                cat "$file" >> combined_widgets.dart
-                echo "" >> combined_widgets.dart
-              fi
-            done
-          fi
+          SIZE=$(wc -c < combined.dart)
+          [ "$SIZE" -gt 900000 ] && head -c 900000 combined.dart > combined.dart.tmp && mv combined.dart.tmp combined.dart
           
-          if [ ! -s combined_widgets.dart ]; then
-            echo "// No widgets files found" > combined_widgets.dart
-          fi
-          
-          CONTENT=$(jq -Rs . < combined_widgets.dart)
-          
-          curl -X PATCH \
-            -H "Authorization: token ${GIST_TOKEN}" \
-            -H "Accept: application/vnd.github.v3+json" \
+          CONTENT=$(jq -Rs . < combined.dart)
+          curl -X PATCH -H "Authorization: token ${GIST_TOKEN}" \
             "https://api.github.com/gists/6428b2f60a6f8d366dc7177394f1f040" \
             -d "{\"files\":{\"widgets.dart\":{\"content\":$CONTENT}}}"
-          
-          echo "✅ Widgets Gist updated!"
       
-      # ========== Gist 10: Main ==========
-      - name: 📤 Update Main Gist
+      # Main
+      - name: 📤 Main
         env:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
         run: |
-          echo "📦 Processing main..."
-          > combined_main.dart
+          > combined.dart
+          [ -f "lib/main.dart" ] && cat lib/main.dart > combined.dart
+          [ ! -s combined.dart ] && echo "// Empty" > combined.dart
           
-          if [ -f "lib/main.dart" ]; then
-            cat lib/main.dart > combined_main.dart
-          fi
+          SIZE=$(wc -c < combined.dart)
+          [ "$SIZE" -gt 900000 ] && head -c 900000 combined.dart > combined.dart.tmp && mv combined.dart.tmp combined.dart
           
-          if [ -f "lib/firebase_options.dart" ]; then
-            echo "" >> combined_main.dart
-            echo "// ========== firebase_options.dart ==========" >> combined_main.dart
-            cat lib/firebase_options.dart >> combined_main.dart
-          fi
-          
-          if [ ! -s combined_main.dart ]; then
-            echo "// No main.dart found" > combined_main.dart
-          fi
-          
-          CONTENT=$(jq -Rs . < combined_main.dart)
-          
-          curl -X PATCH \
-            -H "Authorization: token ${GIST_TOKEN}" \
-            -H "Accept: application/vnd.github.v3+json" \
+          CONTENT=$(jq -Rs . < combined.dart)
+          curl -X PATCH -H "Authorization: token ${GIST_TOKEN}" \
             "https://api.github.com/gists/ba68c52cb3b476d40a6c5827d8bb1fde" \
             -d "{\"files\":{\"main.dart\":{\"content\":$CONTENT}}}"
-          
-          echo "✅ Main Gist updated!"
       
-      # ========== Gist 11: Database ==========
-      - name: 📤 Update Database Gist
+      # Database
+      - name: 📤 Database
         env:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
         run: |
-          echo "📦 Processing database..."
-          > combined_database.dart
+          > combined.dart
+          [ -d "lib/database" ] && find lib/database -name "*.dart" -exec cat {} + >> combined.dart
+          [ ! -s combined.dart ] && echo "// Empty" > combined.dart
           
-          if [ -d "lib/database" ]; then
-            find lib/database -type f -name "*.dart" -print0 | while IFS= read -r -d '' file; do
-              if [ -f "$file" ]; then
-                echo "// File: $file" >> combined_database.dart
-                cat "$file" >> combined_database.dart
-                echo "" >> combined_database.dart
-              fi
-            done
-          fi
+          SIZE=$(wc -c < combined.dart)
+          [ "$SIZE" -gt 900000 ] && head -c 900000 combined.dart > combined.dart.tmp && mv combined.dart.tmp combined.dart
           
-          if [ ! -s combined_database.dart ]; then
-            echo "// No database files found" > combined_database.dart
-          fi
-          
-          CONTENT=$(jq -Rs . < combined_database.dart)
-          
-          curl -X PATCH \
-            -H "Authorization: token ${GIST_TOKEN}" \
-            -H "Accept: application/vnd.github.v3+json" \
+          CONTENT=$(jq -Rs . < combined.dart)
+          curl -X PATCH -H "Authorization: token ${GIST_TOKEN}" \
             "https://api.github.com/gists/6de87e0f283d1f797ce421f747d3ba51" \
             -d "{\"files\":{\"database.dart\":{\"content\":$CONTENT}}}"
-          
-          echo "✅ Database Gist updated!"
       
-      # ========== Gist 12: Dialogs ==========
-      - name: 📤 Update Dialogs Gist
+      # Dialogs
+      - name: 📤 Dialogs
         env:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
         run: |
-          echo "📦 Processing dialogs..."
-          > combined_dialogs.dart
+          > combined.dart
+          [ -d "lib/dialogs" ] && find lib/dialogs -name "*.dart" -exec cat {} + >> combined.dart
+          [ ! -s combined.dart ] && echo "// Empty" > combined.dart
           
-          if [ -d "lib/dialogs" ]; then
-            find lib/dialogs -type f -name "*.dart" -print0 | while IFS= read -r -d '' file; do
-              if [ -f "$file" ]; then
-                echo "// File: $file" >> combined_dialogs.dart
-                cat "$file" >> combined_dialogs.dart
-                echo "" >> combined_dialogs.dart
-              fi
-            done
-          fi
+          SIZE=$(wc -c < combined.dart)
+          [ "$SIZE" -gt 900000 ] && head -c 900000 combined.dart > combined.dart.tmp && mv combined.dart.tmp combined.dart
           
-          if [ ! -s combined_dialogs.dart ]; then
-            echo "// No dialogs files found" > combined_dialogs.dart
-          fi
-          
-          CONTENT=$(jq -Rs . < combined_dialogs.dart)
-          
-          curl -X PATCH \
-            -H "Authorization: token ${GIST_TOKEN}" \
-            -H "Accept: application/vnd.github.v3+json" \
+          CONTENT=$(jq -Rs . < combined.dart)
+          curl -X PATCH -H "Authorization: token ${GIST_TOKEN}" \
             "https://api.github.com/gists/b52023e55bc594c58fb8336539d47995" \
             -d "{\"files\":{\"dialogs.dart\":{\"content\":$CONTENT}}}"
-          
-          echo "✅ Dialogs Gist updated!"
-      
-      # ========== Success ==========
-      - name: 🎉 All Done
-        run: |
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "✅ تم تحديث جميع الـ 12 Gists بنجاح!"
-          echo "🕒 $(date '+%Y-%m-%d %H:%M:%S')"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
