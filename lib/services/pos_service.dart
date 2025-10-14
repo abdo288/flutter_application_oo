@@ -1251,6 +1251,8 @@ class POSService {
     required List<CartItem> cart,
     required String sessionId,
     String? userId,
+    String? platform,
+    String? deviceInfo,
   }) async {
     try {
       final Map<String, dynamic> cartData = {
@@ -1262,6 +1264,9 @@ class POSService {
         'itemCount': cart.length,
         'lastUpdated': FieldValue.serverTimestamp(),
         'createdAt': FieldValue.serverTimestamp(),
+        'platform': platform ?? 'Unknown',
+        'deviceInfo': deviceInfo ?? 'Unknown Device',
+        'lastPlatformUpdate': FieldValue.serverTimestamp(),
       };
 
       await FirebaseFirestore.instance

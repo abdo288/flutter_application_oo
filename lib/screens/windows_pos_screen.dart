@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -157,13 +158,17 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
       debugPrint('🪟 Windows POS: تهيئة CartProvider...');
       await appProvider.cartProvider.initialize();
 
-      // ✅ إنشاء جلسة POS جديدة
-      _currentSessionId = DateTime.now().millisecondsSinceEpoch.toString();
+      // ✅ إنشاء جلسة POS مشتركة لجميع المنصات
+      _currentSessionId =
+          'shared_pos_session_${DateTime.now().toIso8601String().split('T')[0]}';
       await POSService.savePOSSession(
         sessionId: _currentSessionId!,
         platform: 'Windows',
         deviceInfo: 'Windows POS Screen',
       );
+
+      // ✅ فحص السلات الموجودة في Firebase
+      await _checkExistingCartsInFirebase();
 
       // ✅ استعادة السلة من Firebase
       await _loadCartFromFirebase();
@@ -382,6 +387,33 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
     }
   }
 
+  /// ✅ فحص السلات الموجودة في Firebase
+  Future<void> _checkExistingCartsInFirebase() async {
+    try {
+      debugPrint('🔍 فحص السلات الموجودة في Firebase...');
+
+      // البحث عن جميع السلات في Firebase
+      final QuerySnapshot<Map<String, dynamic>> snapshot =
+          await FirebaseFirestore.instance.collection('pos_carts').get();
+
+      debugPrint('🔍 تم العثور على ${snapshot.docs.length} سلة في Firebase');
+
+      for (final QueryDocumentSnapshot<Map<String, dynamic>> doc
+          in snapshot.docs) {
+        final Map<String, dynamic> data = doc.data();
+        final String sessionId = doc.id;
+        final List<dynamic> items = data['items'] as List<dynamic>? ?? [];
+        final String platform = data['platform'] as String? ?? 'Unknown';
+        final String lastUpdated = data['lastUpdated']?.toString() ?? 'Unknown';
+
+        debugPrint(
+            '🔍 جلسة: $sessionId | منصة: $platform | عناصر: ${items.length} | آخر تحديث: $lastUpdated');
+      }
+    } catch (e) {
+      debugPrint('❌ خطأ في فحص السلات الموجودة: $e');
+    }
+  }
+
   /// ✅ استعادة السلة من Firebase
   Future<void> _loadCartFromFirebase() async {
     if (_currentSessionId == null) return;
@@ -497,9 +529,13 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
       final StreamAppProvider appProvider = context.read<StreamAppProvider>();
       final List<CartItem> cart = appProvider.cartProvider.cart;
 
+      // ✅ حفظ السلة مع معلومات إضافية
       await POSService.saveCartToFirebase(
         cart: cart,
         sessionId: _currentSessionId!,
+        userId: 'shared_user', // معرف مشترك لجميع المنصات
+        platform: 'Windows',
+        deviceInfo: 'Windows POS Screen',
       );
 
       debugPrint('✅ تم حفظ السلة في Firebase: ${cart.length} عنصر');
