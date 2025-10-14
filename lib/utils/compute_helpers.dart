@@ -11,22 +11,20 @@ class ComputeHelpers {
     required FilterOption filter,
     required double minProfit,
     required double maxProfit,
-  }) async {
-    return compute(_filterProductsImpl, {
+  }) async => compute(_filterProductsImpl, {
       'products': products,
       'searchText': searchText,
       'filter': filter,
       'minProfit': minProfit,
       'maxProfit': maxProfit,
     });
-  }
 
   static List<Product> _filterProductsImpl(Map<String, dynamic> params) {
-    final products = params['products'] as List<Product>;
-    final searchText = params['searchText'] as String;
-    final filter = params['filter'] as FilterOption;
-    final minProfit = params['minProfit'] as double;
-    final maxProfit = params['maxProfit'] as double;
+    final List<Product> products = params['products'] as List<Product>;
+    final String searchText = params['searchText'] as String;
+    final FilterOption filter = params['filter'] as FilterOption;
+    final double minProfit = params['minProfit'] as double;
+    final double maxProfit = params['maxProfit'] as double;
 
     List<Product> filtered = List.from(products);
 
@@ -47,16 +45,14 @@ class ComputeHelpers {
   static Future<List<Product>> sortProducts({
     required List<Product> products,
     required SortOption sortOption,
-  }) async {
-    return compute(_sortProductsImpl, {
+  }) async => compute(_sortProductsImpl, {
       'products': products,
       'sortOption': sortOption,
     });
-  }
 
   static List<Product> _sortProductsImpl(Map<String, dynamic> params) {
-    final products = params['products'] as List<Product>;
-    final sortOption = params['sortOption'] as SortOption;
+    final List<Product> products = params['products'] as List<Product>;
+    final SortOption sortOption = params['sortOption'] as SortOption;
 
     final List<Product> sorted = List<Product>.from(products);
     switch (sortOption) {
@@ -100,8 +96,7 @@ class ComputeHelpers {
     required SortOption sortOption,
     required double minProfit,
     required double maxProfit,
-  }) async {
-    return compute(_filterAndSortProductsImpl, {
+  }) async => compute(_filterAndSortProductsImpl, {
       'products': products,
       'searchText': searchText,
       'filter': filter,
@@ -109,15 +104,14 @@ class ComputeHelpers {
       'minProfit': minProfit,
       'maxProfit': maxProfit,
     });
-  }
 
   static List<Product> _filterAndSortProductsImpl(Map<String, dynamic> params) {
-    final products = params['products'] as List<Product>;
-    final searchText = params['searchText'] as String;
-    final filter = params['filter'] as FilterOption;
-    final sortOption = params['sortOption'] as SortOption;
-    final minProfit = params['minProfit'] as double;
-    final maxProfit = params['maxProfit'] as double;
+    final List<Product> products = params['products'] as List<Product>;
+    final String searchText = params['searchText'] as String;
+    final FilterOption filter = params['filter'] as FilterOption;
+    final SortOption sortOption = params['sortOption'] as SortOption;
+    final double minProfit = params['minProfit'] as double;
+    final double maxProfit = params['maxProfit'] as double;
 
     List<Product> filtered = List.from(products);
 
@@ -264,14 +258,12 @@ class ComputeHelpers {
   /// حساب إحصائيات المنتجات في Isolate منفصل
   static Future<Map<String, dynamic>> calculateProductStats({
     required List<Product> products,
-  }) async {
-    return compute(_calculateProductStatsImpl, products);
-  }
+  }) async => compute(_calculateProductStatsImpl, products);
 
   static Map<String, dynamic> _calculateProductStatsImpl(
       List<Product> products) {
     if (products.isEmpty) {
-      return {
+      return <String, dynamic>{
         'totalValue': 0.0,
         'totalProfit': 0.0,
         'averageProfit': 0.0,
@@ -291,13 +283,9 @@ class ComputeHelpers {
     final double averageProfit = totalProfit / products.length;
 
     final DateTime now = DateTime.now();
-    final int highProfitCount = products.where((Product product) {
-      return product.calculateProfit() >= 1000;
-    }).length;
+    final int highProfitCount = products.where((Product product) => product.calculateProfit() >= 1000).length;
 
-    final int lowProfitCount = products.where((Product product) {
-      return product.calculateProfit() < 1000;
-    }).length;
+    final int lowProfitCount = products.where((Product product) => product.calculateProfit() < 1000).length;
 
     final int recentCount = products.where((Product product) {
       final int daysSinceAdded = now.difference(product.savedAt).inDays;
@@ -309,7 +297,7 @@ class ComputeHelpers {
       return daysSinceAdded > 30;
     }).length;
 
-    return {
+    return <String, dynamic>{
       'totalValue': totalValue,
       'totalProfit': totalProfit,
       'averageProfit': averageProfit,

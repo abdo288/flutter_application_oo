@@ -22,9 +22,7 @@ import '../utils/snackbar_utils.dart';
 String formatCurrency(int amount) => '${amount.toString()} DZ';
 
 // Helper function to convert int to double for CurrencyFormatter
-String formatCurrencyDouble(int amount, BuildContext context) {
-  return CurrencyFormatter.formatCurrency(amount.toDouble(), context);
-}
+String formatCurrencyDouble(int amount, BuildContext context) => CurrencyFormatter.formatCurrency(amount.toDouble(), context);
 
 /// شاشة تقارير نقطة البيع المحسنة
 class EnhancedPOSReportsScreen extends StatefulWidget {

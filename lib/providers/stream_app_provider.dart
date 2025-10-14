@@ -43,9 +43,7 @@ class StreamAppProvider with ChangeNotifier {
     return _inventoryProvider;
   }
 
-  CartProvider get cartProvider {
-    return _cartProvider;
-  }
+  CartProvider get cartProvider => _cartProvider;
 
   bool get isInitialized => _isInitialized;
   bool get isLoading => _isLoading;
@@ -111,9 +109,7 @@ class StreamAppProvider with ChangeNotifier {
         _registerSyncStatusListener();
 
         // ✅ تسجيل الاستماع لتغييرات CartProvider
-        _cartProvider.addListener(() {
-          notifyListeners();
-        });
+        _cartProvider.addListener(notifyListeners);
 
         debugPrint('✅ تم تهيئة StreamAppProvider بنجاح');
       } catch (e) {
@@ -278,9 +274,7 @@ class StreamAppProvider with ChangeNotifier {
     _syncStatusSubscription?.cancel();
     _productProvider.dispose();
     _inventoryProvider.dispose();
-    _cartProvider.removeListener(() {
-      notifyListeners();
-    });
+    _cartProvider.removeListener(notifyListeners);
     super.dispose();
   }
 }

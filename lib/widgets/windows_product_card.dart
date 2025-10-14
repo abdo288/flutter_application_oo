@@ -34,7 +34,7 @@ class WindowsProductCard extends StatefulWidget {
 
 class _WindowsProductCardState extends State<WindowsProductCard>
     with TickerProviderStateMixin {
-  bool _isDeleting = false;
+  final bool _isDeleting = false;
   late AnimationController _rotationController;
   late AnimationController _scaleController;
 
@@ -60,9 +60,9 @@ class _WindowsProductCardState extends State<WindowsProductCard>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final product = widget.product;
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
+    final Product product = widget.product;
 
     // إذا كان المنتج في حالة حذف، اعرض مؤشر التحميل
     if (_isDeleting) {
@@ -85,11 +85,11 @@ class _WindowsProductCardState extends State<WindowsProductCard>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: isDark
-              ? [
+              ? <Color>[
                   const Color(0xFF334155),
                   const Color(0xFF1E293B),
                 ]
-              : [
+              : <Color>[
                   Colors.white,
                   const Color(0xFFF8FAFC),
                 ],
@@ -97,7 +97,7 @@ class _WindowsProductCardState extends State<WindowsProductCard>
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
+        boxShadow: <BoxShadow>[
           BoxShadow(
             color: isDark
                 ? Colors.black.withOpacity(0.3)
@@ -142,8 +142,7 @@ class _WindowsProductCardState extends State<WindowsProductCard>
   }
 
   /// بطاقة الحذف
-  Widget _buildDeletingCard(Product product, bool isDark) {
-    return Container(
+  Widget _buildDeletingCard(Product product, bool isDark) => Container(
       width: double.infinity,
       margin: EdgeInsets.symmetric(
         vertical: context.responsiveSpacing * 0.5,
@@ -181,7 +180,6 @@ class _WindowsProductCardState extends State<WindowsProductCard>
         ),
       ),
     );
-  }
 
   /// الحصول على لون الحدود حسب حالة المنتج
   Color _getBorderColor(Product product, bool isDark) {
@@ -228,15 +226,14 @@ class _CollapsedRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textStyle = TextStyle(
+    final TextStyle textStyle = TextStyle(
       fontSize: context.responsiveFontSize(14),
       fontWeight: FontWeight.w600,
       color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B),
     );
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
+      children: <Widget>[
         // الاسم — يأخذ المساحة المرنة
         Expanded(
           child: Text(
@@ -290,11 +287,11 @@ class _CollapsedRow extends StatelessWidget {
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
+            children: <Widget>[
+              const Icon(
                 Icons.trending_up,
                 size: 16,
-                color: const Color(0xFF22C55E),
+                color: Color(0xFF22C55E),
               ),
               const SizedBox(width: 4),
               Text(
@@ -356,8 +353,7 @@ class _ExpandedContent extends StatelessWidget {
   final VoidCallback onToggleExpanded;
 
   @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
+  Widget build(BuildContext context) => SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -538,12 +534,10 @@ class _ExpandedContent extends StatelessWidget {
         ],
       ),
     );
-  }
 
   /// بناء بطاقة المعلومات
   Widget _buildInfoCard(
-      String label, String value, Color color, IconData icon) {
-    return Container(
+      String label, String value, Color color, IconData icon) => Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
@@ -587,12 +581,10 @@ class _ExpandedContent extends StatelessWidget {
         ],
       ),
     );
-  }
 
   /// بناء زر الإجراء
   Widget _buildActionButton(
-      String label, IconData icon, Color color, VoidCallback onTap) {
-    return ElevatedButton.icon(
+      String label, IconData icon, Color color, VoidCallback onTap) => ElevatedButton.icon(
       onPressed: onTap,
       icon: Icon(icon, size: 18),
       label: Text(
@@ -608,12 +600,10 @@ class _ExpandedContent extends StatelessWidget {
         ),
       ),
     );
-  }
 
   /// بناء المحتوى القابل للتوسيع
   Widget _buildExpandedContent(
-      Product product, bool isDark, BuildContext context) {
-    return Container(
+      Product product, bool isDark, BuildContext context) => Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDark
@@ -676,12 +666,10 @@ class _ExpandedContent extends StatelessWidget {
         ],
       ),
     );
-  }
 
   /// بناء صف التفاصيل
   Widget _buildDetailRow(
-      String label, String value, IconData icon, Color color, bool isDark) {
-    return Row(
+      String label, String value, IconData icon, Color color, bool isDark) => Row(
       children: [
         Icon(icon, color: color, size: 18),
         const SizedBox(width: 12),
@@ -705,7 +693,6 @@ class _ExpandedContent extends StatelessWidget {
         ),
       ],
     );
-  }
 
   /// تنسيق التاريخ
   String _formatDate(String dateString) {

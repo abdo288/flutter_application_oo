@@ -462,7 +462,7 @@ class AppDatabase extends _$AppDatabase {
   Future<void> upsertProduct(ProductsTableCompanion product) async {
     // التحقق من صحة البيانات إذا كان مفعلاً
     if (DatabaseConfig.enableDataValidation) {
-      final data = <String, dynamic>{
+      final Map<String, dynamic> data = <String, dynamic>{
         'name': product.name.value,
         'wholesale_price': product.wholesalePrice.value,
         'retail_price': product.retailPrice.value,
@@ -505,7 +505,7 @@ class AppDatabase extends _$AppDatabase {
   Future<void> upsertInventoryItem(InventoryTableCompanion item) async {
     // التحقق من صحة البيانات إذا كان مفعلاً
     if (DatabaseConfig.enableDataValidation) {
-      final data = <String, dynamic>{
+      final Map<String, dynamic> data = <String, dynamic>{
         'name': item.name.value,
         'wholesale_price': item.wholesalePrice.value,
         'retail_price': item.retailPrice.value,
@@ -748,7 +748,7 @@ class AppDatabase extends _$AppDatabase {
       await upsertSale(sale);
 
       // تحديث المخزون
-      for (final update in inventoryUpdates) {
+      for (final InventoryTableCompanion update in inventoryUpdates) {
         await upsertInventoryItem(update);
       }
     });
@@ -757,7 +757,7 @@ class AppDatabase extends _$AppDatabase {
   // Transaction for bulk operations
   Future<void> bulkUpdateProducts(List<ProductsTableCompanion> products) async {
     await transaction(() async {
-      for (final product in products) {
+      for (final ProductsTableCompanion product in products) {
         await upsertProduct(product);
       }
     });
@@ -766,7 +766,7 @@ class AppDatabase extends _$AppDatabase {
   // Transaction for bulk inventory operations
   Future<void> bulkUpdateInventory(List<InventoryTableCompanion> items) async {
     await transaction(() async {
-      for (final item in items) {
+      for (final InventoryTableCompanion item in items) {
         await upsertInventoryItem(item);
       }
     });
@@ -776,12 +776,12 @@ class AppDatabase extends _$AppDatabase {
   Future<Map<String, dynamic>> optimizeDatabasePerformance() async {
     try {
       // تحليل الفهارس الحالية
-      final indexInfo = await customSelect(
+      final List<QueryRow> indexInfo = await customSelect(
               'SELECT name, sql FROM sqlite_master WHERE type = "index" AND name NOT LIKE "sqlite_%"')
           .get();
 
       // تحليل حجم الجداول
-      final tableSizes = await customSelect('''
+      final List<QueryRow> tableSizes = await customSelect('''
         SELECT 
           name as table_name,
           (SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = m.name) as row_count
@@ -794,18 +794,18 @@ class AppDatabase extends _$AppDatabase {
       await customStatement('PRAGMA analyze;');
 
       // تنظيف البيانات القديمة
-      final cleanupResult =
+      final int cleanupResult =
           await cleanupProcessedOperations(const Duration(days: 7));
 
-      return {
+      return <String, dynamic>{
         'indexes': indexInfo
-            .map((row) => {
+            .map((QueryRow row) => <String, dynamic>{
                   'name': row.data['name'],
                   'sql': row.data['sql'],
                 })
             .toList(),
         'tableSizes': tableSizes
-            .map((row) => {
+            .map((QueryRow row) => <String, dynamic>{
                   'table': row.data['table_name'],
                   'rows': row.data['row_count'],
                 })
@@ -816,7 +816,7 @@ class AppDatabase extends _$AppDatabase {
       };
     } catch (e) {
       debugPrint('خطأ في تحسين قاعدة البيانات: $e');
-      return {
+      return <String, dynamic>{
         'error': e.toString(),
         'optimizationStatus': 'failed',
         'timestamp': DateTime.now().toIso8601String(),
@@ -827,18 +827,18 @@ class AppDatabase extends _$AppDatabase {
   /// الحصول على إحصائيات الأداء
   Future<Map<String, dynamic>> getPerformanceStats() async {
     try {
-      final productCount = await getProductCount();
-      final inventoryCount = await getInventoryCount();
-      final salesCount = await getAllSales().then((list) => list.length);
-      final unprocessedOps = await getUnprocessedOperationsCount();
+      final int productCount = await getProductCount();
+      final int inventoryCount = await getInventoryCount();
+      final int salesCount = await getAllSales().then((List<SalesTableData> list) => list.length);
+      final int unprocessedOps = await getUnprocessedOperationsCount();
 
       // إحصائيات الفهارس
-      final indexCount = await customSelect(
+      final int indexCount = await customSelect(
               'SELECT COUNT(*) as count FROM sqlite_master WHERE type = "index" AND name NOT LIKE "sqlite_%"')
           .get()
-          .then((result) => result.first.data['count'] as int);
+          .then((List<QueryRow> result) => result.first.data['count'] as int);
 
-      return {
+      return <String, dynamic>{
         'products': productCount,
         'inventory': inventoryCount,
         'sales': salesCount,
@@ -850,7 +850,7 @@ class AppDatabase extends _$AppDatabase {
       };
     } catch (e) {
       debugPrint('خطأ في الحصول على إحصائيات الأداء: $e');
-      return {
+      return <String, dynamic>{
         'error': e.toString(),
         'timestamp': DateTime.now().toIso8601String(),
       };
@@ -860,11 +860,11 @@ class AppDatabase extends _$AppDatabase {
   /// الحصول على حجم قاعدة البيانات
   Future<int> _getDatabaseSize() async {
     try {
-      final result = await customSelect('PRAGMA page_count;').get();
-      final pageCount = result.first.data['page_count'] as int;
-      final pageSize = await customSelect('PRAGMA page_size;')
+      final List<QueryRow> result = await customSelect('PRAGMA page_count;').get();
+      final int pageCount = result.first.data['page_count'] as int;
+      final int pageSize = await customSelect('PRAGMA page_size;')
           .get()
-          .then((result) => result.first.data['page_size'] as int);
+          .then((List<QueryRow> result) => result.first.data['page_size'] as int);
       return pageCount * pageSize;
     } catch (e) {
       debugPrint('خطأ في حساب حجم قاعدة البيانات: $e');

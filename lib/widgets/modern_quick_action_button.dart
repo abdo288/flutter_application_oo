@@ -69,7 +69,7 @@ class _ModernQuickActionButtonState extends State<ModernQuickActionButton>
 
   @override
   Widget build(BuildContext context) {
-    final buttonColor = widget.color ?? const Color(0xFF2563EB);
+    final Color buttonColor = widget.color ?? const Color(0xFF2563EB);
 
     return GestureDetector(
       onTapDown: (_) {
@@ -114,7 +114,7 @@ class _ModernQuickActionButtonState extends State<ModernQuickActionButton>
             decoration: BoxDecoration(
               gradient: widget.gradient ??
                   LinearGradient(
-                    colors: [
+                    colors: <Color>[
                       buttonColor,
                       buttonColor.withOpacity(0.8),
                     ],
@@ -122,7 +122,7 @@ class _ModernQuickActionButtonState extends State<ModernQuickActionButton>
                     end: Alignment.bottomRight,
                   ),
               borderRadius: BorderRadius.circular(20),
-              boxShadow: [
+              boxShadow: <BoxShadow>[
                 BoxShadow(
                   color: buttonColor.withOpacity(0.3),
                   blurRadius: 12,
@@ -140,7 +140,7 @@ class _ModernQuickActionButtonState extends State<ModernQuickActionButton>
                   padding: EdgeInsets.all(context.responsiveSpacing * 1.2),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
-                    children: [
+                    children: <Widget>[
                       // الأيقونة
                       Container(
                         padding: const EdgeInsets.all(16),

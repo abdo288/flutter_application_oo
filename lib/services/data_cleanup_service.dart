@@ -185,7 +185,6 @@ class DataCleanupService {
         success: true,
         message: 'تم تنظيف العمليات المعالجة بنجاح',
         stats: CleanupStats(
-          inventoryItemsDeleted: 0,
           syncOperationsDeleted: deletedCount,
         ),
       );
@@ -263,7 +262,7 @@ class DataCleanupService {
         success: true,
         message: 'تم تنظيف البيانات القديمة بنجاح',
         stats: CleanupStats(
-          inventoryItemsDeleted: 0,
+          
         ),
       );
     } catch (e, stackTrace) {
@@ -326,7 +325,6 @@ class DataCleanupService {
         success: true,
         message: 'تم تنظيف ملفات قاعدة البيانات بنجاح',
         stats: CleanupStats(
-          inventoryItemsDeleted: 0,
           syncOperationsDeleted: filesDeleted,
           additionalInfo:
               'تم تحرير $totalSize بايت من المساحة + تحسين قاعدة البيانات',
@@ -701,7 +699,7 @@ class StorageInfo {
   StorageInfo({
     this.totalSize = 0,
     this.fileCount = 0,
-    this.fileDetails = const [],
+    this.fileDetails = const <String>[],
   });
   final int totalSize;
   final int fileCount;

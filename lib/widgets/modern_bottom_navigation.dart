@@ -39,23 +39,25 @@ class _ModernBottomNavigationState extends State<ModernBottomNavigation>
     super.initState();
     _controllers = List.generate(
       widget.items.length,
-      (index) => AnimationController(
+      (int index) => AnimationController(
         duration: AppConstants.animationNormal,
         vsync: this,
       ),
     );
 
-    _scaleAnimations = _controllers.map((controller) {
-      return Tween<double>(begin: 0.8, end: 1.0).animate(
-        CurvedAnimation(parent: controller, curve: Curves.elasticOut),
-      );
-    }).toList();
+    _scaleAnimations = _controllers
+        .map((AnimationController controller) =>
+            Tween<double>(begin: 0.8, end: 1.0).animate(
+              CurvedAnimation(parent: controller, curve: Curves.elasticOut),
+            ))
+        .toList();
 
-    _fadeAnimations = _controllers.map((controller) {
-      return Tween<double>(begin: 0.5, end: 1.0).animate(
-        CurvedAnimation(parent: controller, curve: Curves.easeOut),
-      );
-    }).toList();
+    _fadeAnimations = _controllers
+        .map((AnimationController controller) =>
+            Tween<double>(begin: 0.5, end: 1.0).animate(
+              CurvedAnimation(parent: controller, curve: Curves.easeOut),
+            ))
+        .toList();
 
     // Animate the current item
     if (mounted) {
@@ -84,7 +86,7 @@ class _ModernBottomNavigationState extends State<ModernBottomNavigation>
 
   @override
   void dispose() {
-    for (final controller in _controllers) {
+    for (final AnimationController controller in _controllers) {
       controller.dispose();
     }
     super.dispose();
@@ -92,24 +94,25 @@ class _ModernBottomNavigationState extends State<ModernBottomNavigation>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final selectedColor = widget.selectedColor ?? theme.colorScheme.primary;
-    final unselectedColor = widget.unselectedColor ??
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
+    final Color selectedColor =
+        widget.selectedColor ?? theme.colorScheme.primary;
+    final Color unselectedColor = widget.unselectedColor ??
         (isDark
             ? AppConstants.textSecondaryColor
             : AppConstants.lightTextColor);
-    final backgroundColor = widget.backgroundColor ??
+    final Color backgroundColor = widget.backgroundColor ??
         (isDark ? theme.colorScheme.surface : Colors.white);
 
     return Container(
       decoration: BoxDecoration(
         color: backgroundColor,
-        boxShadow: [
+        boxShadow: const <BoxShadow>[
           BoxShadow(
             color: AppConstants.shadowColor,
             blurRadius: 12,
-            offset: const Offset(0, -2),
+            offset: Offset(0, -2),
           ),
         ],
       ),
@@ -124,7 +127,7 @@ class _ModernBottomNavigationState extends State<ModernBottomNavigation>
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List.generate(
               widget.items.length,
-              (index) => _buildNavItem(
+              (int index) => _buildNavItem(
                 index,
                 widget.items[index],
                 selectedColor,
@@ -143,111 +146,106 @@ class _ModernBottomNavigationState extends State<ModernBottomNavigation>
     Color selectedColor,
     Color unselectedColor,
   ) {
-    final isSelected = index == widget.currentIndex;
-    final color = isSelected ? selectedColor : unselectedColor;
+    final bool isSelected = index == widget.currentIndex;
+    final Color color = isSelected ? selectedColor : unselectedColor;
 
     return Expanded(
       child: AnimatedBuilder(
         animation: _controllers[index],
-        builder: (context, child) {
-          return InkWell(
-            onTap: () {
-              if (widget.enableHaptics) {
-                // Add haptic feedback here if needed
-              }
-              widget.onTap(index);
-            },
-            borderRadius:
-                BorderRadius.circular(AppConstants.borderRadiusMedium),
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                vertical: AppConstants.spacing8,
-              ),
-              decoration: isSelected
-                  ? BoxDecoration(
-                      color: selectedColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(
-                          AppConstants.borderRadiusMedium),
-                    )
-                  : null,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Icon with badge
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      ScaleTransition(
-                        scale: _scaleAnimations[index],
-                        child: FadeTransition(
-                          opacity: _fadeAnimations[index],
-                          child: Icon(
-                            isSelected
-                                ? item.selectedIcon ?? item.icon
-                                : item.icon,
-                            color: color,
-                            size: AppConstants.iconSizeLarge,
-                          ),
-                        ),
-                      ),
-                      if (item.badge != null && item.badge! > 0)
-                        Positioned(
-                          right: -8,
-                          top: -4,
-                          child: Container(
-                            padding:
-                                const EdgeInsets.all(AppConstants.spacing4),
-                            decoration: BoxDecoration(
-                              color: AppConstants.errorColor,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color:
-                                    Theme.of(context).scaffoldBackgroundColor,
-                                width: 2,
-                              ),
-                            ),
-                            constraints: const BoxConstraints(
-                              minWidth: 18,
-                              minHeight: 18,
-                            ),
-                            child: Center(
-                              child: Text(
-                                item.badge! > 99 ? '99+' : '${item.badge}',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: item.badge! > 99 ? 8 : 10,
-                                  fontWeight: AppConstants.fontWeightBold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  // Label
-                  if (widget.showLabels) ...[
-                    const SizedBox(height: AppConstants.spacing4),
-                    FadeTransition(
-                      opacity: _fadeAnimations[index],
-                      child: Text(
-                        item.label,
-                        style: TextStyle(
+        builder: (BuildContext context, Widget? child) => InkWell(
+          onTap: () {
+            if (widget.enableHaptics) {
+              // Add haptic feedback here if needed
+            }
+            widget.onTap(index);
+          },
+          borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              vertical: AppConstants.spacing8,
+            ),
+            decoration: isSelected
+                ? BoxDecoration(
+                    color: selectedColor.withValues(alpha: 0.1),
+                    borderRadius:
+                        BorderRadius.circular(AppConstants.borderRadiusMedium),
+                  )
+                : null,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Icon with badge
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    ScaleTransition(
+                      scale: _scaleAnimations[index],
+                      child: FadeTransition(
+                        opacity: _fadeAnimations[index],
+                        child: Icon(
+                          isSelected
+                              ? item.selectedIcon ?? item.icon
+                              : item.icon,
                           color: color,
-                          fontSize: AppConstants.fontSizeCaption,
-                          fontWeight: isSelected
-                              ? AppConstants.fontWeightSemiBold
-                              : AppConstants.fontWeightMedium,
+                          size: AppConstants.iconSizeLarge,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    if (item.badge != null && item.badge! > 0)
+                      Positioned(
+                        right: -8,
+                        top: -4,
+                        child: Container(
+                          padding: const EdgeInsets.all(AppConstants.spacing4),
+                          decoration: BoxDecoration(
+                            color: AppConstants.errorColor,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Theme.of(context).scaffoldBackgroundColor,
+                              width: 2,
+                            ),
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 18,
+                            minHeight: 18,
+                          ),
+                          child: Center(
+                            child: Text(
+                              item.badge! > 99 ? '99+' : '${item.badge}',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: item.badge! > 99 ? 8 : 10,
+                                fontWeight: AppConstants.fontWeightBold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
+                ),
+                // Label
+                if (widget.showLabels) ...[
+                  const SizedBox(height: AppConstants.spacing4),
+                  FadeTransition(
+                    opacity: _fadeAnimations[index],
+                    child: Text(
+                      item.label,
+                      style: TextStyle(
+                        color: color,
+                        fontSize: AppConstants.fontSizeCaption,
+                        fontWeight: isSelected
+                            ? AppConstants.fontWeightSemiBold
+                            : AppConstants.fontWeightMedium,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ],
-              ),
+              ],
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }
@@ -287,8 +285,8 @@ class FloatingBottomNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
 
     return Padding(
       padding: const EdgeInsets.all(AppConstants.spacing16),
@@ -297,11 +295,11 @@ class FloatingBottomNavigation extends StatelessWidget {
         decoration: BoxDecoration(
           color: isDark ? theme.colorScheme.surface : Colors.white,
           borderRadius: BorderRadius.circular(AppConstants.borderRadiusLarge),
-          boxShadow: [
+          boxShadow: const <BoxShadow>[
             BoxShadow(
               color: AppConstants.shadowDarkColor,
               blurRadius: 20,
-              offset: const Offset(0, 8),
+              offset: Offset(0, 8),
             ),
           ],
         ),

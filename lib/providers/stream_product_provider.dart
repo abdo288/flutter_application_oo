@@ -61,7 +61,7 @@ class StreamProductProvider with ChangeNotifier {
   bool _isSearching = false;
 
   // Cache system for search results
-  final Map<String, List<Product>> _searchCache = {};
+  final Map<String, List<Product>> _searchCache = <String, List<Product>>{};
   static const int _maxCacheSize = 100; // ✅ زيادة حجم Cache لتحسين Hit Rate
 
   // Cache statistics for monitoring
@@ -242,7 +242,7 @@ class StreamProductProvider with ChangeNotifier {
 
       // ✅ Optimized stream subscription with batch updates
       _productsSubscription = _repository.productsStream.skip(1).listen(
-            (products) {
+            (List<Product> products) {
               // ✅ Batch Updates with mounted check
               if (!_isBatchingUpdates && _mounted) {
                 _isBatchingUpdates = true;
@@ -394,7 +394,7 @@ class StreamProductProvider with ChangeNotifier {
         'product',
         'add',
         productId,
-        data: {
+        data: <String, dynamic>{
           'name': newProduct.name,
           'wholesalePrice': newProduct.wholesalePrice,
           'retailPrice': newProduct.retailPrice,
@@ -406,7 +406,7 @@ class StreamProductProvider with ChangeNotifier {
         await _repository.addProduct(newProduct);
 
         // ✅ تحديث حالة المزامنة بعد النجاح
-        final int index = _products.indexWhere((p) => p.id == productId);
+        final int index = _products.indexWhere((Product p) => p.id == productId);
         if (index != -1) {
           _products[index] = newProduct.copyWith(isSynced: true);
           _updateFilteredAndSortedList();
@@ -467,7 +467,7 @@ class StreamProductProvider with ChangeNotifier {
         'product',
         'update',
         product.id ?? '',
-        data: {
+        data: <String, dynamic>{
           'name': product.name,
           'wholesalePrice': product.wholesalePrice,
           'retailPrice': product.retailPrice,
@@ -505,7 +505,7 @@ class StreamProductProvider with ChangeNotifier {
       // ✅ في حالة الخطأ، استعد النسخة الأصلية
       if (originalProduct != null) {
         final int currentIndex =
-            _products.indexWhere((p) => p.id == product.id);
+            _products.indexWhere((Product p) => p.id == product.id);
         if (currentIndex != -1) {
           _products[currentIndex] = originalProduct;
           _updateFilteredAndSortedList();
@@ -676,9 +676,7 @@ class StreamProductProvider with ChangeNotifier {
     if (minProfit != null) _minProfit = minProfit;
     if (maxProfit != null) _maxProfit = maxProfit;
 
-    _filterDebounceTimer = Timer(const Duration(milliseconds: 200), () {
-      _updateFilteredAndSortedList();
-    });
+    _filterDebounceTimer = Timer(const Duration(milliseconds: 200), _updateFilteredAndSortedList);
   }
 
   /// تطبيق ترتيب مع Debouncing
@@ -686,16 +684,14 @@ class StreamProductProvider with ChangeNotifier {
     _filterDebounceTimer?.cancel();
     _currentSort = sort;
 
-    _filterDebounceTimer = Timer(const Duration(milliseconds: 200), () {
-      _updateFilteredAndSortedList();
-    });
+    _filterDebounceTimer = Timer(const Duration(milliseconds: 200), _updateFilteredAndSortedList);
   }
 
   /// تطبيق جميع الفلاتر والترتيب مع نظام Cache محسن و Compute
-  void _applyAllFilters() async {
+  Future<void> _applyAllFilters() async {
     try {
       // ✅ إنشاء مفتاح Cache محسن
-      final cacheKey =
+      final String cacheKey =
           '${_searchText}_${_currentFilter}_${_currentSort}_${_minProfit}_$_maxProfit';
 
       // ✅ التحقق من Cache مع إحصائيات
@@ -714,7 +710,7 @@ class StreamProductProvider with ChangeNotifier {
       debugPrint('🔍 Cache Miss: تطبيق الفلاتر مع Compute...');
 
       // ✅ استخدام Compute للعمليات الثقيلة
-      final filtered = await ComputeHelpers.filterAndSortProducts(
+      final List<Product> filtered = await ComputeHelpers.filterAndSortProducts(
         products: _products,
         searchText: _searchText,
         filter: _currentFilter,
@@ -728,7 +724,7 @@ class StreamProductProvider with ChangeNotifier {
       // ✅ حفظ في Cache مع إدارة ذكية للحجم
       if (_searchCache.length >= _maxCacheSize) {
         // إزالة أقدم عنصر في Cache
-        final oldestKey = _searchCache.keys.first;
+        final String oldestKey = _searchCache.keys.first;
         _searchCache.remove(oldestKey);
         debugPrint('🧹 تم إزالة أقدم عنصر من Cache: $oldestKey');
       }
@@ -904,14 +900,13 @@ class StreamProductProvider with ChangeNotifier {
 
   /// حساب معدل نجاح Cache
   double _getCacheHitRate() {
-    final totalRequests = _cacheHits + _cacheMisses;
+    final int totalRequests = _cacheHits + _cacheMisses;
     if (totalRequests == 0) return 0.0;
     return (_cacheHits / totalRequests) * 100;
   }
 
   /// الحصول على إحصائيات Cache محسنة
-  Map<String, dynamic> getCacheStats() {
-    return {
+  Map<String, dynamic> getCacheStats() => {
       'cacheSize': _searchCache.length,
       'maxCacheSize': _maxCacheSize,
       'cacheHits': _cacheHits,
@@ -929,7 +924,6 @@ class StreamProductProvider with ChangeNotifier {
         'responseImprovement': '70%+', // تحسين الاستجابة
       }
     };
-  }
 
   /// مسح Cache يدوياً مع إعادة تعيين الإحصائيات
   void clearCache() {
@@ -940,8 +934,7 @@ class StreamProductProvider with ChangeNotifier {
   }
 
   /// ✅ الحصول على إحصائيات Stream
-  Map<String, dynamic> getStreamStats() {
-    return {
+  Map<String, dynamic> getStreamStats() => {
       'updateCount': _updateCount,
       'lastUpdateTime': _lastUpdateTime?.toIso8601String(),
       'isBatchingUpdates': _isBatchingUpdates,
@@ -956,7 +949,6 @@ class StreamProductProvider with ChangeNotifier {
         'crossTab': _crossTabSubscription != null,
       }
     };
-  }
 
   // ========== طرق مساعدة ==========
 

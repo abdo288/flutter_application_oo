@@ -670,7 +670,7 @@ class RealtimeUpdateService {
 
   /// تصدير سجل التحديثات
   List<Map<String, dynamic>> exportUpdateLogs() =>
-      _updateLogs.map((log) => log.toMap()).toList();
+      _updateLogs.map((UpdateLog log) => log.toMap()).toList();
 
   /// مسح سجل التحديثات
   void clearUpdateLogs() {
@@ -693,11 +693,12 @@ class RealtimeUpdateService {
     DateTime? fromDate,
     DateTime? toDate,
   }) =>
-      _updateLogs.where((log) {
+      _updateLogs.where((UpdateLog log) {
         if (type != null && log.type != type) return false;
         if (action != null && log.action != action) return false;
-        if (isSuccessful != null && log.isSuccessful != isSuccessful)
+        if (isSuccessful != null && log.isSuccessful != isSuccessful) {
           return false;
+        }
         if (fromDate != null && log.timestamp.isBefore(fromDate)) return false;
         if (toDate != null && log.timestamp.isAfter(toDate)) return false;
         return true;

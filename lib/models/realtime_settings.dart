@@ -19,8 +19,7 @@ class RealtimeSettings {
   });
 
   /// إنشاء من Map
-  factory RealtimeSettings.fromMap(Map<String, dynamic> map) {
-    return RealtimeSettings(
+  factory RealtimeSettings.fromMap(Map<String, dynamic> map) => RealtimeSettings(
       syncInterval:
           Duration(milliseconds: map['syncInterval'] as int? ?? 10000),
       enableNotifications: map['enableNotifications'] as bool? ?? true,
@@ -39,7 +38,6 @@ class RealtimeSettings {
       cacheTimeout:
           Duration(milliseconds: map['cacheTimeout'] as int? ?? 300000),
     );
-  }
 
   /// إنشاء من JSON
   factory RealtimeSettings.fromJson(String source) =>
@@ -62,7 +60,7 @@ class RealtimeSettings {
   static const RealtimeSettings defaultSettings = RealtimeSettings();
 
   /// تحويل إلى Map
-  Map<String, dynamic> toMap() => {
+  Map<String, dynamic> toMap() => <String, dynamic>{
         'syncInterval': syncInterval.inMilliseconds,
         'enableNotifications': enableNotifications,
         'enableSounds': enableSounds,

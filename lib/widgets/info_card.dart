@@ -20,8 +20,8 @@ class InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
 
     return RepaintBoundary(
       child: Card(
@@ -31,7 +31,6 @@ class InfoCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(context.isSmallScreen ? 8 : 12),
           side: BorderSide(
             color: isDark ? Colors.grey[700]! : Colors.grey[200]!,
-            width: 1,
           ),
         ),
         child: InkWell(

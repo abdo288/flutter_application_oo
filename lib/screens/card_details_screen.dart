@@ -155,8 +155,8 @@ class _CardDetailsScreenState extends State<CardDetailsScreen> {
       );
 
   Widget _buildMainCard(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
 
     return RepaintBoundary(
       child: ResponsiveHelpers.responsiveCard(

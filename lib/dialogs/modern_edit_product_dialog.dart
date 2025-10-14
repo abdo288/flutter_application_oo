@@ -258,9 +258,7 @@ class _ModernEditProductDialogState extends State<ModernEditProductDialog>
             label: 'سعر الجملة',
             icon: Icons.store,
             color: Colors.green,
-            validator: (String? value) {
-              return Validators.validateWholesalePrice(value);
-            },
+            validator: Validators.validateWholesalePrice,
           ),
 
           SizedBox(height: context.responsiveSpacing),
@@ -272,9 +270,7 @@ class _ModernEditProductDialogState extends State<ModernEditProductDialog>
             label: 'سعر التجزئة',
             icon: Icons.shopping_cart,
             color: Colors.orange,
-            validator: (String? value) {
-              return Validators.validateRetailPrice(value);
-            },
+            validator: Validators.validateRetailPrice,
           ),
 
           SizedBox(height: context.responsiveSpacing),

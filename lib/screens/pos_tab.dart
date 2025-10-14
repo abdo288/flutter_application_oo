@@ -143,7 +143,7 @@ class _POSTabState extends State<POSTab>
 
       // البحث عن المنتج في السلة الحالية (بالاسم أو الباركود)
       final CartItem? existingItem = appProvider.cartProvider.cart
-          .where((item) =>
+          .where((CartItem item) =>
               item.productId == product.id ||
               item.name.toLowerCase() == product.name.toLowerCase() ||
               (item.barcode.isNotEmpty &&
@@ -182,7 +182,6 @@ class _POSTabState extends State<POSTab>
           wholesalePrice: product.wholesalePrice,
           retailPrice: product.retailPrice,
           quantity: 1,
-          discount: 0,
         );
 
         // خصم كمية واحدة من المخزون
@@ -224,7 +223,6 @@ class _POSTabState extends State<POSTab>
         inventoryProvider: appProvider.inventoryProvider,
         barcode: barcode,
         currentCart: List<CartItem>.from(appProvider.cartProvider.cart),
-        quantity: 1,
       );
 
       if (cartItem != null) {
@@ -401,10 +399,6 @@ class _POSTabState extends State<POSTab>
           productProvider: appProvider.productProvider,
           inventoryProvider: appProvider.inventoryProvider,
           cart: snapshotCart,
-          customerName: null, // لا نحتاج اسم العميل
-          paymentMethod: 'نقدي', // قيمة افتراضية
-          discount: 0, // لا نحتاج خصم إجمالي
-          notes: null, // لا نحتاج ملاحظات
         );
 
         // عرض تفاصيل البيع بعد اكتمال الحفظ
@@ -430,7 +424,6 @@ class _POSTabState extends State<POSTab>
       if (mounted) {
         showDialog<void>(
           context: context,
-          barrierDismissible: true,
           builder: (BuildContext context) => Dialog(
             backgroundColor: Colors.transparent,
             shape: RoundedRectangleBorder(
@@ -438,7 +431,7 @@ class _POSTabState extends State<POSTab>
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: [
+              children: <Widget>[
                 SuccessFeedbackWidget(
                   title: 'تم إتمام البيع بنجاح!',
                   message: 'رقم العملية: $saleId',
@@ -499,8 +492,7 @@ class _POSTabState extends State<POSTab>
   }
 
   /// بناء صف تفاصيل البيع
-  Widget _buildSaleDetailRow(String label, String value) {
-    return Padding(
+  Widget _buildSaleDetailRow(String label, String value) => Padding(
       padding: const EdgeInsets.symmetric(vertical: AppConstants.spacing8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -522,7 +514,6 @@ class _POSTabState extends State<POSTab>
         ],
       ),
     );
-  }
 
   /// حساب المبلغ الإجمالي
   int _getTotalAmount() {
@@ -578,7 +569,7 @@ class _POSTabState extends State<POSTab>
   void _cleanupUnusedControllers() {
     final StreamAppProvider appProvider = context.read<StreamAppProvider>();
     final List<String> currentKeys = appProvider.cartProvider.cart
-        .map((item) => '${item.productId}_${item.discount}_${item.quantity}')
+        .map((CartItem item) => '${item.productId}_${item.discount}_${item.quantity}')
         .toList();
 
     final List<String> keysToRemove = <String>[];
@@ -648,8 +639,6 @@ class _POSTabState extends State<POSTab>
           onRefresh: _onRefresh,
           color: Theme.of(context).primaryColor,
           backgroundColor: Colors.white,
-          strokeWidth: 2.5,
-          displacement: 40,
           child: FadeTransition(
             opacity: _fadeAnimation,
             child: SlideTransition(
@@ -695,7 +684,6 @@ class _POSTabState extends State<POSTab>
               onProductSelected: (Product product) {
                 _addProductToCartByName(product.name);
               },
-              placeholder: 'البحث عن منتج بالاسم...',
             ),
 
             const SizedBox(height: 12),
@@ -737,8 +725,7 @@ class _POSTabState extends State<POSTab>
       );
 
   /// بناء إحصائيات السلة
-  Widget _buildCartStats() {
-    return Consumer<StreamAppProvider>(
+  Widget _buildCartStats() => Consumer<StreamAppProvider>(
       builder: (context, appProvider, child) {
         return Consumer<CartProvider>(
           builder: (context, cartProvider, _) {
@@ -774,7 +761,6 @@ class _POSTabState extends State<POSTab>
         );
       },
     );
-  }
 
   /// بناء عنصر إحصائية
   Widget _buildStatItem({
@@ -840,8 +826,7 @@ class _POSTabState extends State<POSTab>
       );
 
   /// بناء قائمة منتجات السلة
-  Widget _buildCartList() {
-    return Consumer<StreamAppProvider>(
+  Widget _buildCartList() => Consumer<StreamAppProvider>(
       builder: (context, appProvider, child) {
         return Consumer<CartProvider>(
           builder: (context, cartProvider, _) {
@@ -890,22 +875,19 @@ class _POSTabState extends State<POSTab>
         );
       },
     );
-  }
 
   /// بناء بطاقة منتج في السلة
   Widget _buildCartItemCard(CartItem item) => TweenAnimationBuilder<double>(
         duration: const Duration(milliseconds: 300),
         tween: Tween(begin: 0.0, end: 1.0),
         curve: Curves.easeOut,
-        builder: (context, value, child) {
-          return Transform.scale(
+        builder: (BuildContext context, double value, Widget? child) => Transform.scale(
             scale: 0.9 + (0.1 * value),
             child: Opacity(
               opacity: value,
               child: child,
             ),
-          );
-        },
+          ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(AppConstants.borderRadius),
           child: Card(
@@ -930,7 +912,7 @@ class _POSTabState extends State<POSTab>
                 borderRadius: BorderRadius.circular(AppConstants.borderRadius),
                 gradient: item.discount > 0
                     ? LinearGradient(
-                        colors: [
+                        colors: <Color>[
                           AppConstants.warningColor.withValues(alpha: 0.05),
                           Colors.white,
                         ],
@@ -963,7 +945,7 @@ class _POSTabState extends State<POSTab>
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  if (item.discount > 0) ...[
+                                  if (item.discount > 0) ...<Widget>[
                                     const SizedBox(width: 8),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
@@ -1243,8 +1225,7 @@ class _POSTabState extends State<POSTab>
   }
 
   /// بناء تفاصيل البيع
-  Widget _buildSaleDetails() {
-    return Consumer<StreamAppProvider>(
+  Widget _buildSaleDetails() => Consumer<StreamAppProvider>(
       builder: (context, appProvider, child) {
         return Column(
           mainAxisSize: MainAxisSize.min,
@@ -1279,7 +1260,6 @@ class _POSTabState extends State<POSTab>
         );
       },
     );
-  }
 
   /// Pull-to-refresh مع animation
   Future<void> _onRefresh() async {
@@ -1297,16 +1277,16 @@ class _POSTabState extends State<POSTab>
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
+          const SnackBar(
+            content: Row(
+              children: <Widget>[
                 Icon(Icons.check_circle, color: Colors.white),
                 SizedBox(width: 8),
                 Text('تم تحديث بيانات نقطة البيع بنجاح'),
               ],
             ),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
+            duration: Duration(seconds: 2),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -1316,7 +1296,7 @@ class _POSTabState extends State<POSTab>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
-              children: [
+              children: <Widget>[
                 const Icon(Icons.error, color: Colors.white),
                 const SizedBox(width: 8),
                 Expanded(child: Text('خطأ في التحديث: $e')),

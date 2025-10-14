@@ -7,13 +7,14 @@ class ModernPageRoute<T> extends PageRoute<T> {
     required this.builder,
     this.transitionType = PageTransitionType.fade,
     this.duration = AppConstants.animationNormal,
-    RouteSettings? settings,
+    super.settings,
     this.fullscreenDialog = false,
-  }) : super(settings: settings, fullscreenDialog: fullscreenDialog);
+  }) : super(fullscreenDialog: fullscreenDialog);
 
   final WidgetBuilder builder;
   final PageTransitionType transitionType;
   final Duration duration;
+  @override
   final bool fullscreenDialog;
 
   @override
@@ -36,9 +37,7 @@ class ModernPageRoute<T> extends PageRoute<T> {
     BuildContext context,
     Animation<double> animation,
     Animation<double> secondaryAnimation,
-  ) {
-    return builder(context);
-  }
+  ) => builder(context);
 
   @override
   Widget buildTransitions(
@@ -190,8 +189,7 @@ Future<T?> navigateWithTransition<T>(
   PageTransitionType transition = PageTransitionType.fadeSlideFromRight,
   Duration? duration,
   bool fullscreenDialog = false,
-}) {
-  return Navigator.of(context).push<T>(
+}) => Navigator.of(context).push<T>(
     ModernPageRoute<T>(
       builder: (context) => page,
       transitionType: transition,
@@ -199,7 +197,6 @@ Future<T?> navigateWithTransition<T>(
       fullscreenDialog: fullscreenDialog,
     ),
   );
-}
 
 /// Hero transition helper
 class HeroTransition extends StatelessWidget {
@@ -213,15 +210,13 @@ class HeroTransition extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    return Hero(
+  Widget build(BuildContext context) => Hero(
       tag: tag,
       child: Material(
         color: Colors.transparent,
         child: child,
       ),
     );
-  }
 }
 
 /// Shared axis transition
@@ -229,12 +224,11 @@ class SharedAxisTransition<T> extends PageRouteBuilder<T> {
   SharedAxisTransition({
     required this.page,
     this.transitionType = SharedAxisTransitionType.horizontal,
-    RouteSettings? settings,
+    super.settings,
   }) : super(
-          settings: settings,
           transitionDuration: AppConstants.animationNormal,
           reverseTransitionDuration: AppConstants.animationNormal,
-          pageBuilder: (context, animation, secondaryAnimation) => page,
+          pageBuilder: (BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation) => page,
         );
 
   final Widget page;
@@ -247,19 +241,19 @@ class SharedAxisTransition<T> extends PageRouteBuilder<T> {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    final tween = Tween<Offset>(
+    final Tween<Offset> tween = Tween<Offset>(
       begin: _getBeginOffset(),
       end: Offset.zero,
     );
 
-    final fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+    final Animation<double> fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: animation,
         curve: const Interval(0.3, 1.0, curve: Curves.easeOut),
       ),
     );
 
-    final slideAnimation = tween.animate(
+    final Animation<Offset> slideAnimation = tween.animate(
       CurvedAnimation(
         parent: animation,
         curve: Curves.easeOutCubic,
@@ -313,8 +307,7 @@ class FadeThroughTransition extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
+  Widget build(BuildContext context) => FadeTransition(
       opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
         CurvedAnimation(
           parent: animation,
@@ -331,5 +324,4 @@ class FadeThroughTransition extends StatelessWidget {
         child: child,
       ),
     );
-  }
 }

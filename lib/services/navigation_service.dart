@@ -30,7 +30,7 @@ class NavigationService {
       return;
     }
 
-    final context = _navigatorKey?.currentContext;
+    final BuildContext? context = _navigatorKey?.currentContext;
     if (context == null) {
       debugPrint('❌ لا يمكن الوصول إلى BuildContext');
       return;
@@ -39,17 +39,17 @@ class NavigationService {
     try {
       // 1. حفظ البيانات في AppStateManager
       if (data != null) {
-        final stateManager = context.read<AppStateManager>();
+        final AppStateManager stateManager = context.read<AppStateManager>();
 
         if (clearPreviousData) {
           // مسح البيانات السابقة
-          data.keys.forEach((key) {
+          for (final String key in data.keys) {
             stateManager.removeSharedData('nav_$key');
-          });
+          }
         }
 
         // حفظ البيانات الجديدة
-        data.forEach((key, value) {
+        data.forEach((String key, value) {
           stateManager.setSharedData('nav_$key', value);
         });
 
@@ -88,7 +88,7 @@ class NavigationService {
   }) {
     navigateToTab(
       tabIndex,
-      data: {
+      data: <String, dynamic>{
         'filterType': filterType,
         'filterValue': filterValue,
         'sourceTab': sourceTab,
@@ -105,7 +105,7 @@ class NavigationService {
   }) {
     navigateToTab(
       tabIndex,
-      data: {
+      data: <String, dynamic>{
         'searchQuery': searchQuery,
         'sourceTab': sourceTab,
       },
@@ -121,7 +121,7 @@ class NavigationService {
   }) {
     navigateToTab(
       tabIndex,
-      data: {
+      data: <String, dynamic>{
         'highlightItemId': itemId,
         'sourceTab': sourceTab,
       },
@@ -136,7 +136,7 @@ class NavigationService {
     Map<String, dynamic>? actionData,
     String? sourceTab,
   }) {
-    final data = <String, dynamic>{
+    final Map<String, dynamic> data = <String, dynamic>{
       'action': action,
       'sourceTab': sourceTab,
     };
@@ -155,7 +155,7 @@ class NavigationService {
   /// قراءة بيانات التنقل
   static T? getNavigationData<T>(BuildContext context, String key) {
     try {
-      final stateManager = context.read<AppStateManager>();
+      final AppStateManager stateManager = context.read<AppStateManager>();
       return stateManager.getSharedData<T>('nav_$key');
     } catch (e) {
       debugPrint('❌ خطأ في قراءة بيانات التنقل: $e');
@@ -171,14 +171,15 @@ class NavigationService {
   /// مسح جميع بيانات التنقل
   static void clearAllNavigationData(BuildContext context) {
     try {
-      final stateManager = context.read<AppStateManager>();
-      final sharedData =
-          stateManager.getSharedData<Map<String, dynamic>>('_sharedData') ?? {};
-      final navKeys = sharedData.keys
+      final AppStateManager stateManager = context.read<AppStateManager>();
+      final Map<String, dynamic> sharedData =
+          stateManager.getSharedData<Map<String, dynamic>>('_sharedData') ??
+              <String, dynamic>{};
+      final List<String> navKeys = sharedData.keys
           .where((String key) => key.startsWith('nav_'))
           .toList();
 
-      for (final key in navKeys) {
+      for (final String key in navKeys) {
         stateManager.removeSharedData(key);
       }
 
@@ -197,8 +198,8 @@ class NavigationService {
   /// مسح بيانات التنقل
   static void _clearNavigationData(BuildContext context, List<String> keys) {
     try {
-      final stateManager = context.read<AppStateManager>();
-      for (final key in keys) {
+      final AppStateManager stateManager = context.read<AppStateManager>();
+      for (final String key in keys) {
         stateManager.removeSharedData('nav_$key');
       }
       debugPrint('🧹 مسح بيانات التنقل: ${keys.join(', ')}');
@@ -246,7 +247,7 @@ class TabNavigationHelper {
     NavigationService.navigateWithAction(
       4, // POS tab index
       'addProduct',
-      actionData: {'productId': productId},
+      actionData: <String, dynamic>{'productId': productId},
       sourceTab: 'helper',
     );
   }
@@ -258,7 +259,7 @@ class TabNavigationHelper {
   ) {
     NavigationService.navigateToTab(
       0, // Dashboard tab index
-      data: {
+      data: <String, dynamic>{
         'stats': stats,
         'refreshStats': true,
       },
@@ -273,7 +274,7 @@ class TabNavigationHelper {
   ) {
     NavigationService.navigateToTab(
       1, // AddProduct tab index
-      data: {
+      data: <String, dynamic>{
         'productData': productData,
         'prefillForm': true,
       },
@@ -318,7 +319,7 @@ class EventNavigationHelper {
     // الانتقال إلى Dashboard مع تحديث الإحصائيات
     NavigationService.navigateToTab(
       0, // Dashboard tab index
-      data: {
+      data: <String, dynamic>{
         'refreshStats': true,
         'showSaleSuccess': true,
         'saleAmount': event.sale.totalAmount,
@@ -353,7 +354,7 @@ class ComplexNavigationHelper {
   }) {
     NavigationService.navigateToTab(
       tabIndex,
-      data: {
+      data: <String, dynamic>{
         'productData': productData,
         'navigationType': 'product',
         'sourceTab': sourceTab,
@@ -371,7 +372,7 @@ class ComplexNavigationHelper {
   }) {
     NavigationService.navigateToTab(
       tabIndex,
-      data: {
+      data: <String, dynamic>{
         'inventoryData': inventoryData,
         'navigationType': 'inventory',
         'sourceTab': sourceTab,
@@ -389,7 +390,7 @@ class ComplexNavigationHelper {
   }) {
     NavigationService.navigateToTab(
       tabIndex,
-      data: {
+      data: <String, dynamic>{
         'saleData': saleData,
         'navigationType': 'sale',
         'sourceTab': sourceTab,

@@ -96,8 +96,8 @@ class _ExpandableCardState extends State<ExpandableCard>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
 
     return Container(
       margin: widget.margin ??
@@ -134,16 +134,14 @@ class _ExpandableCardState extends State<ExpandableCard>
                         SizedBox(width: context.responsiveSpacing * 0.5),
                         AnimatedBuilder(
                           animation: _rotationAnimation,
-                          builder: (context, child) {
-                            return Transform.rotate(
+                          builder: (BuildContext context, Widget? child) => Transform.rotate(
                               angle: _rotationAnimation.value * 3.14159,
                               child: Icon(
                                 Icons.expand_more,
                                 color: AppConstants.primaryColor,
                                 size: context.responsiveFontSize(24),
                               ),
-                            );
-                          },
+                            ),
                         ),
                       ],
                     ),
@@ -154,8 +152,7 @@ class _ExpandableCardState extends State<ExpandableCard>
               // المحتوى القابل للتوسع
               AnimatedBuilder(
                 animation: _expandAnimation,
-                builder: (context, child) {
-                  return ClipRect(
+                builder: (BuildContext context, Widget? child) => ClipRect(
                     child: Align(
                       heightFactor: _expandAnimation.value,
                       child: Container(
@@ -164,8 +161,7 @@ class _ExpandableCardState extends State<ExpandableCard>
                         child: child,
                       ),
                     ),
-                  );
-                },
+                  ),
                 child: Container(
                   padding: widget.padding ?? context.responsivePadding,
                   child: widget.expandedContent,
@@ -200,8 +196,8 @@ class ExpandableProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
 
     return ExpandableCard(
       initiallyExpanded: initiallyExpanded,
@@ -210,8 +206,7 @@ class ExpandableProductCard extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context, bool isDark) {
-    return Row(
+  Widget _buildHeader(BuildContext context, bool isDark) => Row(
       children: <Widget>[
         // أيقونة المنتج
         Container(
@@ -261,10 +256,8 @@ class ExpandableProductCard extends StatelessWidget {
         ),
       ],
     );
-  }
 
-  Widget _buildExpandedContent(BuildContext context, bool isDark) {
-    return Column(
+  Widget _buildExpandedContent(BuildContext context, bool isDark) => Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
@@ -277,7 +270,6 @@ class ExpandableProductCard extends StatelessWidget {
         ],
       ],
     );
-  }
 
   Widget _buildDetailsSection(BuildContext context, bool isDark) {
     final bool isInventoryItem =
@@ -317,8 +309,7 @@ class ExpandableProductCard extends StatelessWidget {
   }
 
   Widget _buildDetailRow(BuildContext context, String label, String value,
-      IconData icon, Color color) {
-    return Row(
+      IconData icon, Color color) => Row(
       children: <Widget>[
         Icon(icon, size: context.responsiveFontSize(16), color: color),
         SizedBox(width: context.responsiveSpacing * 0.3),
@@ -342,10 +333,8 @@ class ExpandableProductCard extends StatelessWidget {
         ),
       ],
     );
-  }
 
-  Widget _buildActionsSection(BuildContext context, bool isDark) {
-    return Row(
+  Widget _buildActionsSection(BuildContext context, bool isDark) => Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: <Widget>[
         if (onEdit != null)
@@ -368,7 +357,6 @@ class ExpandableProductCard extends StatelessWidget {
           ),
       ],
     );
-  }
 
   Widget _buildActionButton(
     BuildContext context, {
@@ -376,8 +364,7 @@ class ExpandableProductCard extends StatelessWidget {
     required String label,
     required Color color,
     required VoidCallback onPressed,
-  }) {
-    return Material(
+  }) => Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onPressed,
@@ -417,7 +404,6 @@ class ExpandableProductCard extends StatelessWidget {
         ),
       ),
     );
-  }
 
   String _getSubtitle() {
     // التحقق من نوع المنتج

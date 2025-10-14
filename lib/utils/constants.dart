@@ -56,17 +56,17 @@ class AppConstants {
   static const Color overlayColor = Color(0x66000000); // Overlay/backdrop
 
   // Gradient Colors
-  static const List<Color> primaryGradient = [
+  static const List<Color> primaryGradient = <Color>[
     Color(0xFF2196F3),
     Color(0xFF1976D2),
   ];
 
-  static const List<Color> secondaryGradient = [
+  static const List<Color> secondaryGradient = <Color>[
     Color(0xFF9C27B0),
     Color(0xFF7B1FA2),
   ];
 
-  static const List<Color> successGradient = [
+  static const List<Color> successGradient = <Color>[
     Color(0xFF66BB6A),
     Color(0xFF388E3C),
   ];

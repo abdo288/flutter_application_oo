@@ -124,13 +124,12 @@ class _AnimatedStatCardState extends State<AnimatedStatCard>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final ThemeData theme = Theme.of(context);
 
     return RepaintBoundary(
       child: AnimatedBuilder(
         animation: _controller,
-        builder: (context, child) {
-          return FadeTransition(
+        builder: (BuildContext context, Widget? child) => FadeTransition(
             opacity: _fadeAnimation,
             child: ScaleTransition(
               scale: _scaleAnimation,
@@ -158,7 +157,7 @@ class _AnimatedStatCardState extends State<AnimatedStatCard>
                       borderRadius: BorderRadius.circular(
                         context.isSmallScreen ? 8 : 12,
                       ),
-                      boxShadow: [
+                      boxShadow: <BoxShadow>[
                         BoxShadow(
                           color: _cardColor.withValues(
                               alpha: _isHovered ? 0.4 : 0.2),
@@ -241,15 +240,14 @@ class _AnimatedStatCardState extends State<AnimatedStatCard>
                 ),
               ),
             ),
-          );
-        },
+          ),
       ),
     );
   }
 
   Widget _buildTrendIndicator(BuildContext context) {
-    final isPositive = widget.trend == 'up';
-    final icon = isPositive ? Icons.trending_up : Icons.trending_down;
+    final bool isPositive = widget.trend == 'up';
+    final IconData icon = isPositive ? Icons.trending_up : Icons.trending_down;
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -264,7 +262,7 @@ class _AnimatedStatCardState extends State<AnimatedStatCard>
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        children: [
+        children: <Widget>[
           Icon(
             icon,
             color: Colors.white,
@@ -309,9 +307,9 @@ class CompactStatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final cardColor = color ?? AppConstants.primaryColor;
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
+    final Color cardColor = color ?? AppConstants.primaryColor;
 
     return RepaintBoundary(
       child: Material(
@@ -336,11 +334,10 @@ class CompactStatCard extends StatelessWidget {
                 ),
                 border: Border.all(
                   color: cardColor.withValues(alpha: 0.3),
-                  width: 1,
                 ),
               ),
               child: Row(
-                children: [
+                children: <Widget>[
                   Icon(
                     icon,
                     color: cardColor,
@@ -351,7 +348,7 @@ class CompactStatCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
-                      children: [
+                      children: <Widget>[
                         Text(
                           value,
                           style: theme.textTheme.titleMedium?.copyWith(

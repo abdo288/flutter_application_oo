@@ -271,7 +271,7 @@ class RealtimeSettingsService {
   }
 
   /// الحصول على إحصائيات الإعدادات
-  Map<String, dynamic> getSettingsStats() => {
+  Map<String, dynamic> getSettingsStats() => <String, dynamic>{
       'hasSettings': hasSavedSettings,
       'lastUpdate': lastUpdateTime?.toIso8601String(),
       'currentSettings': _currentSettings.toMap(),

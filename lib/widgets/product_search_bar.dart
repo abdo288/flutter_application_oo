@@ -39,7 +39,7 @@ class _ProductSearchBarState extends State<ProductSearchBar> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
+          boxShadow: <BoxShadow>[
             BoxShadow(
               color: AppConstants.primaryColor.withValues(alpha: 0.08),
               blurRadius: 8,
@@ -48,11 +48,10 @@ class _ProductSearchBarState extends State<ProductSearchBar> {
           ],
           border: Border.all(
             color: AppConstants.primaryColor.withValues(alpha: 0.1),
-            width: 1,
           ),
         ),
         child: Column(
-          children: [
+          children: <Widget>[
             // حقل البحث
             TextField(
               controller: _searchController,
@@ -66,14 +65,14 @@ class _ProductSearchBarState extends State<ProductSearchBar> {
                   fontSize: 16,
                   color: Colors.grey[500],
                 ),
-                prefixIcon: Icon(
+                prefixIcon: const Icon(
                   Icons.search,
                   color: AppConstants.primaryColor,
                   size: 24,
                 ),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
-                        icon: Icon(
+                        icon: const Icon(
                           Icons.clear,
                           color: AppConstants.primaryColor,
                           size: 20,
@@ -85,12 +84,12 @@ class _ProductSearchBarState extends State<ProductSearchBar> {
                 filled: true,
                 fillColor: Colors.grey[50],
                 enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: Colors.grey[300]!, width: 1),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderSide:
-                      BorderSide(color: AppConstants.primaryColor, width: 2),
+                      const BorderSide(color: AppConstants.primaryColor, width: 2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 contentPadding:
@@ -128,9 +127,9 @@ class _ProductSearchBarState extends State<ProductSearchBar> {
   void _showSearchIndicator() {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Row(
-            children: [
+            children: <Widget>[
               SizedBox(
                 width: 16,
                 height: 16,
@@ -139,11 +138,11 @@ class _ProductSearchBarState extends State<ProductSearchBar> {
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               ),
-              const SizedBox(width: 8),
-              const Text('جاري البحث...'),
+              SizedBox(width: 8),
+              Text('جاري البحث...'),
             ],
           ),
-          duration: const Duration(milliseconds: 600),
+          duration: Duration(milliseconds: 600),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppConstants.primaryColor,
         ),
@@ -158,9 +157,8 @@ class _ProductSearchBarState extends State<ProductSearchBar> {
   }
 
   Widget _buildFilterButtons() => Row(
-        children: [
+        children: <Widget>[
           Flexible(
-            flex: 1,
             child: _buildFilterButton(
               icon: Icons.sort,
               label: 'ترتيب',
@@ -169,7 +167,6 @@ class _ProductSearchBarState extends State<ProductSearchBar> {
           ),
           const SizedBox(width: 4),
           Flexible(
-            flex: 1,
             child: _buildFilterButton(
               icon: Icons.filter_list,
               label: 'فلترة',
@@ -178,7 +175,6 @@ class _ProductSearchBarState extends State<ProductSearchBar> {
           ),
           const SizedBox(width: 4),
           Flexible(
-            flex: 1,
             child: _buildFilterButton(
               icon: Icons.refresh,
               label: 'إعادة تعيين',
@@ -205,13 +201,12 @@ class _ProductSearchBarState extends State<ProductSearchBar> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: Colors.grey[300]!,
-                width: 1,
               ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
-              children: [
+              children: <Widget>[
                 Icon(
                   icon,
                   size: 16,
@@ -221,7 +216,7 @@ class _ProductSearchBarState extends State<ProductSearchBar> {
                 Flexible(
                   child: Text(
                     label,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w500,
                       color: AppConstants.primaryColor,

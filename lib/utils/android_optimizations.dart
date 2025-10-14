@@ -75,31 +75,31 @@ class AndroidOptimizations {
   // ========== إعدادات الألوان ==========
 
   /// الحصول على ألوان محسنة لـ Android
-  static AndroidColors getAndroidColors() => AndroidColors(
-      primary: const Color(0xFF4A90E2),
-      primaryLight: const Color(0xFF7BB3F0),
-      primaryDark: const Color(0xFF2E5B8A),
-      secondary: const Color(0xFF6BCF7F),
-      success: const Color(0xFF27AE60),
-      warning: const Color(0xFFF39C12),
-      error: const Color(0xFFE74C3C),
-      background: const Color(0xFFF8F9FA),
+  static AndroidColors getAndroidColors() => const AndroidColors(
+      primary: Color(0xFF4A90E2),
+      primaryLight: Color(0xFF7BB3F0),
+      primaryDark: Color(0xFF2E5B8A),
+      secondary: Color(0xFF6BCF7F),
+      success: Color(0xFF27AE60),
+      warning: Color(0xFFF39C12),
+      error: Color(0xFFE74C3C),
+      background: Color(0xFFF8F9FA),
       surface: Colors.white,
-      text: const Color(0xFF2C3E50),
-      textLight: const Color(0xFF7F8C8D),
-      border: const Color(0xFFE0E0E0),
-      shadow: const Color(0x1A000000),
+      text: Color(0xFF2C3E50),
+      textLight: Color(0xFF7F8C8D),
+      border: Color(0xFFE0E0E0),
+      shadow: Color(0x1A000000),
     );
 
   // ========== إعدادات الرسوم المتحركة ==========
 
   /// الحصول على إعدادات الرسوم المتحركة محسنة لـ Android
-  static AndroidAnimationSettings getAndroidAnimationSettings() => AndroidAnimationSettings(
-      duration: const Duration(milliseconds: 300),
+  static AndroidAnimationSettings getAndroidAnimationSettings() => const AndroidAnimationSettings(
+      duration: Duration(milliseconds: 300),
       curve: Curves.easeInOut,
-      staggerDelay: const Duration(milliseconds: 50),
+      staggerDelay: Duration(milliseconds: 50),
       slideOffset: 30.0,
-      fadeDuration: const Duration(milliseconds: 200),
+      fadeDuration: Duration(milliseconds: 200),
     );
 
   // ========== إعدادات الأداء ==========
@@ -114,7 +114,7 @@ class AndroidOptimizations {
       shrinkWrap: shrinkWrap,
       physics: const BouncingScrollPhysics(),
       itemCount: children.length,
-      itemBuilder: (context, index) => children[index],
+      itemBuilder: (BuildContext context, int index) => children[index],
     );
 
   /// تحسين الأداء للشبكة
@@ -134,7 +134,7 @@ class AndroidOptimizations {
         mainAxisSpacing: gridSettings.mainAxisSpacing,
       ),
       itemCount: children.length,
-      itemBuilder: (context, index) => children[index],
+      itemBuilder: (BuildContext context, int index) => children[index],
     );
 
   // ========== إعدادات التصميم المتجاوب ==========

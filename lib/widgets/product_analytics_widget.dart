@@ -62,7 +62,7 @@ class ProductAnalyticsWidget extends StatelessWidget {
   }
 
   Widget _buildCompactStats(BuildContext context, ProductAnalytics analytics) => Row(
-      children: [
+      children: <Widget>[
         Expanded(
           child: _buildCompactStatCard(
             title: 'إجمالي الربح',
@@ -112,7 +112,7 @@ class ProductAnalyticsWidget extends StatelessWidget {
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        children: [
+        children: <Widget>[
           Text(
             value,
             style: TextStyle(
@@ -239,8 +239,7 @@ class ProductAnalytics {
     required this.lowProfitProducts,
   });
 
-  factory ProductAnalytics.empty() {
-    return ProductAnalytics(
+  factory ProductAnalytics.empty() => ProductAnalytics(
       totalValue: 0,
       totalProfit: 0,
       averageProfit: 0,
@@ -254,7 +253,6 @@ class ProductAnalytics {
       highProfitProducts: 0,
       lowProfitProducts: 0,
     );
-  }
   final int totalValue;
   final int totalProfit;
   final int averageProfit;

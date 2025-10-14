@@ -34,7 +34,7 @@ class _ProductFiltersWidgetState extends State<ProductFiltersWidget> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
-          children: [
+          children: <Widget>[
             Text(
               'الفلاتر المتقدمة',
               style: TextStyle(
@@ -51,7 +51,7 @@ class _ProductFiltersWidgetState extends State<ProductFiltersWidget> {
 
   Widget _buildFilterOptions(BuildContext context) => Column(
         mainAxisSize: MainAxisSize.min,
-        children: [
+        children: <Widget>[
           // فلتر الفئة
           _buildFilterChip(
             context: context,
@@ -117,7 +117,7 @@ class _ProductFiltersWidgetState extends State<ProductFiltersWidget> {
   Widget _buildPriceRangeFilter(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
-        children: [
+        children: <Widget>[
           Text(
             'نطاق السعر',
             style: TextStyle(
@@ -127,8 +127,7 @@ class _ProductFiltersWidgetState extends State<ProductFiltersWidget> {
             ),
           ),
           SizedBox(height: context.responsiveSpacing * 0.5),
-          context.shouldUseVerticalLayout
-              ? Column(
+          if (context.shouldUseVerticalLayout) Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _buildRangeChip(
@@ -140,8 +139,7 @@ class _ProductFiltersWidgetState extends State<ProductFiltersWidget> {
                     _buildRangeChip(
                         context, 'عالي', () => _applyPriceFilter('high')),
                   ],
-                )
-              : Row(
+                ) else Row(
                   children: [
                     Expanded(
                       child: _buildRangeChip(
@@ -165,7 +163,7 @@ class _ProductFiltersWidgetState extends State<ProductFiltersWidget> {
   Widget _buildProfitRangeFilter(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
-        children: [
+        children: <Widget>[
           Text(
             'نطاق الربح',
             style: TextStyle(
@@ -175,8 +173,7 @@ class _ProductFiltersWidgetState extends State<ProductFiltersWidget> {
             ),
           ),
           SizedBox(height: context.responsiveSpacing * 0.5),
-          context.shouldUseVerticalLayout
-              ? Column(
+          if (context.shouldUseVerticalLayout) Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _buildRangeChip(
@@ -188,8 +185,7 @@ class _ProductFiltersWidgetState extends State<ProductFiltersWidget> {
                     _buildRangeChip(
                         context, 'عالي', () => _applyProfitFilter('high')),
                   ],
-                )
-              : Row(
+                ) else Row(
                   children: [
                     Expanded(
                       child: _buildRangeChip(
@@ -267,7 +263,7 @@ class _ProductFiltersWidgetState extends State<ProductFiltersWidget> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
-            children: [
+            children: <Widget>[
               const Icon(Icons.filter_alt, color: Colors.white),
               const SizedBox(width: 8),
               Text('تم تطبيق $filterName'),
@@ -387,7 +383,7 @@ class ProductFilters {
 
   /// ✅ وصف الفلاتر النشطة
   String get activeFiltersDescription {
-    final List<String> descriptions = [];
+    final List<String> descriptions = <String>[];
     if (category != null) descriptions.add('الفئة: $category');
     if (supplier != null) descriptions.add('المورد: $supplier');
     if (priceRange != null) descriptions.add('السعر: $priceRange');

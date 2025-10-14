@@ -378,8 +378,7 @@ class _UserManagementDialogState extends State<UserManagementDialog> {
                     ),
                   ),
                   SizedBox(height: context.responsiveSpacing * 0.5),
-                  context.shouldUseVerticalLayout
-                      ? Column(
+                  if (context.shouldUseVerticalLayout) Column(
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
                             RadioListTile<UserRole>(
@@ -423,8 +422,7 @@ class _UserManagementDialogState extends State<UserManagementDialog> {
                               activeColor: Colors.purple,
                             ),
                           ],
-                        )
-                      : Row(
+                        ) else Row(
                           children: <Widget>[
                             Expanded(
                               child: RadioListTile<UserRole>(
@@ -476,8 +474,7 @@ class _UserManagementDialogState extends State<UserManagementDialog> {
                   SizedBox(height: context.responsiveSpacing),
 
                   // أزرار الإجراءات
-                  context.shouldUseVerticalLayout
-                      ? Column(
+                  if (context.shouldUseVerticalLayout) Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
@@ -529,8 +526,7 @@ class _UserManagementDialogState extends State<UserManagementDialog> {
                               ),
                             ),
                           ],
-                        )
-                      : Row(
+                        ) else Row(
                           children: <Widget>[
                             Expanded(
                               child: OutlinedButton(

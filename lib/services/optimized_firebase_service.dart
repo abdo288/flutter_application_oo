@@ -38,9 +38,7 @@ class OptimizedFirebaseService {
   }
 
   /// الحصول على إعدادات Firestore الحالية
-  static Settings getCurrentSettings() {
-    return FirebaseFirestore.instance.settings;
-  }
+  static Settings getCurrentSettings() => FirebaseFirestore.instance.settings;
 
   /// تحديث إعدادات Firestore
   static Future<void> updateSettings({
@@ -49,7 +47,7 @@ class OptimizedFirebaseService {
     bool? ignoreUndefinedProperties,
   }) async {
     try {
-      final currentSettings = getCurrentSettings();
+      final Settings currentSettings = getCurrentSettings();
 
       FirebaseFirestore.instance.settings = Settings(
         persistenceEnabled:
@@ -81,7 +79,7 @@ class OptimizedFirebaseService {
   static Future<int> getCacheSize() async {
     try {
       // هذا تقدير تقريبي - Firebase لا يوفر API مباشر للحصول على حجم الذاكرة
-      final settings = getCurrentSettings();
+      final Settings settings = getCurrentSettings();
       return settings.cacheSizeBytes ?? _maxCacheSize;
     } catch (e) {
       debugPrint('Error getting cache size: $e');
@@ -151,8 +149,8 @@ class OptimizedFirebaseService {
   /// إحصائيات الأداء
   static Map<String, dynamic> getPerformanceStats() {
     try {
-      final settings = getCurrentSettings();
-      return {
+      final Settings settings = getCurrentSettings();
+      return <String, dynamic>{
         'persistenceEnabled': settings.persistenceEnabled,
         'cacheSizeBytes': settings.cacheSizeBytes,
         'ignoreUndefinedProperties': settings.ignoreUndefinedProperties,
@@ -160,7 +158,7 @@ class OptimizedFirebaseService {
       };
     } catch (e) {
       debugPrint('Error getting performance stats: $e');
-      return {
+      return <String, dynamic>{
         'persistenceEnabled': false,
         'cacheSizeBytes': 0,
         'ignoreUndefinedProperties': false,

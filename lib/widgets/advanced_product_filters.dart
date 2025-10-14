@@ -38,9 +38,9 @@ class _AdvancedProductFiltersState extends State<AdvancedProductFilters> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
-            children: [
+            children: <Widget>[
               Row(
-                children: [
+                children: <Widget>[
                   Icon(Icons.filter_list,
                       color: Colors.blue,
                       size: context.isSmallScreen ? 20 : 24),
@@ -70,7 +70,7 @@ class _AdvancedProductFiltersState extends State<AdvancedProductFilters> {
 
               // فلاتر الفئة والمورد
               Row(
-                children: [
+                children: <Widget>[
                   Expanded(
                     child: _buildDropdownFilter(
                       label: 'الفئة',
@@ -113,7 +113,7 @@ class _AdvancedProductFiltersState extends State<AdvancedProductFilters> {
               ),
               const SizedBox(height: 8),
               Row(
-                children: [
+                children: <Widget>[
                   Expanded(
                     child: _buildPriceRangeField(
                       label: 'من',
@@ -154,7 +154,7 @@ class _AdvancedProductFiltersState extends State<AdvancedProductFilters> {
               ),
               const SizedBox(height: 8),
               Row(
-                children: [
+                children: <Widget>[
                   Expanded(
                     child: _buildPriceRangeField(
                       label: 'أقل ربح',
@@ -187,7 +187,7 @@ class _AdvancedProductFiltersState extends State<AdvancedProductFilters> {
 
               // خيارات إضافية
               Wrap(
-                children: [
+                children: <Widget>[
                   SizedBox(
                     width: MediaQuery.of(context).size.width * 0.4,
                     child: CheckboxListTile(
@@ -196,7 +196,7 @@ class _AdvancedProductFiltersState extends State<AdvancedProductFilters> {
                         style: TextStyle(fontSize: 12),
                       ),
                       value: _filters.activeOnly,
-                      onChanged: (value) {
+                      onChanged: (bool? value) {
                         setState(() {
                           _filters =
                               _filters.copyWith(activeOnly: value ?? false);
@@ -215,7 +215,7 @@ class _AdvancedProductFiltersState extends State<AdvancedProductFilters> {
                         style: TextStyle(fontSize: 12),
                       ),
                       value: _filters.highProfitOnly,
-                      onChanged: (value) {
+                      onChanged: (bool? value) {
                         setState(() {
                           _filters =
                               _filters.copyWith(highProfitOnly: value ?? false);
@@ -241,7 +241,7 @@ class _AdvancedProductFiltersState extends State<AdvancedProductFilters> {
   }) =>
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        children: <Widget>[
           Text(
             label,
             style: const TextStyle(
@@ -252,18 +252,17 @@ class _AdvancedProductFiltersState extends State<AdvancedProductFilters> {
           ),
           const SizedBox(height: 4),
           DropdownButtonFormField<String>(
-            value: value,
+            initialValue: value,
             decoration: const InputDecoration(
               border: OutlineInputBorder(),
               contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               isDense: true,
             ),
-            items: [
+            items: <DropdownMenuItem<String>>[
               const DropdownMenuItem<String>(
-                value: null,
                 child: Text('الكل'),
               ),
-              ...items.map((item) => DropdownMenuItem<String>(
+              ...items.map((String item) => DropdownMenuItem<String>(
                     value: item,
                     child: Text(item),
                   )),
@@ -280,7 +279,7 @@ class _AdvancedProductFiltersState extends State<AdvancedProductFilters> {
   }) =>
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        children: <Widget>[
           Text(
             label,
             style: const TextStyle(
@@ -299,7 +298,7 @@ class _AdvancedProductFiltersState extends State<AdvancedProductFilters> {
               suffixText: 'دج',
             ),
             keyboardType: TextInputType.number,
-            onChanged: (value) {
+            onChanged: (String value) {
               final double? parsed = double.tryParse(value);
               onChanged(parsed);
             },
@@ -326,8 +325,8 @@ class ProductFilters {
     this.maxProfit,
     this.activeOnly = false,
     this.highProfitOnly = false,
-    this.availableCategories = const [],
-    this.availableSuppliers = const [],
+    this.availableCategories = const <String>[],
+    this.availableSuppliers = const <String>[],
   });
   final String? category;
   final String? supplier;

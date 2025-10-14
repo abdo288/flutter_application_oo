@@ -110,8 +110,7 @@ class ResponsiveDialogWrapper extends StatelessWidget {
   final bool scrollable;
 
   @override
-  Widget build(BuildContext context) {
-    return Dialog(
+  Widget build(BuildContext context) => Dialog(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
@@ -169,7 +168,6 @@ class ResponsiveDialogWrapper extends StatelessWidget {
         ),
       ),
     );
-  }
 }
 
 /// Responsive Grid Wrapper
@@ -207,7 +205,7 @@ class ResponsiveGridWrapper extends StatelessWidget {
         shrinkWrap: shrinkWrap,
         physics: physics ?? context.responsiveScrollPhysics,
         itemCount: children.length,
-        itemBuilder: (context, index) => Padding(
+        itemBuilder: (BuildContext context, int index) => Padding(
           padding: EdgeInsets.only(bottom: spacing),
           child: children[index],
         ),
@@ -224,7 +222,7 @@ class ResponsiveGridWrapper extends StatelessWidget {
         childAspectRatio: aspectRatioValue,
       ),
       itemCount: children.length,
-      itemBuilder: (context, index) => children[index],
+      itemBuilder: (BuildContext context, int index) => children[index],
     );
   }
 }
@@ -264,7 +262,7 @@ class ResponsiveFlexWrapper extends StatelessWidget {
         crossAxisAlignment: crossAxisAlignment,
         mainAxisSize: mainAxisSize,
         children: children
-            .expand((child) => [child, SizedBox(height: spacing)])
+            .expand((Widget child) => <Widget>[child, SizedBox(height: spacing)])
             .take(children.length * 2 - 1)
             .toList(),
       );
@@ -275,7 +273,7 @@ class ResponsiveFlexWrapper extends StatelessWidget {
       crossAxisAlignment: crossAxisAlignment,
       mainAxisSize: mainAxisSize,
       children: children
-          .expand((child) => [child, SizedBox(width: spacing)])
+          .expand((Widget child) => <Widget>[child, SizedBox(width: spacing)])
           .take(children.length * 2 - 1)
           .toList(),
     );
@@ -304,8 +302,7 @@ class ResponsiveCardWrapper extends StatelessWidget {
   final bool semanticContainer;
 
   @override
-  Widget build(BuildContext context) {
-    return Card(
+  Widget build(BuildContext context) => Card(
       margin: margin ?? EdgeInsets.all(context.responsiveSpacing),
       elevation: elevation ?? (context.isSmallScreen ? 2 : 4),
       shape: shape ?? RoundedRectangleBorder(
@@ -318,7 +315,6 @@ class ResponsiveCardWrapper extends StatelessWidget {
         child: child,
       ),
     );
-  }
 }
 
 /// Responsive Text Wrapper
@@ -341,8 +337,7 @@ class ResponsiveTextWrapper extends StatelessWidget {
   final bool softWrap;
 
   @override
-  Widget build(BuildContext context) {
-    return ConstrainedBox(
+  Widget build(BuildContext context) => ConstrainedBox(
       constraints: context.textConstraints,
       child: Text(
         text,
@@ -355,7 +350,6 @@ class ResponsiveTextWrapper extends StatelessWidget {
         softWrap: softWrap,
       ),
     );
-  }
 }
 
 /// Responsive Input Wrapper
@@ -376,8 +370,7 @@ class ResponsiveInputWrapper extends StatelessWidget {
   final bool isRequired;
 
   @override
-  Widget build(BuildContext context) {
-    return Column(
+  Widget build(BuildContext context) => Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -417,7 +410,6 @@ class ResponsiveInputWrapper extends StatelessWidget {
         ],
       ],
     );
-  }
 }
 
 /// Responsive Button Wrapper

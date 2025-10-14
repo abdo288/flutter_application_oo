@@ -18,7 +18,10 @@ import 'package:logging/logging.dart';
 import 'package:nested/nested.dart';
 import 'package:profit_calculator/providers/stream_inventory_provider.dart';
 import 'package:profit_calculator/providers/stream_product_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:provider/provider.dart' as provider;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'providers/riverpod_provider_wrapper.dart'
+    show streamAppProvider, RiverpodProviderWrapper;
 
 // Project Files
 import 'firebase_options.dart';
@@ -26,14 +29,14 @@ import 'l10n/app_localizations.dart';
 import 'providers/auth_provider.dart';
 import 'providers/cart_provider.dart';
 import 'providers/stream_app_provider.dart';
-import 'screens/add_product_tab.dart';
+import 'screens/add_product_tab_riverpod.dart';
 import 'screens/alerts_tab.dart';
-import 'screens/dashboard_tab.dart';
-import 'screens/enhanced_pos_reports_screen.dart';
-import 'screens/inventory_tab.dart';
+import 'screens/inventory_tab_riverpod.dart';
+import 'screens/dashboard_tab_riverpod.dart';
+import 'screens/enhanced_pos_reports_screen_riverpod.dart';
 import 'screens/login_screen.dart';
 import 'screens/pos_tab.dart';
-import 'screens/product_list_tab.dart';
+import 'screens/product_list_tab_riverpod.dart';
 import 'screens/quick_inventory_tab.dart';
 import 'screens/realtime_settings_tab.dart';
 import 'screens/settings_tab.dart';
@@ -142,7 +145,7 @@ Future<void> initializeCoreServices() async {
     // ✅ تهيئة الخدمات الجديدة للتواصل بين التبويبات
     try {
       // تهيئة AppStateManager
-      final appStateManager = AppStateManager();
+      final AppStateManager appStateManager = AppStateManager();
       appStateManager.initialize();
       debugPrint('✅ تم تهيئة AppStateManager');
 
@@ -202,57 +205,64 @@ class StreamProfitCalculatorApp extends StatelessWidget {
   const StreamProfitCalculatorApp({super.key});
 
   @override
-  Widget build(BuildContext context) => MultiProvider(
-        providers: <SingleChildWidget>[
-          ChangeNotifierProvider<AuthProvider>(create: (_) => AuthProvider()),
-          ChangeNotifierProvider<StreamAppProvider>(
-            create: (_) {
-              final StreamAppProvider provider = StreamAppProvider();
-              provider.initialize();
-              return provider;
-            },
-          ),
-          // ✅ إضافة AppStateManager لإدارة الحالة المشتركة
-          ChangeNotifierProvider<AppStateManager>(
-            create: (_) {
-              final manager = AppStateManager();
-              manager.initialize();
-              return manager;
-            },
-          ),
-          // إضافة Providers الفرعية للوصول المباشر
-          ChangeNotifierProxyProvider<StreamAppProvider, StreamProductProvider>(
-            create: (_) => StreamProductProvider(),
-            update: (_, StreamAppProvider appProvider,
-                    StreamProductProvider? previous) =>
-                appProvider.productProvider,
-          ),
-          ChangeNotifierProxyProvider<StreamAppProvider,
-              StreamInventoryProvider>(
-            create: (_) => StreamInventoryProvider(),
-            update: (_, StreamAppProvider appProvider,
-                    StreamInventoryProvider? previous) =>
-                appProvider.inventoryProvider,
-          ),
-          // إضافة CartProvider للوصول المباشر
-          ChangeNotifierProxyProvider<StreamAppProvider, CartProvider>(
-            create: (_) => CartProvider(),
-            update:
-                (_, StreamAppProvider appProvider, CartProvider? previous) =>
-                    appProvider.cartProvider,
-          ),
+  Widget build(BuildContext context) => ProviderScope(
+        overrides: [
+          // توفير StreamAppProvider للـ Riverpod providers
+          streamAppProvider.overrideWithValue(StreamAppProvider()),
         ],
-        child: AnimatedBuilder(
-          animation: Listenable.merge(<Listenable?>[
-            LocaleService.instance,
-            AppearanceService.instance.fontKeyNotifier
-          ]),
-          builder: (BuildContext context, _) => AdaptiveTheme(
-            light: AppTheme.lightTheme,
-            dark: AppTheme.darkTheme,
-            initial: AdaptiveThemeMode.system,
-            builder: (light, dark) {
-              return MaterialApp(
+        child: provider.MultiProvider(
+          providers: <SingleChildWidget>[
+            provider.ChangeNotifierProvider<AuthProvider>(
+                create: (_) => AuthProvider()),
+            provider.ChangeNotifierProvider<StreamAppProvider>(
+              create: (_) {
+                final StreamAppProvider appProvider = StreamAppProvider();
+                appProvider.initialize();
+                return appProvider;
+              },
+            ),
+            // ✅ إضافة AppStateManager لإدارة الحالة المشتركة
+            provider.ChangeNotifierProvider<AppStateManager>(
+              create: (_) {
+                final AppStateManager manager = AppStateManager();
+                manager.initialize();
+                return manager;
+              },
+            ),
+            // إضافة Providers الفرعية للوصول المباشر
+            provider.ChangeNotifierProxyProvider<StreamAppProvider,
+                StreamProductProvider>(
+              create: (_) => StreamProductProvider(),
+              update: (_, StreamAppProvider appProvider,
+                      StreamProductProvider? previous) =>
+                  appProvider.productProvider,
+            ),
+            provider.ChangeNotifierProxyProvider<StreamAppProvider,
+                StreamInventoryProvider>(
+              create: (_) => StreamInventoryProvider(),
+              update: (_, StreamAppProvider appProvider,
+                      StreamInventoryProvider? previous) =>
+                  appProvider.inventoryProvider,
+            ),
+            // إضافة CartProvider للوصول المباشر
+            provider.ChangeNotifierProxyProvider<StreamAppProvider,
+                CartProvider>(
+              create: (_) => CartProvider(),
+              update:
+                  (_, StreamAppProvider appProvider, CartProvider? previous) =>
+                      appProvider.cartProvider,
+            ),
+          ],
+          child: AnimatedBuilder(
+            animation: Listenable.merge(<Listenable?>[
+              LocaleService.instance,
+              AppearanceService.instance.fontKeyNotifier
+            ]),
+            builder: (BuildContext context, _) => AdaptiveTheme(
+              light: AppTheme.lightTheme,
+              dark: AppTheme.darkTheme,
+              initial: AdaptiveThemeMode.system,
+              builder: (ThemeData light, ThemeData dark) => MaterialApp(
                 title: 'حاسبة الأرباح - Stream Edition',
                 theme: light.copyWith(
                   textTheme: AppTheme.localizedTextThemeFor(
@@ -286,8 +296,8 @@ class StreamProfitCalculatorApp extends StatelessWidget {
                 supportedLocales: LocaleService.supportedLocales,
                 locale: LocaleService.instance.locale,
                 home: const AuthWrapper(),
-              );
-            },
+              ),
+            ),
           ),
         ),
       );
@@ -366,9 +376,9 @@ class StreamProfitCalculatorScreenState
     super.initState();
 
     // Restore saved index if available
-    final PageStorageBucket? bucket = PageStorage.of(context);
+    final PageStorageBucket bucket = PageStorage.of(context);
     final int? savedIndex =
-        bucket?.readState(context, identifier: _kCurrentIndexKey) as int?;
+        bucket.readState(context, identifier: _kCurrentIndexKey) as int?;
     _currentIndex = savedIndex ?? 0;
 
     _pageController = PageController(initialPage: _currentIndex);
@@ -681,7 +691,7 @@ class StreamProfitCalculatorScreenState
                       color: Colors.white,
                     ),
                   ),
-                  Consumer<StreamAppProvider>(
+                  provider.Consumer<StreamAppProvider>(
                     builder: (BuildContext context,
                         StreamAppProvider appProvider, Widget? child) {
                       try {
@@ -776,7 +786,7 @@ class StreamProfitCalculatorScreenState
               color: Colors.white.withValues(alpha: 0.2),
             ),
           ),
-          child: Consumer<AuthProvider>(
+          child: provider.Consumer<AuthProvider>(
             builder: (BuildContext context, AuthProvider auth, _) => IconButton(
               onPressed: auth.isAdmin
                   ? () {
@@ -911,7 +921,8 @@ class StreamProfitCalculatorScreenState
       );
 
   /// بناء إحصائيات سريعة
-  Widget _buildQuickStats(BuildContext context) => Consumer<StreamAppProvider>(
+  Widget _buildQuickStats(BuildContext context) =>
+      provider.Consumer<StreamAppProvider>(
         builder: (BuildContext context, StreamAppProvider appProvider,
             Widget? child) {
           try {
@@ -1061,7 +1072,7 @@ class StreamProfitCalculatorScreenState
         const InteractiveSyncIndicator(),
         const SizedBox(width: 6),
         // زر الإعدادات
-        Consumer<AuthProvider>(
+        provider.Consumer<AuthProvider>(
           builder: (BuildContext context, AuthProvider auth, _) =>
               _buildActionButton(
             context: context,
@@ -1166,7 +1177,7 @@ class StreamProfitCalculatorScreenState
           }
 
           // Initialization completed successfully, now build the main content
-          return Consumer<StreamAppProvider>(
+          return provider.Consumer<StreamAppProvider>(
             builder: (BuildContext context, StreamAppProvider appProvider,
                 Widget? child) {
               try {
@@ -1310,22 +1321,38 @@ class StreamProfitCalculatorScreenState
               children: <Widget>[
                 TabErrorOverlay(
                   tabName: 'dashboard',
-                  childBuilder: (BuildContext ctx) => DashboardTab(
-                    onNavigateToTab: _onTabTapped,
+                  childBuilder: (BuildContext ctx) =>
+                      RiverpodProviderWrapper.wrapWithRiverpod(
+                    appProvider: context.read<StreamAppProvider>(),
+                    context: ctx,
+                    child: DashboardTabRiverpod(
+                      onNavigateToTab: _onTabTapped,
+                    ),
                   ),
                 ),
                 TabErrorOverlay(
                   tabName: 'add_product',
-                  childBuilder: (BuildContext ctx) => AddProductTab(
-                    inventoryItems: streamInventoryProvider.inventoryItems,
-                    onProductAdded: () {},
-                    scannedBarcode: _pendingScannedBarcode,
+                  childBuilder: (BuildContext ctx) =>
+                      provider.Consumer<StreamAppProvider>(
+                    builder: (BuildContext context,
+                        StreamAppProvider appProvider, Widget? child) {
+                      return RiverpodProviderWrapper.wrapWithRiverpod(
+                        appProvider: appProvider,
+                        context: context,
+                        child: AddProductTabRiverpod(
+                          inventoryItems:
+                              streamInventoryProvider.inventoryItems,
+                          onProductAdded: () {},
+                          scannedBarcode: _pendingScannedBarcode,
+                        ),
+                      );
+                    },
                   ),
                 ),
                 TabErrorOverlay(
                   tabName: 'inventory',
                   childBuilder: (BuildContext ctx) =>
-                      Consumer<StreamAppProvider>(
+                      provider.Consumer<StreamAppProvider>(
                     builder: (BuildContext context,
                         StreamAppProvider appProvider, Widget? child) {
                       // التحقق من أن Provider مهيأ قبل عرض تبويب المخزون
@@ -1342,29 +1369,39 @@ class StreamProfitCalculatorScreenState
                         );
                       }
 
-                      // استخدام InventoryTab لجميع المنصات
-                      debugPrint('✅ Using InventoryTab for all platforms');
-                      return InventoryTab(
-                        onInventoryUpdated: () {
-                          // لا نحتاج لإعادة تحميل البيانات
-                          // لأن التحديثات تتم محلياً بالفعل
-                          debugPrint(
-                              'تم تحديث المخزون - لا حاجة لإعادة التحميل');
-                        },
+                      // استخدام النسخة الجديدة مع Riverpod
+                      debugPrint('✅ Using InventoryTabRiverpod');
+                      return RiverpodProviderWrapper.wrapWithRiverpod(
+                        appProvider: appProvider,
+                        context: context,
+                        child: InventoryTabRiverpod(
+                          onInventoryUpdated: () {
+                            // لا نحتاج لإعادة تحميل البيانات
+                            // لأن التحديثات تتم محلياً بالفعل
+                            debugPrint(
+                                'تم تحديث المخزون - لا حاجة لإعادة التحميل');
+                          },
+                        ),
                       );
                     },
                   ),
                 ),
                 TabErrorOverlay(
                   tabName: 'product_list',
-                  childBuilder: (BuildContext ctx) => const ProductListTab(),
+                  childBuilder: (BuildContext ctx) =>
+                      RiverpodProviderWrapper.wrapWithRiverpod(
+                    appProvider: context.read<StreamAppProvider>(),
+                    context: ctx,
+                    child: const ProductListTabRiverpod(),
+                  ),
                 ),
                 TabErrorOverlay(
                   tabName: 'reports',
-                  childBuilder: (BuildContext ctx) => Consumer<AuthProvider>(
+                  childBuilder: (BuildContext ctx) =>
+                      provider.Consumer<AuthProvider>(
                     builder: (BuildContext context, AuthProvider auth, _) =>
                         auth.isAdmin
-                            ? const EnhancedPOSReportsScreen()
+                            ? const EnhancedPOSReportsScreenRiverpod()
                             : const Center(
                                 child:
                                     Text('غير مسموح بعرض التقارير إلا للمدير')),

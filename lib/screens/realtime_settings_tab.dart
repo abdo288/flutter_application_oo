@@ -497,13 +497,13 @@ class _RealtimeSettingsTabState extends State<RealtimeSettingsTab>
                           AsyncSnapshot<List<ActiveSession>> snapshot) {
                         final int sessionCount = snapshot.data?.length ?? 0;
                         final int windowsCount = snapshot.data
-                                ?.where((s) => s.platform
+                                ?.where((ActiveSession s) => s.platform
                                     .toLowerCase()
                                     .contains('windows'))
                                 .length ??
                             0;
                         final int mobileCount = snapshot.data
-                                ?.where((s) =>
+                                ?.where((ActiveSession s) =>
                                     s.platform
                                         .toLowerCase()
                                         .contains('android') ||
@@ -643,7 +643,7 @@ class _RealtimeSettingsTabState extends State<RealtimeSettingsTab>
                     ...sessions
                         .map((ActiveSession session) =>
                             _buildEnhancedActiveSessionCard(context, session))
-                        .toList(),
+                        ,
                   ],
                 );
               },
@@ -981,7 +981,7 @@ class _RealtimeSettingsTabState extends State<RealtimeSettingsTab>
                     ...sessions
                         .map((ActiveSession session) =>
                             _buildEnhancedActiveSessionCard(context, session))
-                        .toList(),
+                        ,
                   ],
                 );
               },
@@ -1085,8 +1085,7 @@ class _RealtimeSettingsTabState extends State<RealtimeSettingsTab>
 
   /// بناء بطاقة معلومات
   Widget _buildInfoCard(
-      String title, String value, IconData icon, Color color) {
-    return Container(
+      String title, String value, IconData icon, Color color) => Container(
       padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
@@ -1114,7 +1113,6 @@ class _RealtimeSettingsTabState extends State<RealtimeSettingsTab>
         ],
       ),
     );
-  }
 
   /// تبويب الإعدادات
   Widget _buildSettingsTab() => SingleChildScrollView(
@@ -1248,7 +1246,7 @@ class _RealtimeSettingsTabState extends State<RealtimeSettingsTab>
               : Colors.grey.withOpacity(0.3),
           width: isCurrentSession ? 2 : 1,
         ),
-        boxShadow: [
+        boxShadow: <BoxShadow>[
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
             blurRadius: 4,
@@ -1298,7 +1296,7 @@ class _RealtimeSettingsTabState extends State<RealtimeSettingsTab>
                                       : null,
                                 ),
                           ),
-                          if (isCurrentSession) ...[
+                          if (isCurrentSession) ...<Widget>[
                             const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -1340,7 +1338,6 @@ class _RealtimeSettingsTabState extends State<RealtimeSettingsTab>
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: _getConnectionStatusColor(timeSinceLastSeen),
-                      width: 1,
                     ),
                   ),
                   child: Row(
@@ -1406,7 +1403,7 @@ class _RealtimeSettingsTabState extends State<RealtimeSettingsTab>
                       ),
                     ],
                   ),
-                  if (session.userId.isNotEmpty) ...[
+                  if (session.userId.isNotEmpty) ...<Widget>[
                     const SizedBox(height: 8),
                     Row(
                       children: <Widget>[
@@ -1569,9 +1566,7 @@ class _RealtimeSettingsTabState extends State<RealtimeSettingsTab>
   }
 
   /// تنسيق التاريخ والوقت
-  String _formatDateTime(DateTime dateTime) {
-    return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
-  }
+  String _formatDateTime(DateTime dateTime) => '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
 
   /// الحصول على لون حالة الاتصال
   Color _getConnectionStatusColor(Duration timeSinceLastSeen) {
@@ -1802,7 +1797,7 @@ class _RealtimeSettingsTabState extends State<RealtimeSettingsTab>
 
         if (platformSessions.length > 1) {
           // ترتيب الجلسات حسب آخر نشاط (الأحدث أولاً)
-          platformSessions.sort((a, b) => b.lastSeen.compareTo(a.lastSeen));
+          platformSessions.sort((ActiveSession a, ActiveSession b) => b.lastSeen.compareTo(a.lastSeen));
 
           // الاحتفاظ بالجلسة الأحدث فقط وحذف الباقي
           for (int i = 1; i < platformSessions.length; i++) {

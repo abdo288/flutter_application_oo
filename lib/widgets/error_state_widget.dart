@@ -97,8 +97,8 @@ class _ErrorStateWidgetState extends State<ErrorStateWidget>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
 
     return Center(
       child: SingleChildScrollView(
@@ -106,8 +106,7 @@ class _ErrorStateWidgetState extends State<ErrorStateWidget>
         padding: const EdgeInsets.all(AppConstants.spacing24),
         child: AnimatedBuilder(
           animation: _controller,
-          builder: (context, child) {
-            return FadeTransition(
+          builder: (BuildContext context, Widget? child) => FadeTransition(
               opacity: _fadeAnimation,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -130,7 +129,7 @@ class _ErrorStateWidgetState extends State<ErrorStateWidget>
                                 .withValues(alpha: 0.05),
                           ],
                         ),
-                        boxShadow: [
+                        boxShadow: <BoxShadow>[
                           BoxShadow(
                             color:
                                 AppConstants.errorColor.withValues(alpha: 0.2),
@@ -234,8 +233,7 @@ class _ErrorStateWidgetState extends State<ErrorStateWidget>
                   ],
                 ],
               ),
-            );
-          },
+            ),
         ),
       ),
     );

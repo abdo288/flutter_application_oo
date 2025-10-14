@@ -520,8 +520,7 @@ class ResponsiveExpandableCard extends StatelessWidget {
   final ValueChanged<bool>? onExpansionChanged;
 
   @override
-  Widget build(BuildContext context) {
-    return ExpandableCard(
+  Widget build(BuildContext context) => ExpandableCard(
       header: header,
       expandedContent: expandedContent,
       initiallyExpanded: initiallyExpanded,
@@ -533,5 +532,4 @@ class ResponsiveExpandableCard extends StatelessWidget {
       margin: margin,
       onExpansionChanged: onExpansionChanged,
     );
-  }
 }

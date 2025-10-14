@@ -367,12 +367,12 @@ extension ResponsiveContext on BuildContext {
         maxHeight: screenHeight * 0.35,
       );
     } else if (screenWidth < ResponsiveBreakpoints.desktop) {
-      return BoxConstraints(
+      return const BoxConstraints(
         maxWidth: 400,
         maxHeight: 300,
       );
     } else {
-      return BoxConstraints(
+      return const BoxConstraints(
         maxWidth: 500,
         maxHeight: 400,
       );
@@ -405,13 +405,13 @@ extension ResponsiveContext on BuildContext {
         minHeight: 140,
       );
     } else if (screenWidth < ResponsiveBreakpoints.desktop) {
-      return BoxConstraints(
+      return const BoxConstraints(
         maxWidth: 450,
         maxHeight: 500,
         minHeight: 160,
       );
     } else {
-      return BoxConstraints(
+      return const BoxConstraints(
         maxWidth: 600,
         maxHeight: 600,
         minHeight: 180,
@@ -422,7 +422,7 @@ extension ResponsiveContext on BuildContext {
   /// الحصول على constraints محسنة لـ Windows
   BoxConstraints get windowsCardConstraints {
     if (screenWidth >= ResponsiveBreakpoints.desktop) {
-      return BoxConstraints(
+      return const BoxConstraints(
         maxWidth: 500,
         maxHeight: 400,
         minHeight: 200,

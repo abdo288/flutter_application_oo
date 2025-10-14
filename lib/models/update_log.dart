@@ -24,8 +24,7 @@ class UpdateLog {
     Map<String, dynamic>? data,
     String? errorMessage,
     Duration? responseTime,
-  }) {
-    return UpdateLog(
+  }) => UpdateLog(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       type: type,
       action: action,
@@ -36,11 +35,9 @@ class UpdateLog {
       errorMessage: errorMessage,
       responseTime: responseTime,
     );
-  }
 
   /// إنشاء من Map
-  factory UpdateLog.fromMap(Map<String, dynamic> map) {
-    return UpdateLog(
+  factory UpdateLog.fromMap(Map<String, dynamic> map) => UpdateLog(
       id: map['id'] as String,
       type: map['type'] as String,
       action: map['action'] as String,
@@ -53,7 +50,6 @@ class UpdateLog {
           ? Duration(milliseconds: map['responseTime'] as int)
           : null,
     );
-  }
 
   /// إنشاء من JSON
   factory UpdateLog.fromJson(String source) =>
@@ -69,7 +65,7 @@ class UpdateLog {
   final Duration? responseTime;
 
   /// تحويل إلى Map
-  Map<String, dynamic> toMap() => {
+  Map<String, dynamic> toMap() => <String, dynamic>{
       'id': id,
       'type': type,
       'action': action,

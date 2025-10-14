@@ -206,16 +206,14 @@ class _RealtimeStatusWidgetState extends State<RealtimeStatusWidget>
                       angle: _rotationAnimation.value * 2 * 3.14159,
                       child: AnimatedBuilder(
                         animation: _pulseAnimation,
-                        builder: (BuildContext context, Widget? child) {
-                          return Transform.scale(
+                        builder: (BuildContext context, Widget? child) => Transform.scale(
                             scale: _pulseAnimation.value,
                             child: Icon(
                               Icons.sync,
                               color: _isListening ? Colors.green : Colors.grey,
                               size: 24,
                             ),
-                          );
-                        },
+                          ),
                       ),
                     ),
                   ),
@@ -579,8 +577,7 @@ class _RealtimeStatusWidgetState extends State<RealtimeStatusWidget>
   // ========== دوال محسنة لـ Windows ==========
 
   /// بناء مؤشر الحالة لـ Windows
-  Widget _buildWindowsStatusIndicator() {
-    return Container(
+  Widget _buildWindowsStatusIndicator() => Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: _isListening ? Colors.green.shade100 : Colors.orange.shade100,
@@ -614,11 +611,9 @@ class _RealtimeStatusWidgetState extends State<RealtimeStatusWidget>
         ],
       ),
     );
-  }
 
   /// بناء معلومات الحالة لـ Windows
-  Widget _buildWindowsStatusInfo() {
-    return Container(
+  Widget _buildWindowsStatusInfo() => Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
@@ -681,11 +676,9 @@ class _RealtimeStatusWidgetState extends State<RealtimeStatusWidget>
         ],
       ),
     );
-  }
 
   /// بناء معلومات الأداء لـ Windows
-  Widget _buildWindowsPerformanceInfo() {
-    return Container(
+  Widget _buildWindowsPerformanceInfo() => Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.blue.shade50,
@@ -722,12 +715,10 @@ class _RealtimeStatusWidgetState extends State<RealtimeStatusWidget>
         ],
       ),
     );
-  }
 
   /// بناء عنصر معلومات لـ Windows
   Widget _buildWindowsInfoItem(
-      String label, String value, IconData icon, Color color) {
-    return Container(
+      String label, String value, IconData icon, Color color) => Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
@@ -756,11 +747,9 @@ class _RealtimeStatusWidgetState extends State<RealtimeStatusWidget>
         ],
       ),
     );
-  }
 
   /// بناء صف إحصائية لـ Windows
-  Widget _buildWindowsStatRow(String label, String value) {
-    return Padding(
+  Widget _buildWindowsStatRow(String label, String value) => Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -779,5 +768,4 @@ class _RealtimeStatusWidgetState extends State<RealtimeStatusWidget>
         ],
       ),
     );
-  }
 }

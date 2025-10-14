@@ -3,11 +3,6 @@ import 'package:flutter/foundation.dart';
 
 /// نموذج حدث التزامن بين التبويبات
 class SyncEvent {
-  final String dataType; // 'product', 'inventory', 'sale'
-  final String operation; // 'add', 'update', 'delete'
-  final String id;
-  final DateTime timestamp;
-  final Map<String, dynamic>? data;
 
   SyncEvent({
     required this.dataType,
@@ -16,11 +11,14 @@ class SyncEvent {
     DateTime? timestamp,
     this.data,
   }) : timestamp = timestamp ?? DateTime.now();
+  final String dataType; // 'product', 'inventory', 'sale'
+  final String operation; // 'add', 'update', 'delete'
+  final String id;
+  final DateTime timestamp;
+  final Map<String, dynamic>? data;
 
   @override
-  String toString() {
-    return 'SyncEvent($dataType.$operation:$id)';
-  }
+  String toString() => 'SyncEvent($dataType.$operation:$id)';
 }
 
 /// خدمة التزامن بين التبويبات للتحديثات الفورية
@@ -98,14 +96,12 @@ class CrossTabSyncService {
   // ========== إدارة الحالة ==========
 
   /// الحصول على إحصائيات الخدمة
-  Map<String, dynamic> getStats() {
-    return {
+  Map<String, dynamic> getStats() => {
       'eventCount': _eventCount,
       'lastEventTime': _lastEventTime?.toIso8601String(),
       'recentEventsCount': _recentEvents.length,
       'isActive': _eventController.hasListener,
     };
-  }
 
   /// الحصول على الأحداث الأخيرة
   List<SyncEvent> getRecentEvents({int limit = 10}) {

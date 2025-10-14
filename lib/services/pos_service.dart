@@ -38,27 +38,25 @@ class POSService {
       final List<InventoryItem> inventoryItems =
           inventoryProvider.inventoryItems;
 
-      final InventoryItem? inventoryItem = inventoryItems.firstWhere(
+      final InventoryItem inventoryItem = inventoryItems.firstWhere(
         (InventoryItem item) =>
             item.name.toLowerCase().contains(name.toLowerCase()),
         orElse: () => throw StateError('Inventory item not found'),
       );
 
-      if (inventoryItem != null) {
-        // تحويل عنصر المخزون إلى منتج
-        final Product productFromInventory = Product(
-          id: inventoryItem.id,
-          name: inventoryItem.name,
-          wholesalePrice: inventoryItem.wholesalePrice,
-          retailPrice: inventoryItem.retailPrice,
-          savedAt: inventoryItem.addedTime,
-          barcode: inventoryItem.barcode,
-        );
+      // تحويل عنصر المخزون إلى منتج
+      final Product productFromInventory = Product(
+        id: inventoryItem.id,
+        name: inventoryItem.name,
+        wholesalePrice: inventoryItem.wholesalePrice,
+        retailPrice: inventoryItem.retailPrice,
+        savedAt: inventoryItem.addedTime,
+        barcode: inventoryItem.barcode,
+      );
 
-        debugPrint(
-            '✅ تم العثور على المنتج في المخزون بالاسم: ${productFromInventory.name}');
-        return productFromInventory;
-      }
+      debugPrint(
+          '✅ تم العثور على المنتج في المخزون بالاسم: ${productFromInventory.name}');
+      return productFromInventory;
     } catch (e) {
       debugPrint('❌ لم يتم العثور على عنصر مخزون بالاسم: $name');
     }
@@ -154,10 +152,10 @@ class POSService {
 
     // حالة السلة
     final List<CartItem> matchingItems =
-        cart.where((item) => item.barcode == barcode).toList();
+        cart.where((CartItem item) => item.barcode == barcode).toList();
     if (matchingItems.isNotEmpty) {
-      final int totalInCart =
-          matchingItems.fold(0, (sum, item) => sum + item.quantity);
+      final int totalInCart = matchingItems.fold(
+          0, (int sum, CartItem item) => sum + item.quantity);
       debugPrint('🛒 الكمية في السلة: $totalInCart');
       for (final CartItem item in matchingItems) {
         debugPrint('   - ${item.name}: ${item.quantity}');
@@ -168,8 +166,9 @@ class POSService {
 
     // حالة المخزون
     final List<InventoryItem> inventoryItems = inventoryProvider.inventoryItems;
-    final List<InventoryItem> matchingInventory =
-        inventoryItems.where((item) => item.barcode == barcode).toList();
+    final List<InventoryItem> matchingInventory = inventoryItems
+        .where((InventoryItem item) => item.barcode == barcode)
+        .toList();
     if (matchingInventory.isNotEmpty) {
       for (final InventoryItem item in matchingInventory) {
         debugPrint('📊 المخزون: ${item.name} - الكمية: ${item.quantity}');
@@ -550,8 +549,9 @@ class POSService {
         }
 
         // تعيين isSynced = false للبيانات المحلية
-        localSales =
-            localSales.map((sale) => sale.copyWith(isSynced: false)).toList();
+        localSales = localSales
+            .map((Sale sale) => sale.copyWith(isSynced: false))
+            .toList();
       } catch (e) {
         debugPrint('خطأ في جلب البيانات المحلية: $e');
         localSales = <Sale>[];
@@ -956,21 +956,19 @@ class POSService {
       final List<InventoryItem> inventoryItems =
           inventoryProvider.inventoryItems;
 
-      final InventoryItem? inventoryItem = inventoryItems.firstWhere(
+      final InventoryItem inventoryItem = inventoryItems.firstWhere(
         (InventoryItem item) =>
             item.name.toLowerCase().contains(name.toLowerCase()),
         orElse: () => throw StateError('Inventory item not found'),
       );
 
-      if (inventoryItem != null) {
-        final int newQuantity = inventoryItem.quantity - quantity;
-        final InventoryItem updatedItem = inventoryItem.copyWith(
-          quantity: newQuantity < 0 ? 0 : newQuantity,
-        );
-        await inventoryProvider.updateInventoryItem(updatedItem);
-        debugPrint(
-            'تم خصم $quantity من المخزون للمنتج ${inventoryItem.name} بالاسم');
-      }
+      final int newQuantity = inventoryItem.quantity - quantity;
+      final InventoryItem updatedItem = inventoryItem.copyWith(
+        quantity: newQuantity < 0 ? 0 : newQuantity,
+      );
+      await inventoryProvider.updateInventoryItem(updatedItem);
+      debugPrint(
+          'تم خصم $quantity من المخزون للمنتج ${inventoryItem.name} بالاسم');
     } catch (e) {
       debugPrint('❌ خطأ في خصم الكمية بالاسم: $e');
       rethrow;
@@ -1053,19 +1051,15 @@ class POSService {
       final List<InventoryItem> inventoryItems =
           inventoryProvider.inventoryItems;
 
-      final InventoryItem? inventoryItem = inventoryItems.firstWhere(
+      final InventoryItem inventoryItem = inventoryItems.firstWhere(
         (InventoryItem item) =>
             item.name.toLowerCase().contains(name.toLowerCase()),
         orElse: () => throw StateError('Inventory item not found'),
       );
 
-      if (inventoryItem != null) {
-        debugPrint(
-            '📊 تفاصيل المخزون بالاسم: ${inventoryItem.name} - الكمية: ${inventoryItem.quantity}');
-        return inventoryItem.quantity;
-      }
-      debugPrint('⚠️ لم يتم العثور على عنصر مخزون بالاسم: $name');
-      return 0;
+      debugPrint(
+          '📊 تفاصيل المخزون بالاسم: ${inventoryItem.name} - الكمية: ${inventoryItem.quantity}');
+      return inventoryItem.quantity;
     } catch (e) {
       debugPrint('❌ خطأ في الحصول على الكمية المتوفرة بالاسم: $e');
       return 0;
@@ -1107,8 +1101,9 @@ class POSService {
       }
 
       // البحث عن المنتج في السلة الحالية
-      final CartItem? existingItem =
-          currentCart.where((item) => item.productId == product.id).firstOrNull;
+      final CartItem? existingItem = currentCart
+          .where((CartItem item) => item.productId == product.id)
+          .firstOrNull;
 
       if (existingItem != null) {
         // تحديث الكمية إذا كان المنتج موجود بالفعل
@@ -1132,7 +1127,6 @@ class POSService {
           wholesalePrice: product.wholesalePrice,
           retailPrice: product.retailPrice,
           quantity: quantity,
-          discount: 0,
         );
         debugPrint('✅ تم إضافة منتج جديد للسلة: ${newItem.name}');
         return newItem;
@@ -1181,8 +1175,8 @@ class POSService {
 
       // تسجيل حالة السلة الحالية للمساعدة في التشخيص
       final int currentCartQuantity = currentCart
-          .where((item) => item.productId == product.id)
-          .fold(0, (sum, item) => sum + item.quantity);
+          .where((CartItem item) => item.productId == product.id)
+          .fold(0, (int sum, CartItem item) => sum + item.quantity);
       debugPrint('🛒 الكمية الحالية في السلة: $currentCartQuantity');
 
       // تشخيص مفصل للحالة
@@ -1255,10 +1249,10 @@ class POSService {
     String? deviceInfo,
   }) async {
     try {
-      final Map<String, dynamic> cartData = {
+      final Map<String, dynamic> cartData = <String, dynamic>{
         'sessionId': sessionId,
         'userId': userId,
-        'items': cart.map((item) => item.toMap()).toList(),
+        'items': cart.map((CartItem item) => item.toMap()).toList(),
         'totalAmount': calculateCartTotal(cart),
         'totalProfit': calculateCartProfit(cart),
         'itemCount': cart.length,
@@ -1280,7 +1274,6 @@ class POSService {
         e,
         stackTrace: stackTrace.toString(),
         type: ErrorType.firebase,
-        severity: ErrorSeverity.medium,
         userAction: 'حفظ السلة في Firebase',
         context: <String, dynamic>{
           'operation': 'saveCartToFirebase',
@@ -1294,7 +1287,6 @@ class POSService {
         e,
         stackTrace: stackTrace.toString(),
         type: ErrorType.unknown,
-        severity: ErrorSeverity.medium,
         userAction: 'حفظ السلة في Firebase',
         context: <String, dynamic>{
           'operation': 'saveCartToFirebase',
@@ -1324,7 +1316,8 @@ class POSService {
       }
 
       final Map<String, dynamic> data = doc.data()!;
-      final List<dynamic> itemsData = data['items'] as List<dynamic>? ?? [];
+      final List<dynamic> itemsData =
+          data['items'] as List<dynamic>? ?? <dynamic>[];
 
       final List<CartItem> cart = itemsData
           .map((itemData) => CartItem.fromMap(itemData as Map<String, dynamic>))
@@ -1337,7 +1330,6 @@ class POSService {
         e,
         stackTrace: stackTrace.toString(),
         type: ErrorType.firebase,
-        severity: ErrorSeverity.medium,
         userAction: 'استعادة السلة من Firebase',
         context: <String, dynamic>{
           'operation': 'loadCartFromFirebase',
@@ -1350,7 +1342,6 @@ class POSService {
         e,
         stackTrace: stackTrace.toString(),
         type: ErrorType.unknown,
-        severity: ErrorSeverity.medium,
         userAction: 'استعادة السلة من Firebase',
         context: <String, dynamic>{
           'operation': 'loadCartFromFirebase',
@@ -1405,24 +1396,24 @@ class POSService {
   static Stream<List<CartItem>> watchCartFromFirebase({
     required String sessionId,
     String? userId,
-  }) {
-    return FirebaseFirestore.instance
-        .collection(_posCartsCollection)
-        .doc(sessionId)
-        .snapshots()
-        .map((DocumentSnapshot<Map<String, dynamic>> snapshot) {
-      if (!snapshot.exists) {
-        return <CartItem>[];
-      }
+  }) =>
+      FirebaseFirestore.instance
+          .collection(_posCartsCollection)
+          .doc(sessionId)
+          .snapshots()
+          .map((DocumentSnapshot<Map<String, dynamic>> snapshot) {
+        if (!snapshot.exists) {
+          return <CartItem>[];
+        }
 
-      final Map<String, dynamic> data = snapshot.data()!;
-      final List<dynamic> itemsData = data['items'] as List<dynamic>? ?? [];
+        final Map<String, dynamic> data = snapshot.data()!;
+        final List<dynamic> itemsData = data['items'] as List<dynamic>? ?? [];
 
-      return itemsData
-          .map((itemData) => CartItem.fromMap(itemData as Map<String, dynamic>))
-          .toList();
-    });
-  }
+        return itemsData
+            .map((itemData) =>
+                CartItem.fromMap(itemData as Map<String, dynamic>))
+            .toList();
+      });
 
   /// حفظ جلسة POS في Firebase
   static Future<void> savePOSSession({
@@ -1432,7 +1423,7 @@ class POSService {
     String? platform,
   }) async {
     try {
-      final Map<String, dynamic> sessionData = {
+      final Map<String, dynamic> sessionData = <String, dynamic>{
         'sessionId': sessionId,
         'userId': userId,
         'deviceInfo': deviceInfo,
@@ -1453,7 +1444,6 @@ class POSService {
         e,
         stackTrace: stackTrace.toString(),
         type: ErrorType.firebase,
-        severity: ErrorSeverity.medium,
         userAction: 'حفظ جلسة POS في Firebase',
         context: <String, dynamic>{
           'operation': 'savePOSSession',
@@ -1467,7 +1457,6 @@ class POSService {
         e,
         stackTrace: stackTrace.toString(),
         type: ErrorType.unknown,
-        severity: ErrorSeverity.medium,
         userAction: 'حفظ جلسة POS في Firebase',
         context: <String, dynamic>{
           'operation': 'savePOSSession',
@@ -1487,7 +1476,7 @@ class POSService {
       await FirebaseFirestore.instance
           .collection(_posCollection)
           .doc(sessionId)
-          .update({
+          .update(<Object, Object?>{
         'isActive': false,
         'endedAt': FieldValue.serverTimestamp(),
       });

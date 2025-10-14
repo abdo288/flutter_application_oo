@@ -52,7 +52,7 @@ class NavigationUtils {
     if (context.mounted) {
       return Navigator.of(context).push<T>(route);
     }
-    return Future<T?>.value(null);
+    return Future<T?>.value();
   }
 
   /// Safely pushes a named route
@@ -66,7 +66,7 @@ class NavigationUtils {
       return Navigator.of(context)
           .pushNamed<T>(routeName, arguments: arguments);
     }
-    return Future<T?>.value(null);
+    return Future<T?>.value();
   }
 
   /// Safely pushes and replaces the current route
@@ -80,7 +80,7 @@ class NavigationUtils {
       return Navigator.of(context)
           .pushReplacement<T, TO>(newRoute, result: result);
     }
-    return Future<T?>.value(null);
+    return Future<T?>.value();
   }
 
   /// Safely pushes and replaces a named route
@@ -99,7 +99,7 @@ class NavigationUtils {
         result: result,
       );
     }
-    return Future<T?>.value(null);
+    return Future<T?>.value();
   }
 
   /// Safely pushes and removes all previous routes
@@ -112,7 +112,7 @@ class NavigationUtils {
     if (context.mounted) {
       return Navigator.of(context).pushAndRemoveUntil<T>(newRoute, predicate);
     }
-    return Future<T?>.value(null);
+    return Future<T?>.value();
   }
 
   /// Safely pushes a named route and removes all previous routes
@@ -130,13 +130,11 @@ class NavigationUtils {
         arguments: arguments,
       );
     }
-    return Future<T?>.value(null);
+    return Future<T?>.value();
   }
 
   /// Checks if the context is mounted and can pop
-  static bool canPop(BuildContext context) {
-    return context.mounted && Navigator.of(context).canPop();
-  }
+  static bool canPop(BuildContext context) => context.mounted && Navigator.of(context).canPop();
 
   /// Safely shows a dialog
   static Future<T?> safeShowDialog<T extends Object?>({
@@ -161,7 +159,7 @@ class NavigationUtils {
         routeSettings: routeSettings,
       );
     }
-    return Future<T?>.value(null);
+    return Future<T?>.value();
   }
 
   /// Safely shows a modal bottom sheet
@@ -201,7 +199,7 @@ class NavigationUtils {
         anchorPoint: anchorPoint,
       );
     }
-    return Future<T?>.value(null);
+    return Future<T?>.value();
   }
 
   /// Safely shows a general dialog
@@ -229,7 +227,7 @@ class NavigationUtils {
         routeSettings: routeSettings,
       );
     }
-    return Future<T?>.value(null);
+    return Future<T?>.value();
   }
 }
 

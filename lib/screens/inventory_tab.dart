@@ -80,7 +80,7 @@ class _InventoryTabState extends State<InventoryTab>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Row(
-              children: [
+              children: <Widget>[
                 Icon(Icons.check_circle, color: Colors.white),
                 SizedBox(width: 8),
                 Text('تم تحديث بيانات المخزون بنجاح'),
@@ -102,7 +102,7 @@ class _InventoryTabState extends State<InventoryTab>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
-              children: [
+              children: <Widget>[
                 const Icon(Icons.error, color: Colors.white),
                 const SizedBox(width: 8),
                 Expanded(child: Text('خطأ في التحديث: $e')),
@@ -171,9 +171,7 @@ class _InventoryTabState extends State<InventoryTab>
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: () {
-                    inventoryProvider.initialize();
-                  },
+                  onPressed: inventoryProvider.initialize,
                   child: const Text('إعادة المحاولة'),
                 ),
               ],
@@ -194,7 +192,6 @@ class _InventoryTabState extends State<InventoryTab>
                 backgroundColor: Colors.white,
                 strokeWidth: 3.0,
                 displacement: 60,
-                edgeOffset: 0.0,
                 child: SingleChildScrollView(
                   physics: context.responsiveScrollPhysics,
                   padding: context.responsivePadding,
@@ -1165,8 +1162,8 @@ class _InventoryTabState extends State<InventoryTab>
       ));
 
       // 3. تحديث AppStateManager
-      final appStateManager = context.read<AppStateManager>();
-      appStateManager.updateStats({
+      final AppStateManager appStateManager = context.read<AppStateManager>();
+      appStateManager.updateStats(<String, dynamic>{
         'inventoryCount':
             (appStateManager.getStat<int>('inventoryCount') ?? 0) +
                 successCount,
@@ -1216,9 +1213,9 @@ class _InventoryTabState extends State<InventoryTab>
       AppEventBus.fire(InventoryItemAddedEvent(item, sourceTab: 'Inventory'));
 
       // 3. تحديث AppStateManager
-      final appStateManager = context.read<AppStateManager>();
+      final AppStateManager appStateManager = context.read<AppStateManager>();
       appStateManager.setSharedData('lastAddedInventoryItem', item);
-      appStateManager.updateStats({
+      appStateManager.updateStats(<String, dynamic>{
         'inventoryCount':
             (appStateManager.getStat<int>('inventoryCount') ?? 0) + 1,
         'lastInventoryAdded': DateTime.now().toIso8601String(),
@@ -1574,8 +1571,7 @@ class _BulkAddDialogState extends State<_BulkAddDialog> {
 
 // إضافة دالة Shimmer Loading للمخزون
 extension on _InventoryTabState {
-  Widget _buildShimmerLoading() {
-    return ListView.builder(
+  Widget _buildShimmerLoading() => ListView.builder(
       itemCount: 5,
       padding: const EdgeInsets.all(AppConstants.spacing16),
       itemBuilder: (context, index) {
@@ -1585,5 +1581,4 @@ extension on _InventoryTabState {
         );
       },
     );
-  }
 }

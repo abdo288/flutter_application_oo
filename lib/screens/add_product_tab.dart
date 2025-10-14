@@ -826,11 +826,11 @@ class _AddProductTabState extends State<AddProductTab> {
       AppEventBus.fire(ProductAddedEvent(product, sourceTab: 'AddProduct'));
 
       // 3. تحديث AppStateManager
-      final appStateManager = context.read<AppStateManager>();
+      final AppStateManager appStateManager = context.read<AppStateManager>();
       appStateManager.setSharedData('lastAddedProduct', product);
 
       // 4. تحديث الإحصائيات
-      appStateManager.updateStats({
+      appStateManager.updateStats(<String, dynamic>{
         'productCount': (appStateManager.getStat<int>('productCount') ?? 0) + 1,
         'lastProductAdded': DateTime.now().toIso8601String(),
       });

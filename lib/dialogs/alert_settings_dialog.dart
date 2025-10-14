@@ -46,7 +46,7 @@ class _AlertSettingsDialogState extends State<AlertSettingsDialog> {
           child: Container(
             padding: context.responsivePadding,
             child: _isLoading
-                ? Center(child: CircularProgressIndicator())
+                ? const Center(child: CircularProgressIndicator())
                 : SingleChildScrollView(
                     physics: context.responsiveScrollPhysics,
                     child: _buildSettingsForm(),

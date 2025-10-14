@@ -99,8 +99,8 @@ class _SuccessFeedbackWidgetState extends State<SuccessFeedbackWidget>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
 
     return Center(
       child: SingleChildScrollView(
@@ -108,150 +108,146 @@ class _SuccessFeedbackWidgetState extends State<SuccessFeedbackWidget>
         padding: const EdgeInsets.all(AppConstants.spacing24),
         child: AnimatedBuilder(
           animation: _controller,
-          builder: (context, child) {
-            return FadeTransition(
-              opacity: _fadeAnimation,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  // Animated success icon with checkmark
-                  ScaleTransition(
-                    scale: _scaleAnimation,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // Background circles
-                        for (int i = 0; i < 3; i++)
-                          AnimatedBuilder(
-                            animation: _checkmarkController,
-                            builder: (context, child) {
-                              return Transform.scale(
-                                scale:
-                                    1 + (i * 0.2 * _checkmarkAnimation.value),
-                                child: Container(
-                                  width: 120,
-                                  height: 120,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: AppConstants.successColor
-                                        .withValues(alpha: 0.1 / (i + 1)),
-                                  ),
+          builder: (BuildContext context, Widget? child) => FadeTransition(
+            opacity: _fadeAnimation,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                // Animated success icon with checkmark
+                ScaleTransition(
+                  scale: _scaleAnimation,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Background circles
+                      for (int i = 0; i < 3; i++)
+                        AnimatedBuilder(
+                          animation: _checkmarkController,
+                          builder: (context, child) {
+                            return Transform.scale(
+                              scale: 1 + (i * 0.2 * _checkmarkAnimation.value),
+                              child: Container(
+                                width: 120,
+                                height: 120,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppConstants.successColor
+                                      .withValues(alpha: 0.1 / (i + 1)),
                                 ),
-                              );
-                            },
-                          ),
-                        // Main icon container
-                        Container(
-                          width: 120,
-                          height: 120,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                AppConstants.successColor
-                                    .withValues(alpha: 0.2),
-                                AppConstants.successDarkColor
-                                    .withValues(alpha: 0.1),
-                              ],
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppConstants.successColor
-                                    .withValues(alpha: 0.3),
-                                blurRadius: 20,
-                                offset: const Offset(0, 10),
                               ),
+                            );
+                          },
+                        ),
+                      // Main icon container
+                      Container(
+                        width: 120,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              AppConstants.successColor.withValues(alpha: 0.2),
+                              AppConstants.successDarkColor
+                                  .withValues(alpha: 0.1),
                             ],
                           ),
-                          child: Icon(
-                            widget.icon,
-                            size: AppConstants.iconSizeHuge,
-                            color: AppConstants.successColor,
-                          ),
+                          boxShadow: <BoxShadow>[
+                            BoxShadow(
+                              color: AppConstants.successColor
+                                  .withValues(alpha: 0.3),
+                              blurRadius: 20,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
                         ),
-                      ],
+                        child: Icon(
+                          widget.icon,
+                          size: AppConstants.iconSizeHuge,
+                          color: AppConstants.successColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppConstants.spacing24),
+
+                // Title
+                Text(
+                  widget.title,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: AppConstants.fontWeightBold,
+                    color: isDark
+                        ? AppConstants.successLightColor
+                        : AppConstants.successDarkColor,
+                  ),
+                ),
+                const SizedBox(height: AppConstants.spacing12),
+
+                // Message
+                Container(
+                  padding: const EdgeInsets.all(AppConstants.spacing16),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? AppConstants.successColor.withValues(alpha: 0.1)
+                        : AppConstants.successColor.withValues(alpha: 0.05),
+                    borderRadius:
+                        BorderRadius.circular(AppConstants.borderRadius),
+                    border: Border.all(
+                      color: AppConstants.successColor.withValues(alpha: 0.2),
+                      width: 1,
                     ),
                   ),
-                  const SizedBox(height: AppConstants.spacing24),
-
-                  // Title
-                  Text(
-                    widget.title,
+                  child: Text(
+                    widget.message,
                     textAlign: TextAlign.center,
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: AppConstants.fontWeightBold,
+                    style: theme.textTheme.bodyLarge?.copyWith(
                       color: isDark
-                          ? AppConstants.successLightColor
-                          : AppConstants.successDarkColor,
+                          ? AppConstants.textSecondaryColor
+                          : AppConstants.textSecondaryColor,
+                      height: AppConstants.lineHeightRelaxed,
                     ),
                   ),
-                  const SizedBox(height: AppConstants.spacing12),
+                ),
 
-                  // Message
-                  Container(
-                    padding: const EdgeInsets.all(AppConstants.spacing16),
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? AppConstants.successColor.withValues(alpha: 0.1)
-                          : AppConstants.successColor.withValues(alpha: 0.05),
-                      borderRadius:
-                          BorderRadius.circular(AppConstants.borderRadius),
-                      border: Border.all(
-                        color: AppConstants.successColor.withValues(alpha: 0.2),
-                        width: 1,
+                // Action button
+                if (widget.actionText != null &&
+                    widget.onActionPressed != null) ...[
+                  const SizedBox(height: AppConstants.spacing32),
+                  ElevatedButton.icon(
+                    onPressed: widget.onActionPressed,
+                    icon: const Icon(Icons.arrow_forward_rounded),
+                    label: Text(widget.actionText!),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppConstants.successColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppConstants.spacing32,
+                        vertical: AppConstants.spacing16,
                       ),
-                    ),
-                    child: Text(
-                      widget.message,
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        color: isDark
-                            ? AppConstants.textSecondaryColor
-                            : AppConstants.textSecondaryColor,
-                        height: AppConstants.lineHeightRelaxed,
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(AppConstants.borderRadius),
                       ),
+                      elevation: AppConstants.elevation4,
                     ),
                   ),
-
-                  // Action button
-                  if (widget.actionText != null &&
-                      widget.onActionPressed != null) ...[
-                    const SizedBox(height: AppConstants.spacing32),
-                    ElevatedButton.icon(
-                      onPressed: widget.onActionPressed,
-                      icon: const Icon(Icons.arrow_forward_rounded),
-                      label: Text(widget.actionText!),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppConstants.successColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppConstants.spacing32,
-                          vertical: AppConstants.spacing16,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppConstants.borderRadius),
-                        ),
-                        elevation: AppConstants.elevation4,
-                      ),
-                    ),
-                  ],
-
-                  // Dismiss button
-                  if (widget.onDismiss != null && !widget.autoDismiss) ...[
-                    const SizedBox(height: AppConstants.spacing16),
-                    TextButton(
-                      onPressed: widget.onDismiss,
-                      child: const Text('إغلاق'),
-                    ),
-                  ],
                 ],
-              ),
-            );
-          },
+
+                // Dismiss button
+                if (widget.onDismiss != null && !widget.autoDismiss) ...[
+                  const SizedBox(height: AppConstants.spacing16),
+                  TextButton(
+                    onPressed: widget.onDismiss,
+                    child: const Text('إغلاق'),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -264,10 +260,10 @@ class SuccessSnackbar extends SnackBar {
     super.key,
     required String message,
     IconData icon = Icons.check_circle_rounded,
-    Duration duration = const Duration(seconds: 3),
+    super.duration = const Duration(seconds: 3),
   }) : super(
           content: Row(
-            children: [
+            children: <Widget>[
               Icon(icon, color: Colors.white),
               const SizedBox(width: AppConstants.spacing12),
               Expanded(
@@ -286,7 +282,6 @@ class SuccessSnackbar extends SnackBar {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppConstants.borderRadius),
           ),
-          duration: duration,
           margin: const EdgeInsets.all(AppConstants.spacing16),
         );
 }
@@ -300,32 +295,31 @@ Future<void> showSuccessDialog(
   String? actionText,
   VoidCallback? onActionPressed,
   bool barrierDismissible = true,
-}) {
-  return showDialog<void>(
-    context: context,
-    barrierDismissible: barrierDismissible,
-    builder: (BuildContext context) {
-      return Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppConstants.borderRadiusLarge),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(AppConstants.spacing24),
-          child: SuccessFeedbackWidget(
-            message: message,
-            title: title,
-            icon: icon,
-            actionText: actionText,
-            onActionPressed: onActionPressed,
-            onDismiss: () {
-              if (Navigator.of(context).canPop()) {
-                Navigator.of(context).pop();
-              }
-            },
-            autoDismiss: false,
+}) =>
+    showDialog<void>(
+      context: context,
+      barrierDismissible: barrierDismissible,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppConstants.borderRadiusLarge),
           ),
-        ),
-      );
-    },
-  );
-}
+          child: Padding(
+            padding: const EdgeInsets.all(AppConstants.spacing24),
+            child: SuccessFeedbackWidget(
+              message: message,
+              title: title,
+              icon: icon,
+              actionText: actionText,
+              onActionPressed: onActionPressed,
+              onDismiss: () {
+                if (Navigator.of(context).canPop()) {
+                  Navigator.of(context).pop();
+                }
+              },
+              autoDismiss: false,
+            ),
+          ),
+        );
+      },
+    );

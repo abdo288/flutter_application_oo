@@ -48,7 +48,7 @@ class CartProvider with ChangeNotifier {
     try {
       // تحويل السلة إلى JSON
       final List<Map<String, dynamic>> cartJson =
-          _cart.map((item) => item.toMap()).toList();
+          _cart.map((CartItem item) => item.toMap()).toList();
       final String cartString = jsonEncode(cartJson);
 
       // حفظ السلة والوقت
@@ -112,7 +112,7 @@ class CartProvider with ChangeNotifier {
   /// إضافة عنصر إلى السلة
   void addItem(CartItem item) {
     // ✅ البحث عن منتج بنفس productId و نفس الخصم
-    final int index = _cart.indexWhere((element) =>
+    final int index = _cart.indexWhere((CartItem element) =>
         element.productId == item.productId &&
         element.discount == item.discount);
 
@@ -130,7 +130,7 @@ class CartProvider with ChangeNotifier {
 
   /// تحديث كمية منتج في السلة
   void updateQuantity(String productId, int newQuantity, {int discount = 0}) {
-    final int index = _cart.indexWhere((element) =>
+    final int index = _cart.indexWhere((CartItem element) =>
         element.productId == productId && element.discount == discount);
     if (index != -1) {
       if (newQuantity > 0) {
@@ -145,7 +145,7 @@ class CartProvider with ChangeNotifier {
 
   /// تحديث كمية عنصر محدد في السلة
   void updateQuantityForItem(CartItem item, int newQuantity) {
-    final int index = _cart.indexWhere((element) =>
+    final int index = _cart.indexWhere((CartItem element) =>
         element.productId == item.productId &&
         element.discount == item.discount);
 
@@ -159,7 +159,7 @@ class CartProvider with ChangeNotifier {
       _saveCartToStorage(); // حفظ السلة تلقائياً
     } else {
       // إذا لم يتم العثور على العنصر، جرب البحث بالباركود
-      final int barcodeIndex = _cart.indexWhere((element) =>
+      final int barcodeIndex = _cart.indexWhere((CartItem element) =>
           element.barcode == item.barcode && element.discount == item.discount);
 
       if (barcodeIndex != -1) {
@@ -178,7 +178,7 @@ class CartProvider with ChangeNotifier {
   /// تحديث كمية عنصر بناءً على الاسم (للمنتجات المخصومة)
   void updateQuantityForItemByName(String name, int newQuantity) {
     final int index = _cart.indexWhere(
-        (element) => element.name.toLowerCase() == name.toLowerCase());
+        (CartItem element) => element.name.toLowerCase() == name.toLowerCase());
 
     if (index != -1) {
       if (newQuantity > 0) {
@@ -193,7 +193,7 @@ class CartProvider with ChangeNotifier {
 
   /// حذف عنصر من السلة
   void removeItem(String productId, {int discount = 0}) {
-    _cart.removeWhere((element) =>
+    _cart.removeWhere((CartItem element) =>
         element.productId == productId && element.discount == discount);
     notifyListeners();
     _saveCartToStorage(); // حفظ السلة تلقائياً
@@ -201,7 +201,7 @@ class CartProvider with ChangeNotifier {
 
   /// حذف عنصر محدد من السلة
   void removeItemByObject(CartItem item) {
-    final int index = _cart.indexWhere((element) =>
+    final int index = _cart.indexWhere((CartItem element) =>
         element.productId == item.productId &&
         element.discount == item.discount);
 
@@ -211,7 +211,7 @@ class CartProvider with ChangeNotifier {
       _saveCartToStorage(); // حفظ السلة تلقائياً
     } else {
       // إذا لم يتم العثور على العنصر، جرب البحث بالباركود
-      final int barcodeIndex = _cart.indexWhere((element) =>
+      final int barcodeIndex = _cart.indexWhere((CartItem element) =>
           element.barcode == item.barcode && element.discount == item.discount);
 
       if (barcodeIndex != -1) {
@@ -233,7 +233,7 @@ class CartProvider with ChangeNotifier {
   /// تطبيق خصم على منتج
   void applyDiscount(String productId, int discount) {
     final int index =
-        _cart.indexWhere((element) => element.productId == productId);
+        _cart.indexWhere((CartItem element) => element.productId == productId);
     if (index != -1) {
       final CartItem oldItem = _cart[index];
       final int oldDiscount = oldItem.discount;
@@ -254,7 +254,7 @@ class CartProvider with ChangeNotifier {
 
   /// تطبيق خصم على عنصر محدد في السلة
   void applyDiscountToItem(CartItem item, int discount) {
-    final int index = _cart.indexWhere((element) =>
+    final int index = _cart.indexWhere((CartItem element) =>
         element.productId == item.productId &&
         element.discount == item.discount &&
         element.quantity == item.quantity);
@@ -280,7 +280,7 @@ class CartProvider with ChangeNotifier {
   /// إلغاء الخصم على منتج
   void removeDiscount(String productId) {
     final int index =
-        _cart.indexWhere((element) => element.productId == productId);
+        _cart.indexWhere((CartItem element) => element.productId == productId);
     if (index != -1) {
       final CartItem oldItem = _cart[index];
       final int oldDiscount = oldItem.discount;
@@ -301,7 +301,7 @@ class CartProvider with ChangeNotifier {
 
   /// إلغاء الخصم على عنصر محدد في السلة
   void removeDiscountFromItem(CartItem item) {
-    final int index = _cart.indexWhere((element) =>
+    final int index = _cart.indexWhere((CartItem element) =>
         element.productId == item.productId &&
         element.discount == item.discount &&
         element.quantity == item.quantity);
@@ -325,25 +325,19 @@ class CartProvider with ChangeNotifier {
   }
 
   /// حساب المبلغ الإجمالي
-  int getTotalAmount() {
-    return _cart.fold(0, (sum, item) => sum + item.totalPrice);
-  }
+  int getTotalAmount() => _cart.fold(0, (sum, item) => sum + item.totalPrice);
 
   /// حساب الربح الإجمالي
-  int getTotalProfit() {
-    return _cart.fold(0, (sum, item) => sum + item.totalProfit);
-  }
+  int getTotalProfit() => _cart.fold(0, (sum, item) => sum + item.totalProfit);
 
   /// حساب الكمية الإجمالية
-  int getTotalQuantity() {
-    return _cart.fold(0, (sum, item) => sum + item.quantity);
-  }
+  int getTotalQuantity() => _cart.fold(0, (sum, item) => sum + item.quantity);
 
   /// البحث عن عنصر بالمعرف
   CartItem? findItemById(String productId, {int discount = 0}) {
     try {
       return _cart.firstWhere(
-          (item) => item.productId == productId && item.discount == discount);
+          (CartItem item) => item.productId == productId && item.discount == discount);
     } catch (e) {
       return null;
     }

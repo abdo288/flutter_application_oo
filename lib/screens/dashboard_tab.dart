@@ -158,7 +158,7 @@ class _DashboardTabState extends State<DashboardTab>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
-              children: [
+              children: <Widget>[
                 const Icon(Icons.error, color: Colors.white),
                 const SizedBox(width: 8),
                 Expanded(child: Text('خطأ في التحديث: $e')),
@@ -225,8 +225,7 @@ class _DashboardTabState extends State<DashboardTab>
       );
 
   // Shimmer loading for dashboard
-  Widget _buildShimmerLoading(BuildContext context) {
-    return CustomScrollView(
+  Widget _buildShimmerLoading(BuildContext context) => CustomScrollView(
       physics: const NeverScrollableScrollPhysics(),
       slivers: <Widget>[
         _buildSliverAppBar(context),
@@ -273,7 +272,6 @@ class _DashboardTabState extends State<DashboardTab>
         ),
       ],
     );
-  }
 
   SliverAppBar _buildSliverAppBar(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
@@ -335,7 +333,7 @@ class _DashboardTabState extends State<DashboardTab>
                     icon: Icons.add_shopping_cart,
                     label: 'عملية بيع جديدة',
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF2563EB), Color(0xFF3B82F6)],
+                      colors: <Color>[Color(0xFF2563EB), Color(0xFF3B82F6)],
                     ),
                     onTap: () {
                       widget.onNavigateToTab(1);
@@ -346,7 +344,7 @@ class _DashboardTabState extends State<DashboardTab>
                     icon: Icons.inventory,
                     label: 'إدارة المخزون',
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF22C55E), Color(0xFF16A34A)],
+                      colors: <Color>[Color(0xFF22C55E), Color(0xFF16A34A)],
                     ),
                     onTap: () {
                       widget.onNavigateToTab(2);
@@ -357,7 +355,7 @@ class _DashboardTabState extends State<DashboardTab>
                     icon: Icons.add,
                     label: 'إضافة منتج',
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF8B5CF6), Color(0xFF7C3AED)],
+                      colors: <Color>[Color(0xFF8B5CF6), Color(0xFF7C3AED)],
                     ),
                     onTap: () {
                       widget.onNavigateToTab(3);
@@ -372,7 +370,7 @@ class _DashboardTabState extends State<DashboardTab>
                     icon: Icons.add_shopping_cart,
                     label: 'عملية بيع جديدة',
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF2563EB), Color(0xFF3B82F6)],
+                      colors: <Color>[Color(0xFF2563EB), Color(0xFF3B82F6)],
                     ),
                     onTap: () {
                       widget.onNavigateToTab(1);
@@ -382,7 +380,7 @@ class _DashboardTabState extends State<DashboardTab>
                     icon: Icons.point_of_sale,
                     label: l10n.pointOfSale,
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF22C55E), Color(0xFF16A34A)],
+                      colors: <Color>[Color(0xFF22C55E), Color(0xFF16A34A)],
                     ),
                     onTap: () {
                       widget.onNavigateToTab(6);
@@ -392,7 +390,7 @@ class _DashboardTabState extends State<DashboardTab>
                     icon: Icons.inventory,
                     label: 'إضافة للمخزون',
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF8B5CF6), Color(0xFF7C3AED)],
+                      colors: <Color>[Color(0xFF8B5CF6), Color(0xFF7C3AED)],
                     ),
                     onTap: () {
                       widget.onNavigateToTab(2);
@@ -432,7 +430,6 @@ class _DashboardTabState extends State<DashboardTab>
               color: const Color(0xFF22C55E),
               trend: totalProfitTrend > 0 ? 'up' : null,
               trendValue: totalProfitTrend,
-              delay: Duration.zero,
             ),
             ModernDashboardStatCard(
               title: l10n.totalProductsValue,
@@ -473,7 +470,7 @@ class _DashboardTabState extends State<DashboardTab>
 
     // تحويل البيانات إلى التنسيق المطلوب
     final List<Map<String, dynamic>> profitData = stats.profitHistory
-        .map((profitData) => {
+        .map((ProfitData profitData) => <String, Object>{
               'date': profitData.formattedDate,
               'profit': profitData.profit,
             })

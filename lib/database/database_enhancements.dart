@@ -70,17 +70,17 @@ extension DatabaseEnhancements on AppDatabase {
 
   /// الحصول على المبيعات اليوم
   Future<List<SalesTableData>> getTodaySales() {
-    final today = DateTime.now();
-    final startOfDay = DateTime(today.year, today.month, today.day);
-    final endOfDay = startOfDay.add(const Duration(days: 1));
+    final DateTime today = DateTime.now();
+    final DateTime startOfDay = DateTime(today.year, today.month, today.day);
+    final DateTime endOfDay = startOfDay.add(const Duration(days: 1));
     return getSalesByDateRange(startOfDay, endOfDay);
   }
 
   /// مراقبة المبيعات اليوم
   Stream<List<SalesTableData>> watchTodaySales() {
-    final today = DateTime.now();
-    final startOfDay = DateTime(today.year, today.month, today.day);
-    final endOfDay = startOfDay.add(const Duration(days: 1));
+    final DateTime today = DateTime.now();
+    final DateTime startOfDay = DateTime(today.year, today.month, today.day);
+    final DateTime endOfDay = startOfDay.add(const Duration(days: 1));
     return (select(salesTable)
           ..where(($SalesTableTable t) =>
               t.saleDate.isBiggerOrEqualValue(startOfDay.toIso8601String()) &
@@ -91,19 +91,19 @@ extension DatabaseEnhancements on AppDatabase {
   /// الحصول على إحصائيات المنتجات
   Future<Map<String, int>> getProductStats() async {
     try {
-      final activeCount = await (select(productsTable)
+      final int activeCount = await (select(productsTable)
             ..where(($ProductsTableTable t) => t.isActive.equals(true)))
           .get()
-          .then((list) => list.length);
+          .then((List<ProductsTableData> list) => list.length);
 
-      final syncedCount = await (select(productsTable)
+      final int syncedCount = await (select(productsTable)
             ..where(($ProductsTableTable t) => t.isSynced.equals(true)))
           .get()
-          .then((list) => list.length);
+          .then((List<ProductsTableData> list) => list.length);
 
-      final totalCount = await getProductCount();
+      final int totalCount = await getProductCount();
 
-      return {
+      return <String, int>{
         'total': totalCount,
         'active': activeCount,
         'synced': syncedCount,
@@ -111,7 +111,7 @@ extension DatabaseEnhancements on AppDatabase {
       };
     } catch (e) {
       debugPrint('Error in getProductStats: $e');
-      return {
+      return <String, int>{
         'total': 0,
         'active': 0,
         'synced': 0,
@@ -123,26 +123,26 @@ extension DatabaseEnhancements on AppDatabase {
   /// الحصول على إحصائيات المخزون
   Future<Map<String, dynamic>> getInventoryStats() async {
     try {
-      final totalCount = await getInventoryCount();
+      final int totalCount = await getInventoryCount();
 
-      final lowStockCount = await (select(inventoryTable)
+      final int lowStockCount = await (select(inventoryTable)
             ..where(
                 ($InventoryTableTable t) => t.quantity.isSmallerThanValue(10)))
           .get()
-          .then((list) => list.length);
+          .then((List<InventoryTableData> list) => list.length);
 
-      final syncedCount = await (select(inventoryTable)
+      final int syncedCount = await (select(inventoryTable)
             ..where(($InventoryTableTable t) => t.isSynced.equals(true)))
           .get()
-          .then((list) => list.length);
+          .then((List<InventoryTableData> list) => list.length);
 
       // حساب إجمالي القيمة
-      final totalValue = await customSelect(
+      final int totalValue = await customSelect(
               'SELECT SUM(wholesale_price * quantity) as total FROM inventory_table')
           .get()
-          .then((result) => result.first.data['total'] as int? ?? 0);
+          .then((List<QueryRow> result) => result.first.data['total'] as int? ?? 0);
 
-      return {
+      return <String, dynamic>{
         'total': totalCount,
         'lowStock': lowStockCount,
         'synced': syncedCount,
@@ -151,7 +151,7 @@ extension DatabaseEnhancements on AppDatabase {
       };
     } catch (e) {
       debugPrint('Error in getInventoryStats: $e');
-      return {
+      return <String, dynamic>{
         'total': 0,
         'lowStock': 0,
         'synced': 0,
@@ -164,20 +164,20 @@ extension DatabaseEnhancements on AppDatabase {
   /// الحصول على إحصائيات المبيعات
   Future<Map<String, dynamic>> getSalesStats() async {
     try {
-      final totalSales = await getAllSales();
-      final totalAmount =
-          totalSales.fold<int>(0, (sum, sale) => sum + sale.totalAmount);
-      final totalProfit =
-          totalSales.fold<int>(0, (sum, sale) => sum + sale.totalProfit);
-      final totalDiscount =
-          totalSales.fold<int>(0, (sum, sale) => sum + sale.discount);
+      final List<SalesTableData> totalSales = await getAllSales();
+      final int totalAmount =
+          totalSales.fold<int>(0, (int sum, SalesTableData sale) => sum + sale.totalAmount);
+      final int totalProfit =
+          totalSales.fold<int>(0, (int sum, SalesTableData sale) => sum + sale.totalProfit);
+      final int totalDiscount =
+          totalSales.fold<int>(0, (int sum, SalesTableData sale) => sum + sale.discount);
 
-      final syncedCount = await (select(salesTable)
+      final int syncedCount = await (select(salesTable)
             ..where(($SalesTableTable t) => t.isSynced.equals(true)))
           .get()
-          .then((list) => list.length);
+          .then((List<SalesTableData> list) => list.length);
 
-      return {
+      return <String, dynamic>{
         'totalSales': totalSales.length,
         'totalAmount': totalAmount,
         'totalProfit': totalProfit,
@@ -191,7 +191,7 @@ extension DatabaseEnhancements on AppDatabase {
       };
     } catch (e) {
       debugPrint('Error in getSalesStats: $e');
-      return {
+      return <String, dynamic>{
         'totalSales': 0,
         'totalAmount': 0,
         'totalProfit': 0,
@@ -207,13 +207,13 @@ extension DatabaseEnhancements on AppDatabase {
   /// الحصول على إحصائيات المبيعات اليوم
   Future<Map<String, dynamic>> getTodaySalesStats() async {
     try {
-      final todaySales = await getTodaySales();
-      final totalAmount =
-          todaySales.fold<int>(0, (sum, sale) => sum + sale.totalAmount);
-      final totalProfit =
-          todaySales.fold<int>(0, (sum, sale) => sum + sale.totalProfit);
+      final List<SalesTableData> todaySales = await getTodaySales();
+      final int totalAmount =
+          todaySales.fold<int>(0, (int sum, SalesTableData sale) => sum + sale.totalAmount);
+      final int totalProfit =
+          todaySales.fold<int>(0, (int sum, SalesTableData sale) => sum + sale.totalProfit);
 
-      return {
+      return <String, dynamic>{
         'salesCount': todaySales.length,
         'totalAmount': totalAmount,
         'totalProfit': totalProfit,
@@ -224,7 +224,7 @@ extension DatabaseEnhancements on AppDatabase {
       };
     } catch (e) {
       debugPrint('Error in getTodaySalesStats: $e');
-      return {
+      return <String, dynamic>{
         'salesCount': 0,
         'totalAmount': 0,
         'totalProfit': 0,
@@ -254,7 +254,7 @@ extension DatabaseEnhancements on AppDatabase {
   /// تحديث كميات المخزون المجمعة
   Future<void> bulkUpdateQuantities(Map<String, int> quantityUpdates) async {
     await transaction(() async {
-      for (final entry in quantityUpdates.entries) {
+      for (final MapEntry<String, int> entry in quantityUpdates.entries) {
         await updateInventoryQuantity(entry.key, entry.value);
       }
     });
@@ -265,12 +265,12 @@ extension DatabaseEnhancements on AppDatabase {
       {int limit = 10}) async {
     try {
       // استخدام استعلام بسيط بدلاً من customSelect المعقد
-      final sales = await getAllSales();
-      sales.sort((a, b) => b.totalAmount.compareTo(a.totalAmount));
+      final List<SalesTableData> sales = await getAllSales();
+      sales.sort((SalesTableData a, SalesTableData b) => b.totalAmount.compareTo(a.totalAmount));
 
       return sales
           .take(limit)
-          .map((sale) => {
+          .map((SalesTableData sale) => <String, Object>{
                 'items': sale.items,
                 'total_amount': sale.totalAmount,
                 'sale_date': sale.saleDate,
@@ -278,33 +278,33 @@ extension DatabaseEnhancements on AppDatabase {
           .toList();
     } catch (e) {
       debugPrint('Error in getTopSellingProducts: $e');
-      return [];
+      return <Map<String, dynamic>>[];
     }
   }
 
   /// تنظيف البيانات القديمة
   Future<Map<String, int>> cleanupOldData() async {
     try {
-      final now = DateTime.now();
-      final thirtyDaysAgo = now.subtract(const Duration(days: 30));
+      final DateTime now = DateTime.now();
+      final DateTime thirtyDaysAgo = now.subtract(const Duration(days: 30));
 
       // تنظيف عمليات المزامنة المعالجة القديمة
-      final cleanedSyncOps =
+      final int cleanedSyncOps =
           await cleanupProcessedOperations(const Duration(days: 7));
 
       // تنظيف المبيعات القديمة (أكثر من 30 يوم)
-      final cleanedSales = await (delete(salesTable)
+      final int cleanedSales = await (delete(salesTable)
             ..where(($SalesTableTable t) =>
                 t.saleDate.isSmallerThanValue(thirtyDaysAgo.toIso8601String())))
           .go();
 
-      return {
+      return <String, int>{
         'syncOperations': cleanedSyncOps,
         'sales': cleanedSales,
       };
     } catch (e) {
       debugPrint('Error in cleanupOldData: $e');
-      return {
+      return <String, int>{
         'syncOperations': 0,
         'sales': 0,
       };
@@ -326,12 +326,12 @@ extension DatabaseEnhancements on AppDatabase {
   /// الحصول على معلومات قاعدة البيانات
   Future<Map<String, dynamic>> getDatabaseInfo() async {
     try {
-      final productCount = await getProductCount();
-      final inventoryCount = await getInventoryCount();
-      final salesCount = await getAllSales().then((list) => list.length);
-      final unprocessedOps = await getUnprocessedOperationsCount();
+      final int productCount = await getProductCount();
+      final int inventoryCount = await getInventoryCount();
+      final int salesCount = await getAllSales().then((List<SalesTableData> list) => list.length);
+      final int unprocessedOps = await getUnprocessedOperationsCount();
 
-      return {
+      return <String, dynamic>{
         'products': productCount,
         'inventory': inventoryCount,
         'sales': salesCount,
@@ -340,7 +340,7 @@ extension DatabaseEnhancements on AppDatabase {
       };
     } catch (e) {
       debugPrint('Error getting database info: $e');
-      return {
+      return <String, dynamic>{
         'products': 0,
         'inventory': 0,
         'sales': 0,
@@ -353,36 +353,36 @@ extension DatabaseEnhancements on AppDatabase {
   /// اختبار أداء البحث مع الفهارس المحسنة
   Future<Map<String, dynamic>> testSearchPerformance() async {
     try {
-      final stopwatch = Stopwatch()..start();
+      final Stopwatch stopwatch = Stopwatch()..start();
 
       // اختبار البحث بالاسم
       stopwatch.reset();
       await searchProductsByName('test');
-      final nameSearchTime = stopwatch.elapsedMicroseconds;
+      final int nameSearchTime = stopwatch.elapsedMicroseconds;
 
       // اختبار البحث بالباركود
       stopwatch.reset();
       await getProductByBarcode('123456789');
-      final barcodeSearchTime = stopwatch.elapsedMicroseconds;
+      final int barcodeSearchTime = stopwatch.elapsedMicroseconds;
 
       // اختبار البحث في المخزون
       stopwatch.reset();
       await searchInventoryByName('test');
-      final inventorySearchTime = stopwatch.elapsedMicroseconds;
+      final int inventorySearchTime = stopwatch.elapsedMicroseconds;
 
       // اختبار الحصول على المنتجات النشطة
       stopwatch.reset();
       await getActiveProducts();
-      final activeProductsTime = stopwatch.elapsedMicroseconds;
+      final int activeProductsTime = stopwatch.elapsedMicroseconds;
 
       // اختبار الحصول على المخزون المنخفض
       stopwatch.reset();
       await getLowStockItems(10);
-      final lowStockTime = stopwatch.elapsedMicroseconds;
+      final int lowStockTime = stopwatch.elapsedMicroseconds;
 
       stopwatch.stop();
 
-      return {
+      return <String, dynamic>{
         'nameSearchTime': nameSearchTime,
         'barcodeSearchTime': barcodeSearchTime,
         'inventorySearchTime': inventorySearchTime,
@@ -393,7 +393,7 @@ extension DatabaseEnhancements on AppDatabase {
       };
     } catch (e) {
       debugPrint('Error in testSearchPerformance: $e');
-      return {
+      return <String, dynamic>{
         'error': e.toString(),
         'timestamp': DateTime.now().toIso8601String(),
       };
@@ -403,36 +403,36 @@ extension DatabaseEnhancements on AppDatabase {
   /// اختبار أداء الاستعلامات المعقدة
   Future<Map<String, dynamic>> testComplexQueryPerformance() async {
     try {
-      final stopwatch = Stopwatch()..start();
+      final Stopwatch stopwatch = Stopwatch()..start();
 
       // اختبار إحصائيات المنتجات
       stopwatch.reset();
       await getProductStats();
-      final productStatsTime = stopwatch.elapsedMicroseconds;
+      final int productStatsTime = stopwatch.elapsedMicroseconds;
 
       // اختبار إحصائيات المخزون
       stopwatch.reset();
       await getInventoryStats();
-      final inventoryStatsTime = stopwatch.elapsedMicroseconds;
+      final int inventoryStatsTime = stopwatch.elapsedMicroseconds;
 
       // اختبار إحصائيات المبيعات
       stopwatch.reset();
       await getSalesStats();
-      final salesStatsTime = stopwatch.elapsedMicroseconds;
+      final int salesStatsTime = stopwatch.elapsedMicroseconds;
 
       // اختبار إحصائيات المبيعات اليوم
       stopwatch.reset();
       await getTodaySalesStats();
-      final todaySalesStatsTime = stopwatch.elapsedMicroseconds;
+      final int todaySalesStatsTime = stopwatch.elapsedMicroseconds;
 
       // اختبار أفضل المنتجات مبيعاً
       stopwatch.reset();
-      await getTopSellingProducts(limit: 10);
-      final topSellingTime = stopwatch.elapsedMicroseconds;
+      await getTopSellingProducts();
+      final int topSellingTime = stopwatch.elapsedMicroseconds;
 
       stopwatch.stop();
 
-      return {
+      return <String, dynamic>{
         'productStatsTime': productStatsTime,
         'inventoryStatsTime': inventoryStatsTime,
         'salesStatsTime': salesStatsTime,
@@ -443,7 +443,7 @@ extension DatabaseEnhancements on AppDatabase {
       };
     } catch (e) {
       debugPrint('Error in testComplexQueryPerformance: $e');
-      return {
+      return <String, dynamic>{
         'error': e.toString(),
         'timestamp': DateTime.now().toIso8601String(),
       };
@@ -453,12 +453,12 @@ extension DatabaseEnhancements on AppDatabase {
   /// تحليل أداء قاعدة البيانات الشامل
   Future<Map<String, dynamic>> analyzeDatabasePerformance() async {
     try {
-      final searchPerformance = await testSearchPerformance();
-      final complexQueryPerformance = await testComplexQueryPerformance();
-      final databaseInfo = await getDatabaseInfo();
-      final performanceStats = await getPerformanceStats();
+      final Map<String, dynamic> searchPerformance = await testSearchPerformance();
+      final Map<String, dynamic> complexQueryPerformance = await testComplexQueryPerformance();
+      final Map<String, dynamic> databaseInfo = await getDatabaseInfo();
+      final Map<String, dynamic> performanceStats = await getPerformanceStats();
 
-      return {
+      return <String, dynamic>{
         'searchPerformance': searchPerformance,
         'complexQueryPerformance': complexQueryPerformance,
         'databaseInfo': databaseInfo,
@@ -469,7 +469,7 @@ extension DatabaseEnhancements on AppDatabase {
       };
     } catch (e) {
       debugPrint('Error in analyzeDatabasePerformance: $e');
-      return {
+      return <String, dynamic>{
         'error': e.toString(),
         'timestamp': DateTime.now().toIso8601String(),
       };
@@ -481,11 +481,11 @@ extension DatabaseEnhancements on AppDatabase {
     Map<String, dynamic> searchPerformance,
     Map<String, dynamic> complexQueryPerformance,
   ) {
-    final recommendations = <String>[];
+    final List<String> recommendations = <String>[];
 
     // تحليل أداء البحث
-    final nameSearchTime = searchPerformance['nameSearchTime'] as int? ?? 0;
-    final barcodeSearchTime =
+    final int nameSearchTime = searchPerformance['nameSearchTime'] as int? ?? 0;
+    final int barcodeSearchTime =
         searchPerformance['barcodeSearchTime'] as int? ?? 0;
 
     if (nameSearchTime > 10000) {
@@ -499,9 +499,9 @@ extension DatabaseEnhancements on AppDatabase {
     }
 
     // تحليل أداء الاستعلامات المعقدة
-    final productStatsTime =
+    final int productStatsTime =
         complexQueryPerformance['productStatsTime'] as int? ?? 0;
-    final salesStatsTime =
+    final int salesStatsTime =
         complexQueryPerformance['salesStatsTime'] as int? ?? 0;
 
     if (productStatsTime > 50000) {

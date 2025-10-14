@@ -229,7 +229,7 @@ class StreamInventoryProvider with ChangeNotifier {
 
       // ✅ Optimized stream subscription with batch updates
       _inventorySubscription = _repository.inventoryStream.listen(
-        (inventoryItems) {
+        (List<InventoryItem> inventoryItems) {
           // ✅ Batch Updates with mounted check
           if (!_isBatchingUpdates && _mounted) {
             _isBatchingUpdates = true;
@@ -386,7 +386,7 @@ class StreamInventoryProvider with ChangeNotifier {
         'inventory',
         'add',
         itemId,
-        data: {
+        data: <String, dynamic>{
           'name': newItem.name,
           'quantity': newItem.quantity,
         },
@@ -434,7 +434,7 @@ class StreamInventoryProvider with ChangeNotifier {
         'inventory',
         'update',
         item.id ?? '',
-        data: {
+        data: <String, dynamic>{
           'name': item.name,
           'quantity': item.quantity,
         },
@@ -852,12 +852,16 @@ class StreamInventoryProvider with ChangeNotifier {
 
   void _setLoading(bool loading) {
     _isLoading = loading;
-    notifyListeners();
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      notifyListeners();
+    });
   }
 
   void _setError(String error) {
     _errorMessage = error;
-    notifyListeners();
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      notifyListeners();
+    });
   }
 
   void _clearError() {
@@ -865,21 +869,19 @@ class StreamInventoryProvider with ChangeNotifier {
   }
 
   /// ✅ الحصول على إحصائيات Stream
-  Map<String, dynamic> getStreamStats() {
-    return {
-      'updateCount': _updateCount,
-      'lastUpdateTime': _lastUpdateTime?.toIso8601String(),
-      'isBatchingUpdates': _isBatchingUpdates,
-      'mounted': _mounted,
-      'activeTimers': {
-        'updateDebounce': _updateDebounceTimer?.isActive ?? false,
-      },
-      'subscriptions': {
-        'inventory': _inventorySubscription != null,
-        'crossTab': _crossTabSubscription != null,
-      }
-    };
-  }
+  Map<String, dynamic> getStreamStats() => {
+        'updateCount': _updateCount,
+        'lastUpdateTime': _lastUpdateTime?.toIso8601String(),
+        'isBatchingUpdates': _isBatchingUpdates,
+        'mounted': _mounted,
+        'activeTimers': {
+          'updateDebounce': _updateDebounceTimer?.isActive ?? false,
+        },
+        'subscriptions': {
+          'inventory': _inventorySubscription != null,
+          'crossTab': _crossTabSubscription != null,
+        }
+      };
 
   @override
   void dispose() {

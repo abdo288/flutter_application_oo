@@ -283,7 +283,7 @@ class RealtimeNotificationService {
   }
 
   /// الحصول على عدد الإشعارات غير المقروءة
-  int get unreadCount => _notificationLog.where((n) => !n.isRead).length;
+  int get unreadCount => _notificationLog.where((NotificationLog n) => !n.isRead).length;
 
   /// الحصول على إحصائيات الإشعارات
   Map<String, dynamic> getNotificationStats() {

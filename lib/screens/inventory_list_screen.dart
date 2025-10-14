@@ -253,7 +253,7 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
           horizontal: context.responsiveSpacing * 0.3,
           vertical: context.responsiveSpacing * 0.2, // تقليل المسافة العمودية
         ),
-        separatorBuilder: (context, index) =>
+        separatorBuilder: (BuildContext context, int index) =>
             const SizedBox(height: 6), // مسافة صغيرة بين البطاقات
         itemBuilder: (BuildContext context, int index) {
           final InventoryItem item = items[index];
@@ -270,7 +270,7 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
         horizontal: context.responsiveSpacing * 1.0, // تقليل المسافة الأفقية
         vertical: context.responsiveSpacing * 0.2, // تقليل المسافة العمودية
       ),
-      separatorBuilder: (context, index) =>
+      separatorBuilder: (BuildContext context, int index) =>
           const SizedBox(height: 8), // مسافة صغيرة بين البطاقات
       itemBuilder: (BuildContext context, int index) {
         final InventoryItem item = items[index];
@@ -304,7 +304,7 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
         },
         showActions: false,
         isExpanded: _expandedItemId == item.id,
-        onExpansionChanged: (isExpanded) =>
+        onExpansionChanged: (bool isExpanded) =>
             _handleCardExpansion(item.id ?? '', isExpanded),
       );
     }

@@ -14,7 +14,7 @@ class AppStateManager extends ChangeNotifier {
   int _pendingOperations = 0;
 
   /// البيانات المشتركة
-  final Map<String, dynamic> _sharedData = {};
+  final Map<String, dynamic> _sharedData = <String, dynamic>{};
 
   /// حالة الاتصال
   bool _isOnline = true;
@@ -26,16 +26,16 @@ class AppStateManager extends ChangeNotifier {
   String? _lastError;
 
   /// الإحصائيات المحلية
-  final Map<String, dynamic> _localStats = {};
+  final Map<String, dynamic> _localStats = <String, dynamic>{};
 
   /// الفلاتر النشطة
-  final Map<String, dynamic> _activeFilters = {};
+  final Map<String, dynamic> _activeFilters = <String, dynamic>{};
 
   /// عمليات النسخ الاحتياطي
-  final List<BackupEvent> _backupHistory = [];
+  final List<BackupEvent> _backupHistory = <BackupEvent>[];
 
   /// عمليات الاستعادة
-  final List<RestoreEvent> _restoreHistory = [];
+  final List<RestoreEvent> _restoreHistory = <RestoreEvent>[];
 
   /// Stream subscriptions
   StreamSubscription<AppEvent>? _eventSubscription;
@@ -313,7 +313,7 @@ class AppStateManager extends ChangeNotifier {
   /// معالجة إضافة منتج
   void _handleProductAdded(ProductAddedEvent event) {
     // تحديث الإحصائيات
-    final currentCount = _localStats['productCount'] as int? ?? 0;
+    final int currentCount = _localStats['productCount'] as int? ?? 0;
     _localStats['productCount'] = currentCount + 1;
 
     // حفظ المنتج الأخير
@@ -333,7 +333,7 @@ class AppStateManager extends ChangeNotifier {
   /// معالجة حذف منتج
   void _handleProductDeleted(ProductDeletedEvent event) {
     // تحديث الإحصائيات
-    final currentCount = _localStats['productCount'] as int? ?? 0;
+    final int currentCount = _localStats['productCount'] as int? ?? 0;
     if (currentCount > 0) {
       _localStats['productCount'] = currentCount - 1;
     }
@@ -344,7 +344,7 @@ class AppStateManager extends ChangeNotifier {
   /// معالجة تحديث المخزون
   void _handleInventoryUpdated(InventoryUpdatedEvent event) {
     // حفظ التحديث الأخير
-    setSharedData('lastInventoryUpdate', {
+    setSharedData('lastInventoryUpdate', <String, Object>{
       'itemId': event.itemId,
       'itemName': event.itemName,
       'oldQuantity': event.oldQuantity,
@@ -357,8 +357,8 @@ class AppStateManager extends ChangeNotifier {
   /// معالجة إتمام بيع
   void _handleSaleCompleted(SaleCompletedEvent event) {
     // تحديث الإحصائيات
-    final currentSales = _localStats['totalSales'] as int? ?? 0;
-    final currentRevenue = _localStats['totalRevenue'] as double? ?? 0.0;
+    final int currentSales = _localStats['totalSales'] as int? ?? 0;
+    final double currentRevenue = _localStats['totalRevenue'] as double? ?? 0.0;
 
     _localStats['totalSales'] = currentSales + 1;
     _localStats['totalRevenue'] =
@@ -373,7 +373,7 @@ class AppStateManager extends ChangeNotifier {
   /// معالجة تنبيه مخزون منخفض
   void _handleLowStockAlert(LowStockAlertEvent event) {
     // حفظ التنبيه
-    setSharedData('lastLowStockAlert', {
+    setSharedData('lastLowStockAlert', <String, Object>{
       'itemId': event.itemId,
       'itemName': event.itemName,
       'currentQuantity': event.currentQuantity,
@@ -396,7 +396,7 @@ class AppStateManager extends ChangeNotifier {
 
   /// تهيئة الإحصائيات
   void _initializeStats() {
-    _localStats.addAll({
+    _localStats.addAll(<String, dynamic>{
       'productCount': 0,
       'inventoryCount': 0,
       'totalSales': 0,
@@ -408,20 +408,18 @@ class AppStateManager extends ChangeNotifier {
   }
 
   /// الحصول على ملخص الحالة
-  Map<String, dynamic> getStateSummary() {
-    return {
-      'isSyncing': _isSyncing,
-      'pendingOperations': _pendingOperations,
-      'isOnline': _isOnline,
-      'connectionType': _connectionType,
-      'lastError': _lastError,
-      'sharedDataKeys': _sharedData.keys.toList(),
-      'activeFiltersKeys': _activeFilters.keys.toList(),
-      'localStatsKeys': _localStats.keys.toList(),
-      'backupHistoryCount': _backupHistory.length,
-      'restoreHistoryCount': _restoreHistory.length,
-    };
-  }
+  Map<String, dynamic> getStateSummary() => {
+        'isSyncing': _isSyncing,
+        'pendingOperations': _pendingOperations,
+        'isOnline': _isOnline,
+        'connectionType': _connectionType,
+        'lastError': _lastError,
+        'sharedDataKeys': _sharedData.keys.toList(),
+        'activeFiltersKeys': _activeFilters.keys.toList(),
+        'localStatsKeys': _localStats.keys.toList(),
+        'backupHistoryCount': _backupHistory.length,
+        'restoreHistoryCount': _restoreHistory.length,
+      };
 
   /// إعادة تعيين الحالة
   void resetState() {

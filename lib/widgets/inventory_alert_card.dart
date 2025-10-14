@@ -19,8 +19,8 @@ class InventoryAlertCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
 
     return RepaintBoundary(
       child: Container(
@@ -58,7 +58,7 @@ class InventoryAlertCard extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: <Color>[
-                    isDark ? Colors.grey[800]! : Colors.white,
+                    if (isDark) Colors.grey[800]! else Colors.white,
                     _getAlertColor().withValues(alpha: 0.02),
                   ],
                   begin: Alignment.topLeft,
@@ -288,8 +288,7 @@ class InventoryAlertCard extends StatelessWidget {
                     // أزرار الإجراءات
                     if (onMarkAsRead != null || onDelete != null) ...<Widget>[
                       SizedBox(height: context.responsiveSpacing * 0.5),
-                      context.shouldUseVerticalLayout
-                          ? Column(
+                      if (context.shouldUseVerticalLayout) Column(
                               children: [
                                 if (onDelete != null)
                                   SizedBox(
@@ -320,8 +319,7 @@ class InventoryAlertCard extends StatelessWidget {
                                   ),
                                 ],
                               ],
-                            )
-                          : Wrap(
+                            ) else Wrap(
                               alignment: WrapAlignment.end,
                               spacing: context.responsiveSpacing * 0.3,
                               children: <Widget>[
@@ -389,8 +387,7 @@ class InventoryAlertCard extends StatelessWidget {
     required String label,
     required Color color,
     required bool isDark,
-  }) {
-    return Material(
+  }) => Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onPressed,
@@ -411,7 +408,7 @@ class InventoryAlertCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(
               context.isSmallScreen ? 6 : 8,
             ),
-            boxShadow: [
+            boxShadow: <BoxShadow>[
               BoxShadow(
                 color: color.withValues(alpha: 0.3),
                 blurRadius: 4,
@@ -446,5 +443,4 @@ class InventoryAlertCard extends StatelessWidget {
         ),
       ),
     );
-  }
 }

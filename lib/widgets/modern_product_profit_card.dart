@@ -82,9 +82,9 @@ class _ModernProductProfitCardState extends State<ModernProductProfitCard>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final rankColor = _getRankColor(widget.rank - 1);
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
+    final Color rankColor = _getRankColor(widget.rank - 1);
 
     return SlideTransition(
       position: _slideAnimation,
@@ -95,11 +95,11 @@ class _ModernProductProfitCardState extends State<ModernProductProfitCard>
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: isDark
-                  ? [
+                  ? <Color>[
                       const Color(0xFF334155),
                       const Color(0xFF1E293B),
                     ]
-                  : [
+                  : <Color>[
                       Colors.white,
                       const Color(0xFFF8FAFC),
                     ],
@@ -107,7 +107,7 @@ class _ModernProductProfitCardState extends State<ModernProductProfitCard>
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(16),
-            boxShadow: [
+            boxShadow: <BoxShadow>[
               BoxShadow(
                 color: isDark
                     ? Colors.black.withOpacity(0.3)
@@ -130,20 +130,20 @@ class _ModernProductProfitCardState extends State<ModernProductProfitCard>
               child: Padding(
                 padding: EdgeInsets.all(context.responsiveSpacing * 1.0),
                 child: Row(
-                  children: [
+                  children: <Widget>[
                     // ترتيب المنتج
                     Container(
                       width: context.responsiveSpacing * 3.0,
                       height: context.responsiveSpacing * 3.0,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [
+                          colors: <Color>[
                             rankColor,
                             rankColor.withOpacity(0.8),
                           ],
                         ),
                         shape: BoxShape.circle,
-                        boxShadow: [
+                        boxShadow: <BoxShadow>[
                           BoxShadow(
                             color: rankColor.withOpacity(0.4),
                             blurRadius: 8,
@@ -169,7 +169,7 @@ class _ModernProductProfitCardState extends State<ModernProductProfitCard>
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                        children: <Widget>[
                           // اسم المنتج
                           Text(
                             widget.productName,
@@ -188,7 +188,7 @@ class _ModernProductProfitCardState extends State<ModernProductProfitCard>
 
                           // صف الربح والنسبة
                           Row(
-                            children: [
+                            children: <Widget>[
                               // قيمة الربح
                               Expanded(
                                 child: Container(
@@ -207,11 +207,11 @@ class _ModernProductProfitCardState extends State<ModernProductProfitCard>
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
+                                    children: <Widget>[
+                                      const Icon(
                                         Icons.trending_up,
                                         size: 16,
-                                        color: const Color(0xFF22C55E),
+                                        color: Color(0xFF22C55E),
                                       ),
                                       const SizedBox(width: 4),
                                       Flexible(

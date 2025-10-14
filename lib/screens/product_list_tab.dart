@@ -106,7 +106,7 @@ class _ProductListTabState extends State<ProductListTab>
   /// تهيئة البيانات عند فتح التبويب
   /// ✅ بدء الاستماع للأحداث
   void _startEventListening() {
-    _eventSubscription = AppEventBus.stream.listen((event) {
+    _eventSubscription = AppEventBus.stream.listen((AppEvent event) {
       if (!mounted) return;
 
       switch (event.runtimeType) {
@@ -142,59 +142,79 @@ class _ProductListTabState extends State<ProductListTab>
   void _handleProductAdded(ProductAddedEvent event) {
     debugPrint('📦 معالجة إضافة منتج في ProductListTab: ${event.product.name}');
 
-    // تحديث القائمة
-    _refreshProductList();
+    // استخدام post-frame callback لتجنب استدعاء setState أثناء البناء
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        // تحديث القائمة
+        _refreshProductList();
 
-    // إظهار إشعار
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('✅ تمت إضافة "${event.product.name}"'),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+        // إظهار إشعار
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ تمت إضافة "${event.product.name}"'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    });
   }
 
   /// ✅ معالجة تحديث منتج
   void _handleProductUpdated(ProductUpdatedEvent event) {
     debugPrint('✏️ معالجة تحديث منتج في ProductListTab: ${event.product.name}');
 
-    // تحديث القائمة
-    _refreshProductList();
+    // استخدام post-frame callback لتجنب استدعاء setState أثناء البناء
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        // تحديث القائمة
+        _refreshProductList();
 
-    // إظهار إشعار
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('✏️ تم تحديث "${event.product.name}"'),
-        backgroundColor: Colors.blue,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+        // إظهار إشعار
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✏️ تم تحديث "${event.product.name}"'),
+            backgroundColor: Colors.blue,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    });
   }
 
   /// ✅ معالجة حذف منتج
   void _handleProductDeleted(ProductDeletedEvent event) {
     debugPrint('🗑️ معالجة حذف منتج في ProductListTab: ${event.productName}');
 
-    // تحديث القائمة
-    _refreshProductList();
+    // استخدام post-frame callback لتجنب استدعاء setState أثناء البناء
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        // تحديث القائمة
+        _refreshProductList();
 
-    // إظهار إشعار
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('🗑️ تم حذف "${event.productName}"'),
-        backgroundColor: Colors.orange,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+        // إظهار إشعار
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('🗑️ تم حذف "${event.productName}"'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    });
   }
 
   /// ✅ معالجة تحديث المخزون
   void _handleInventoryUpdated(InventoryUpdatedEvent event) {
     debugPrint('📦 معالجة تحديث المخزون في ProductListTab: ${event.itemName}');
 
-    // تحديث القائمة للتأكد من تحديث الكميات
-    _refreshProductList();
+    // استخدام post-frame callback لتجنب استدعاء setState أثناء البناء
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        // تحديث القائمة للتأكد من تحديث الكميات
+        _refreshProductList();
+      }
+    });
   }
 
   /// ✅ معالجة إتمام بيع
@@ -202,8 +222,13 @@ class _ProductListTabState extends State<ProductListTab>
     debugPrint(
         '💰 معالجة إتمام بيع في ProductListTab: ${event.sale.totalAmount}');
 
-    // تحديث القائمة للتأكد من تحديث الكميات
-    _refreshProductList();
+    // استخدام post-frame callback لتجنب استدعاء setState أثناء البناء
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        // تحديث القائمة للتأكد من تحديث الكميات
+        _refreshProductList();
+      }
+    });
   }
 
   /// ✅ معالجة تنبيه مخزون منخفض
@@ -211,30 +236,36 @@ class _ProductListTabState extends State<ProductListTab>
     debugPrint(
         '⚠️ معالجة تنبيه مخزون منخفض في ProductListTab: ${event.itemName}');
 
-    // إظهار تنبيه
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('⚠️ مخزون منخفض: ${event.itemName}'),
-        backgroundColor: Colors.orange,
-        duration: const Duration(seconds: 4),
-        action: SnackBarAction(
-          label: 'عرض',
-          textColor: Colors.white,
-          onPressed: () {
-            // تطبيق فلتر المخزون المنخفض
-            _applyLowStockFilter();
-          },
-        ),
-      ),
-    );
+    // استخدام post-frame callback لتجنب استدعاء setState أثناء البناء
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        // إظهار تنبيه
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('⚠️ مخزون منخفض: ${event.itemName}'),
+            backgroundColor: Colors.orange,
+            action: SnackBarAction(
+              label: 'عرض',
+              textColor: Colors.white,
+              onPressed: _applyLowStockFilter,
+            ),
+          ),
+        );
+      }
+    });
   }
 
   /// ✅ معالجة تحديث الإحصائيات
   void _handleStatsUpdated(StatsUpdatedEvent event) {
     debugPrint('📊 معالجة تحديث الإحصائيات في ProductListTab');
 
-    // تحديث القائمة
-    _refreshProductList();
+    // استخدام post-frame callback لتجنب استدعاء setState أثناء البناء
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        // تحديث القائمة
+        _refreshProductList();
+      }
+    });
   }
 
   /// ✅ تحديث قائمة المنتجات
@@ -256,20 +287,26 @@ class _ProductListTabState extends State<ProductListTab>
 
   /// ✅ تطبيق فلتر المخزون المنخفض
   void _applyLowStockFilter() {
-    setState(() {
-      // تطبيق فلتر المخزون المنخفض باستخدام فلتر الربح
-      _currentFilters = _currentFilters.copyWith(
-        profitRange:
-            'low_stock', // استخدام profitRange للدلالة على المخزون المنخفض
-      );
+    // استخدام post-frame callback لتجنب استدعاء setState أثناء البناء
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          // تطبيق فلتر المخزون المنخفض باستخدام فلتر الربح
+          _currentFilters = _currentFilters.copyWith(
+            profitRange:
+                'low_stock', // استخدام profitRange للدلالة على المخزون المنخفض
+          );
+        });
+
+        // تطبيق الفلتر
+        final StreamAppProvider appProvider = context.read<StreamAppProvider>();
+        final StreamProductProvider productProvider =
+            appProvider.productProvider;
+
+        // استخدام الطريقة الصحيحة لتطبيق الفلاتر
+        productProvider.filterProducts('low_stock');
+      }
     });
-
-    // تطبيق الفلتر
-    final StreamAppProvider appProvider = context.read<StreamAppProvider>();
-    final StreamProductProvider productProvider = appProvider.productProvider;
-
-    // استخدام الطريقة الصحيحة لتطبيق الفلاتر
-    productProvider.filterProducts('low_stock');
   }
 
   Future<void> _initializeData() async {
@@ -303,13 +340,18 @@ class _ProductListTabState extends State<ProductListTab>
 
   /// إدارة حالة التوسيع للبطاقات (أكورديون)
   void _handleCardExpansion(String productId, bool isExpanded) {
-    setState(() {
-      if (isExpanded) {
-        // إذا تم فتح بطاقة، أغلق الباقي
-        _expandedProductId = productId;
-      } else {
-        // إذا تم إغلاق بطاقة، لا توجد بطاقة مفتوحة
-        _expandedProductId = null;
+    // استخدام post-frame callback لتجنب استدعاء setState أثناء البناء
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          if (isExpanded) {
+            // إذا تم فتح بطاقة، أغلق الباقي
+            _expandedProductId = productId;
+          } else {
+            // إذا تم إغلاق بطاقة، لا توجد بطاقة مفتوحة
+            _expandedProductId = null;
+          }
+        });
       }
     });
   }
@@ -364,16 +406,16 @@ class _ProductListTabState extends State<ProductListTab>
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
+          const SnackBar(
+            content: Row(
+              children: <Widget>[
                 Icon(Icons.check_circle, color: Colors.white),
                 SizedBox(width: 8),
                 Text('تم تحديث البيانات بنجاح'),
               ],
             ),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
+            duration: Duration(seconds: 2),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -383,7 +425,7 @@ class _ProductListTabState extends State<ProductListTab>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
-              children: [
+              children: <Widget>[
                 const Icon(Icons.error, color: Colors.white),
                 const SizedBox(width: 8),
                 Expanded(child: Text('خطأ في التحديث: $e')),
@@ -400,23 +442,25 @@ class _ProductListTabState extends State<ProductListTab>
 
   @override
   Widget build(BuildContext context) => ErrorBoundary(
-        onError: (error, stackTrace) {
+        onError: (Object error, StackTrace stackTrace) {
           debugPrint('❌ خطأ في ProductListTab: $error');
         },
         child: Consumer<StreamAppProvider>(
-          builder: (context, appProvider, child) {
+          builder: (BuildContext context, StreamAppProvider appProvider,
+              Widget? child) {
             if (!appProvider.isInitialized) {
               return _buildShimmerLoading();
             }
 
-            final productProvider = appProvider.productProvider;
+            final StreamProductProvider productProvider =
+                appProvider.productProvider;
 
             // التحقق من حالة الحذف
             if (_isDeleting || productProvider.isDeleting) {
               return const Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
+                  children: <Widget>[
                     CircularProgressIndicator(),
                     SizedBox(height: 16),
                     Text('جاري حذف المنتج...'),
@@ -424,14 +468,12 @@ class _ProductListTabState extends State<ProductListTab>
                 ),
               );
             }
-            final products = productProvider.filteredProducts;
+            final List<Product> products = productProvider.filteredProducts;
 
             return RefreshIndicator(
               onRefresh: _onRefresh,
               color: AppConstants.primaryColor,
               backgroundColor: Colors.white,
-              strokeWidth: 2.5,
-              displacement: 40,
               child: FadeTransition(
                 opacity: _fadeAnimation,
                 child: SlideTransition(
@@ -450,13 +492,13 @@ class _ProductListTabState extends State<ProductListTab>
       CustomScrollView(
         controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
-        slivers: [
+        slivers: <Widget>[
           // شريط البحث والفلترة
           SliverToBoxAdapter(
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [
+                  colors: <Color>[
                     AppConstants.primaryColor.withValues(alpha: 0.03),
                     AppConstants.secondaryColor.withValues(alpha: 0.02),
                     Colors.white,
@@ -502,7 +544,7 @@ class _ProductListTabState extends State<ProductListTab>
                 padding: const EdgeInsets.all(16),
                 child: const Center(
                   child: Column(
-                    children: [
+                    children: <Widget>[
                       CircularProgressIndicator(
                         strokeWidth: 2,
                         valueColor: AlwaysStoppedAnimation<Color>(
@@ -551,30 +593,31 @@ class _ProductListTabState extends State<ProductListTab>
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         sliver: SliverList(
           delegate: SliverChildBuilderDelegate(
-            (context, index) {
+            (BuildContext context, int index) {
               if (index >= products.length) {
                 return const SizedBox.shrink();
               }
 
-              final product = products[index];
+              final Product product = products[index];
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Selector<StreamProductProvider, Product>(
-                  selector: (_, provider) => provider.products.firstWhere(
-                    (p) => p.id == product.id,
+                  selector: (_, StreamProductProvider provider) =>
+                      provider.products.firstWhere(
+                    (Product p) => p.id == product.id,
                     orElse: () => product,
                   ),
-                  builder: (_, selectedProduct, __) => WindowsProductCard(
+                  builder: (_, Product selectedProduct, __) =>
+                      WindowsProductCard(
                     key: ValueKey('product_${selectedProduct.id}_$index'),
                     product: selectedProduct,
                     onEdit: () => _handleProductEdit(selectedProduct),
                     onDelete: () => _handleProductDelete(selectedProduct),
                     onTap: () => _handleProductTap(selectedProduct),
-                    showActions: true,
-                    compactMode: false,
                     isExpanded: _expandedProductId == selectedProduct.id,
-                    onExpansionChanged: (isExpanded) => _handleCardExpansion(
-                        selectedProduct.id ?? '', isExpanded),
+                    onExpansionChanged: (bool isExpanded) =>
+                        _handleCardExpansion(
+                            selectedProduct.id ?? '', isExpanded),
                   ),
                 ),
               );
@@ -595,25 +638,25 @@ class _ProductListTabState extends State<ProductListTab>
             childAspectRatio: crossAxisCount == 3 ? 0.7 : 0.8,
           ),
           delegate: SliverChildBuilderDelegate(
-            (context, index) {
+            (BuildContext context, int index) {
               if (index >= products.length) {
                 return const SizedBox.shrink();
               }
 
-              final product = products[index];
+              final Product product = products[index];
               return Selector<StreamProductProvider, Product>(
-                selector: (_, provider) => provider.products.firstWhere(
-                  (p) => p.id == product.id,
+                selector: (_, StreamProductProvider provider) =>
+                    provider.products.firstWhere(
+                  (Product p) => p.id == product.id,
                   orElse: () => product,
                 ),
-                builder: (_, selectedProduct, __) => _MemoizedProductCard(
+                builder: (_, Product selectedProduct, __) =>
+                    _MemoizedProductCard(
                   key: ValueKey('product_${selectedProduct.id}_$index'),
                   product: selectedProduct,
                   onTap: () => _handleProductTap(selectedProduct),
                   onEdit: () => _handleProductEdit(selectedProduct),
                   onDelete: () => _handleProductDelete(selectedProduct),
-                  showActions: true,
-                  compactMode: false,
                 ),
               );
             },
@@ -625,63 +668,64 @@ class _ProductListTabState extends State<ProductListTab>
   }
 
   /// بناء قائمة المنتجات المضغوطة كـ Sliver
-  Widget _buildCompactGridSliver(List<Product> products) {
-    return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      sliver: SliverList(
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            if (index >= products.length) {
-              return const SizedBox.shrink();
-            }
+  Widget _buildCompactGridSliver(List<Product> products) => SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              if (index >= products.length) {
+                return const SizedBox.shrink();
+              }
 
-            final product = products[index];
+              final product = products[index];
 
-            return TweenAnimationBuilder<double>(
-              duration: Duration(milliseconds: 400 + (index * 50)),
-              tween: Tween(begin: 0.0, end: 1.0),
-              curve: Curves.easeOut,
-              builder: (context, value, child) {
-                return Transform.translate(
-                  offset: Offset(0, 20 * (1 - value)),
-                  child: Opacity(
-                    opacity: value,
-                    child: child,
+              return TweenAnimationBuilder<double>(
+                duration: Duration(milliseconds: 400 + (index * 50)),
+                tween: Tween(begin: 0.0, end: 1.0),
+                curve: Curves.easeOut,
+                builder: (context, value, child) {
+                  return Transform.translate(
+                    offset: Offset(0, 20 * (1 - value)),
+                    child: Opacity(
+                      opacity: value,
+                      child: child,
+                    ),
+                  );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Selector<StreamProductProvider, Product>(
+                    selector: (_, provider) => provider.products.firstWhere(
+                      (p) => p.id == product.id,
+                      orElse: () => product,
+                    ),
+                    builder: (_, selectedProduct, __) => Platform.isWindows
+                        ? WindowsProductCard(
+                            product: selectedProduct,
+                            onEdit: () => _handleProductEdit(selectedProduct),
+                            onDelete: () =>
+                                _handleProductDelete(selectedProduct),
+                            onTap: () => _handleProductTap(selectedProduct),
+                            isExpanded:
+                                _expandedProductId == selectedProduct.id,
+                            onExpansionChanged: (isExpanded) =>
+                                _handleCardExpansion(
+                                    selectedProduct.id ?? '', isExpanded),
+                          )
+                        : ProductCard(
+                            product: selectedProduct,
+                            onEdit: () => _handleProductEdit(selectedProduct),
+                            onDelete: () =>
+                                _handleProductDelete(selectedProduct),
+                          ),
                   ),
-                );
-              },
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Selector<StreamProductProvider, Product>(
-                  selector: (_, provider) => provider.products.firstWhere(
-                    (p) => p.id == product.id,
-                    orElse: () => product,
-                  ),
-                  builder: (_, selectedProduct, __) => Platform.isWindows
-                      ? WindowsProductCard(
-                          product: selectedProduct,
-                          onEdit: () => _handleProductEdit(selectedProduct),
-                          onDelete: () => _handleProductDelete(selectedProduct),
-                          onTap: () => _handleProductTap(selectedProduct),
-                          isExpanded: _expandedProductId == selectedProduct.id,
-                          onExpansionChanged: (isExpanded) =>
-                              _handleCardExpansion(
-                                  selectedProduct.id ?? '', isExpanded),
-                        )
-                      : ProductCard(
-                          product: selectedProduct,
-                          onEdit: () => _handleProductEdit(selectedProduct),
-                          onDelete: () => _handleProductDelete(selectedProduct),
-                        ),
                 ),
-              ),
-            );
-          },
-          childCount: products.length,
+              );
+            },
+            childCount: products.length,
+          ),
         ),
-      ),
-    );
-  }
+      );
 
   /// بناء حالة فارغة
   Widget _buildEmptyState() => EmptyStateWidget(
@@ -723,9 +767,9 @@ class _ProductListTabState extends State<ProductListTab>
   void _showSearchIndicator() {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Row(
-            children: [
+            children: <Widget>[
               SizedBox(
                 width: 16,
                 height: 16,
@@ -734,11 +778,11 @@ class _ProductListTabState extends State<ProductListTab>
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               ),
-              const SizedBox(width: 8),
-              const Text('جاري البحث...'),
+              SizedBox(width: 8),
+              Text('جاري البحث...'),
             ],
           ),
-          duration: const Duration(milliseconds: 800),
+          duration: Duration(milliseconds: 800),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppConstants.primaryColor,
         ),
@@ -747,11 +791,16 @@ class _ProductListTabState extends State<ProductListTab>
   }
 
   void _handleFiltersChanged(ProductFilters filters) {
-    setState(() {
-      _currentFilters = filters;
+    // استخدام post-frame callback لتجنب استدعاء setState أثناء البناء
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _currentFilters = filters;
+        });
+        // تطبيق الفلاتر على المنتجات
+        _applyFilters();
+      }
     });
-    // تطبيق الفلاتر على المنتجات
-    _applyFilters();
   }
 
   void _handleCategorySelected(String category) {
@@ -814,48 +863,58 @@ class _ProductListTabState extends State<ProductListTab>
   }
 
   void _toggleAdvancedFilters() {
-    setState(() {
-      _showAdvancedFilters = !_showAdvancedFilters;
+    // استخدام post-frame callback لتجنب استدعاء setState أثناء البناء
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _showAdvancedFilters = !_showAdvancedFilters;
+        });
+      }
     });
   }
 
   /// ✅ Reset شامل للفلاتر والبحث والترتيب
   void _resetFilters() {
-    setState(() {
-      _currentFilters = const ProductFilters();
-      _showAdvancedFilters = false;
+    // استخدام post-frame callback لتجنب استدعاء setState أثناء البناء
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _currentFilters = const ProductFilters();
+          _showAdvancedFilters = false;
+        });
+
+        final StreamAppProvider appProvider = context.read<StreamAppProvider>();
+        final StreamProductProvider provider = appProvider.productProvider;
+
+        // ✅ Reset شامل
+        provider.resetFilter();
+
+        // ✅ إظهار تأكيد Reset
+        _showResetConfirmation();
+
+        // ✅ إعادة تشغيل الـ animations
+        _fadeController.reset();
+        _slideController.reset();
+        _fadeController.forward();
+        _slideController.forward();
+      }
     });
-
-    final StreamAppProvider appProvider = context.read<StreamAppProvider>();
-    final StreamProductProvider provider = appProvider.productProvider;
-
-    // ✅ Reset شامل
-    provider.resetFilter();
-
-    // ✅ إظهار تأكيد Reset
-    _showResetConfirmation();
-
-    // ✅ إعادة تشغيل الـ animations
-    _fadeController.reset();
-    _slideController.reset();
-    _fadeController.forward();
-    _slideController.forward();
   }
 
   /// إظهار تأكيد Reset
   void _showResetConfirmation() {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Row(
-            children: [
-              const Icon(Icons.refresh, color: Colors.white),
-              const SizedBox(width: 8),
-              const Text('تم إعادة تعيين جميع الفلاتر والبحث'),
+            children: <Widget>[
+              Icon(Icons.refresh, color: Colors.white),
+              SizedBox(width: 8),
+              Text('تم إعادة تعيين جميع الفلاتر والبحث'),
             ],
           ),
           backgroundColor: Colors.green,
-          duration: const Duration(seconds: 2),
+          duration: Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -904,8 +963,13 @@ class _ProductListTabState extends State<ProductListTab>
   Future<void> _deleteProduct(Product product) async {
     if (_isDeleting || product.id == null) return;
 
-    setState(() {
-      _isDeleting = true;
+    // استخدام post-frame callback لتجنب استدعاء setState أثناء البناء
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _isDeleting = true;
+        });
+      }
     });
 
     try {
@@ -919,7 +983,7 @@ class _ProductListTabState extends State<ProductListTab>
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Row(
-                children: [
+                children: <Widget>[
                   const Icon(Icons.check_circle, color: Colors.white),
                   const SizedBox(width: 8),
                   Text('تم حذف "${product.name}" بنجاح'),
@@ -936,7 +1000,7 @@ class _ProductListTabState extends State<ProductListTab>
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Row(
-                children: [
+                children: <Widget>[
                   const Icon(Icons.error, color: Colors.white),
                   const SizedBox(width: 8),
                   Text('فشل في حذف "${product.name}"'),
@@ -955,7 +1019,7 @@ class _ProductListTabState extends State<ProductListTab>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
-              children: [
+              children: <Widget>[
                 const Icon(Icons.error, color: Colors.white),
                 const SizedBox(width: 8),
                 Text('خطأ في حذف المنتج: $e'),
@@ -969,8 +1033,13 @@ class _ProductListTabState extends State<ProductListTab>
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _isDeleting = false;
+        // استخدام post-frame callback لتجنب استدعاء setState أثناء البناء
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _isDeleting = false;
+            });
+          }
         });
       }
     }
@@ -1017,42 +1086,33 @@ class _ProductListTabState extends State<ProductListTab>
   }
 
   /// بناء Shimmer Loading للحالة الأولية
-  Widget _buildShimmerLoading() {
-    return CustomScrollView(
-      slivers: [
-        SliverPadding(
-          padding: const EdgeInsets.all(AppConstants.spacing16),
-          sliver: SliverGrid(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: AppConstants.spacing12,
-              crossAxisSpacing: AppConstants.spacing12,
-              childAspectRatio: 0.75,
-            ),
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                return const ShimmerCard(
-                  height: 200,
-                );
-              },
-              childCount: 6,
+  Widget _buildShimmerLoading() => CustomScrollView(
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.all(AppConstants.spacing16),
+            sliver: SliverGrid(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: AppConstants.spacing12,
+                crossAxisSpacing: AppConstants.spacing12,
+                childAspectRatio: 0.75,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  return const ShimmerCard(
+                    height: 200,
+                  );
+                },
+                childCount: 6,
+              ),
             ),
           ),
-        ),
-      ],
-    );
-  }
+        ],
+      );
 }
 
 /// بطاقة منتج محسنة مع memorization
 class _MemoizedProductCard extends StatelessWidget {
-  final Product product;
-  final VoidCallback onTap;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-  final bool showActions;
-  final bool compactMode;
-
   const _MemoizedProductCard({
     super.key,
     required this.product,
@@ -1062,40 +1122,44 @@ class _MemoizedProductCard extends StatelessWidget {
     this.showActions = true,
     this.compactMode = false,
   });
+  final Product product;
+  final VoidCallback onTap;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  final bool showActions;
+  final bool compactMode;
 
   @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: Listenable.merge([
-        // يمكن إضافة animations إضافية هنا
-      ]),
-      builder: (context, child) {
-        return TweenAnimationBuilder<double>(
-          duration: const Duration(milliseconds: 300),
-          tween: Tween(begin: 0.0, end: 1.0),
-          builder: (context, value, child) {
-            return Transform.scale(
-              scale: 0.8 + (0.2 * value),
-              child: Opacity(
-                opacity: value,
-                child: Platform.isWindows
-                    ? WindowsProductCard(
-                        product: product,
-                        onEdit: onEdit,
-                        onDelete: onDelete,
-                      )
-                    : ProductCard(
-                        product: product,
-                        onEdit: onEdit,
-                        onDelete: onDelete,
-                      ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: Listenable.merge([
+          // يمكن إضافة animations إضافية هنا
+        ]),
+        builder: (context, child) {
+          return TweenAnimationBuilder<double>(
+            duration: const Duration(milliseconds: 300),
+            tween: Tween(begin: 0.0, end: 1.0),
+            builder: (context, value, child) {
+              return Transform.scale(
+                scale: 0.8 + (0.2 * value),
+                child: Opacity(
+                  opacity: value,
+                  child: Platform.isWindows
+                      ? WindowsProductCard(
+                          product: product,
+                          onEdit: onEdit,
+                          onDelete: onDelete,
+                        )
+                      : ProductCard(
+                          product: product,
+                          onEdit: onEdit,
+                          onDelete: onDelete,
+                        ),
+                ),
+              );
+            },
+          );
+        },
+      );
 
   // إزالة operator == و hashCode لأنها غير مسموحة في Widget
 }

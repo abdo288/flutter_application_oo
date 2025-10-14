@@ -30,8 +30,7 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
     return widget.child;
   }
 
-  Widget _buildDefaultErrorWidget() {
-    return Center(
+  Widget _buildDefaultErrorWidget() => Center(
       child: Padding(
         padding: const EdgeInsets.all(AppConstants.largePadding),
         child: Column(
@@ -75,7 +74,6 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
         ),
       ),
     );
-  }
 
   void _resetError() {
     if (mounted) {
@@ -115,8 +113,7 @@ class SimpleErrorBoundary extends StatelessWidget {
   final VoidCallback? onRetry;
 
   @override
-  Widget build(BuildContext context) {
-    return Builder(
+  Widget build(BuildContext context) => Builder(
       builder: (context) {
         try {
           return child;
@@ -125,10 +122,8 @@ class SimpleErrorBoundary extends StatelessWidget {
         }
       },
     );
-  }
 
-  Widget _buildErrorWidget(Object error) {
-    return Center(
+  Widget _buildErrorWidget(Object error) => Center(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -165,7 +160,6 @@ class SimpleErrorBoundary extends StatelessWidget {
         ),
       ),
     );
-  }
 }
 
 /// مكون معالجة حالات التحميل والأخطاء
@@ -200,8 +194,7 @@ class LoadingErrorHandler extends StatelessWidget {
     return child;
   }
 
-  Widget _buildLoadingWidget() {
-    return Center(
+  Widget _buildLoadingWidget() => Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -220,10 +213,8 @@ class LoadingErrorHandler extends StatelessWidget {
         ],
       ),
     );
-  }
 
-  Widget _buildErrorWidget() {
-    return Center(
+  Widget _buildErrorWidget() => Center(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -260,5 +251,4 @@ class LoadingErrorHandler extends StatelessWidget {
         ),
       ),
     );
-  }
 }

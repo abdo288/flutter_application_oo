@@ -34,7 +34,7 @@ class WindowsPOSCard extends StatefulWidget {
 
 class _WindowsPOSCardState extends State<WindowsPOSCard>
     with TickerProviderStateMixin {
-  bool _isDeleting = false;
+  final bool _isDeleting = false;
   late AnimationController _rotationController;
   late AnimationController _scaleController;
   final TextEditingController _discountController = TextEditingController();
@@ -81,9 +81,9 @@ class _WindowsPOSCardState extends State<WindowsPOSCard>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final item = widget.item;
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
+    final CartItem item = widget.item;
 
     // إذا كان العنصر في حالة حذف، اعرض مؤشر التحميل
     if (_isDeleting) {
@@ -106,11 +106,11 @@ class _WindowsPOSCardState extends State<WindowsPOSCard>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: isDark
-              ? [
+              ? <Color>[
                   const Color(0xFF334155),
                   const Color(0xFF1E293B),
                 ]
-              : [
+              : <Color>[
                   Colors.white,
                   const Color(0xFFF8FAFC),
                 ],
@@ -118,7 +118,7 @@ class _WindowsPOSCardState extends State<WindowsPOSCard>
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
+        boxShadow: <BoxShadow>[
           BoxShadow(
             color: isDark
                 ? Colors.black.withOpacity(0.3)
@@ -170,8 +170,7 @@ class _WindowsPOSCardState extends State<WindowsPOSCard>
   }
 
   /// بطاقة الحذف
-  Widget _buildDeletingCard(CartItem item, bool isDark) {
-    return Container(
+  Widget _buildDeletingCard(CartItem item, bool isDark) => Container(
       width: double.infinity,
       margin: EdgeInsets.symmetric(
         vertical: context.responsiveSpacing * 0.5,
@@ -209,7 +208,6 @@ class _WindowsPOSCardState extends State<WindowsPOSCard>
         ),
       ),
     );
-  }
 
   /// الحصول على لون الحدود حسب حالة المنتج
   Color _getBorderColor(CartItem item, bool isDark) {
@@ -264,15 +262,14 @@ class _CollapsedRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textStyle = TextStyle(
+    final TextStyle textStyle = TextStyle(
       fontSize: context.responsiveFontSize(14),
       fontWeight: FontWeight.w600,
       color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B),
     );
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
+      children: <Widget>[
         // اسم المنتج
         Expanded(
           child: Text(
@@ -316,11 +313,11 @@ class _CollapsedRow extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: item.discount > 0
-                  ? [
+                  ? <Color>[
                       const Color(0xFFF59E0B).withOpacity(0.2),
                       const Color(0xFFF59E0B).withOpacity(0.1),
                     ]
-                  : [
+                  : <Color>[
                       const Color(0xFF2563EB).withOpacity(0.2),
                       const Color(0xFF2563EB).withOpacity(0.1),
                     ],
@@ -335,15 +332,15 @@ class _CollapsedRow extends StatelessWidget {
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: [
+            children: <Widget>[
               Row(
                 mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (item.discount > 0) ...[
-                    Icon(
+                children: <Widget>[
+                  if (item.discount > 0) ...<Widget>[
+                    const Icon(
                       Icons.discount,
                       size: 16,
-                      color: const Color(0xFFF59E0B),
+                      color: Color(0xFFF59E0B),
                     ),
                     const SizedBox(width: 6),
                   ],
@@ -365,7 +362,7 @@ class _CollapsedRow extends StatelessWidget {
                   ),
                 ],
               ),
-              if (item.discount > 0) ...[
+              if (item.discount > 0) ...<Widget>[
                 const SizedBox(height: 2),
                 Text(
                   'خصم: ${CurrencyFormatter.formatCurrency(item.discount.toDouble(), context)}',
@@ -437,25 +434,25 @@ class _ExpandedContentState extends State<_ExpandedContent> {
 
   @override
   Widget build(BuildContext context) {
-    final item = widget.item;
-    final isDark = widget.isDark;
-    final onRemove = widget.onRemove;
-    final onDiscountChanged = widget.onDiscountChanged;
-    final onToggleExpanded = widget.onToggleExpanded;
-    final discountController = widget.discountController;
+    final CartItem item = widget.item;
+    final bool isDark = widget.isDark;
+    final VoidCallback onRemove = widget.onRemove;
+    final ValueChanged<double>? onDiscountChanged = widget.onDiscountChanged;
+    final VoidCallback onToggleExpanded = widget.onToggleExpanded;
+    final TextEditingController discountController = widget.discountController;
 
     return CustomScrollView(
       physics: const BouncingScrollPhysics(),
-      slivers: [
+      slivers: <Widget>[
         SliverFillRemaining(
           hasScrollBody: false,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
-            children: [
+            children: <Widget>[
               // الصف الأول في العرض الموسع
               Row(
-                children: [
+                children: <Widget>[
                   // العنوان
                   Expanded(
                     flex: 2,
@@ -511,11 +508,11 @@ class _ExpandedContentState extends State<_ExpandedContent> {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: isDark
-                            ? [
+                            ? <Color>[
                                 const Color(0xFF1E293B),
                                 const Color(0xFF334155),
                               ]
-                            : [
+                            : <Color>[
                                 const Color(0xFFF8FAFC),
                                 const Color(0xFFE2E8F0),
                               ],
@@ -527,7 +524,7 @@ class _ExpandedContentState extends State<_ExpandedContent> {
                         color: const Color(0xFF2563EB).withOpacity(0.3),
                         width: 1.5,
                       ),
-                      boxShadow: [
+                      boxShadow: <BoxShadow>[
                         BoxShadow(
                           color: const Color(0xFF2563EB).withOpacity(0.1),
                           blurRadius: 6,
@@ -537,19 +534,19 @@ class _ExpandedContentState extends State<_ExpandedContent> {
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+                      children: <Widget>[
                         // عنوان القسم مع أيقونة التوسيع
                         Row(
-                          children: [
+                          children: <Widget>[
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
                                 color: const Color(0xFF2563EB).withOpacity(0.2),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: Icon(
+                              child: const Icon(
                                 Icons.info_outline,
-                                color: const Color(0xFF2563EB),
+                                color: Color(0xFF2563EB),
                                 size: 20,
                               ),
                             ),
@@ -590,7 +587,7 @@ class _ExpandedContentState extends State<_ExpandedContent> {
                         ),
 
                         // التفاصيل (تظهر عند التوسيع)
-                        if (_showProductDetails) ...[
+                        if (_showProductDetails) ...<Widget>[
                           const SizedBox(height: 16),
 
                           // الباركود
@@ -665,13 +662,13 @@ class _ExpandedContentState extends State<_ExpandedContent> {
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                  children: <Widget>[
                     // عنوان القسم
                     Row(
-                      children: [
-                        Icon(
+                      children: <Widget>[
+                        const Icon(
                           Icons.analytics,
-                          color: const Color(0xFF22C55E),
+                          color: Color(0xFF22C55E),
                           size: 20,
                         ),
                         const SizedBox(width: 8),
@@ -723,7 +720,7 @@ class _ExpandedContentState extends State<_ExpandedContent> {
                           '${CurrencyFormatter.formatCurrency(item.retailPrice.toDouble(), context)} × $item.quantity',
                     ),
 
-                    if (item.discount > 0) ...[
+                    if (item.discount > 0) ...<Widget>[
                       const SizedBox(height: 8),
                       _buildFinancialRow(
                         'الخصم',
@@ -748,7 +745,7 @@ class _ExpandedContentState extends State<_ExpandedContent> {
                             '${CurrencyFormatter.formatCurrency((item.retailPrice * item.quantity).toDouble(), context)} - ${CurrencyFormatter.formatCurrency(item.discount.toDouble(), context)}',
                         isHighlighted: true,
                       ),
-                    ] else ...[
+                    ] else ...<Widget>[
                       const SizedBox(height: 8),
                       _buildFinancialRow(
                         'المجموع النهائي',
@@ -776,17 +773,17 @@ class _ExpandedContentState extends State<_ExpandedContent> {
                         ),
                       ),
                       child: Row(
-                        children: [
-                          Icon(
+                        children: <Widget>[
+                          const Icon(
                             Icons.trending_up,
-                            color: const Color(0xFF22C55E),
+                            color: Color(0xFF22C55E),
                             size: 20,
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
+                              children: <Widget>[
                                 Text(
                                   'هامش الربح الإجمالي',
                                   style: TextStyle(
@@ -807,10 +804,10 @@ class _ExpandedContentState extends State<_ExpandedContent> {
                                         .toDouble(),
                                     context,
                                   ),
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: const Color(0xFF22C55E),
+                                    color: Color(0xFF22C55E),
                                   ),
                                 ),
                               ],
@@ -826,7 +823,7 @@ class _ExpandedContentState extends State<_ExpandedContent> {
               const SizedBox(height: 16),
 
               // تفاصيل الخصم (عند وجود أكثر من منتج واحد)
-              if (item.quantity > 1 && item.discount > 0) ...[
+              if (item.quantity > 1 && item.discount > 0) ...<Widget>[
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
@@ -843,12 +840,12 @@ class _ExpandedContentState extends State<_ExpandedContent> {
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                    children: <Widget>[
                       Row(
-                        children: [
-                          Icon(
+                        children: <Widget>[
+                          const Icon(
                             Icons.calculate,
-                            color: const Color(0xFFF59E0B),
+                            color: Color(0xFFF59E0B),
                             size: 18,
                           ),
                           const SizedBox(width: 8),
@@ -897,7 +894,7 @@ class _ExpandedContentState extends State<_ExpandedContent> {
 
               // أزرار التحكم
               Row(
-                children: [
+                children: <Widget>[
                   // تقليل الكمية
                   Expanded(
                     child: _buildActionButton(
@@ -933,17 +930,17 @@ class _ExpandedContentState extends State<_ExpandedContent> {
               const SizedBox(height: 16),
 
               // إدخال الخصم - في الأسفل
-              if (onDiscountChanged != null) ...[
+              if (onDiscountChanged != null) ...<Widget>[
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: isDark
-                          ? [
+                          ? <Color>[
                               const Color(0xFF1E293B),
                               const Color(0xFF334155),
                             ]
-                          : [
+                          : <Color>[
                               const Color(0xFFF8FAFC),
                               const Color(0xFFE2E8F0),
                             ],
@@ -955,7 +952,7 @@ class _ExpandedContentState extends State<_ExpandedContent> {
                       color: const Color(0xFFF59E0B).withOpacity(0.3),
                       width: 2,
                     ),
-                    boxShadow: [
+                    boxShadow: <BoxShadow>[
                       BoxShadow(
                         color: const Color(0xFFF59E0B).withOpacity(0.1),
                         blurRadius: 8,
@@ -965,19 +962,19 @@ class _ExpandedContentState extends State<_ExpandedContent> {
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                    children: <Widget>[
                       // عنوان القسم مع أيقونة
                       Row(
-                        children: [
+                        children: <Widget>[
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
                               color: const Color(0xFFF59E0B).withOpacity(0.2),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Icon(
+                            child: const Icon(
                               Icons.discount,
-                              color: const Color(0xFFF59E0B),
+                              color: Color(0xFFF59E0B),
                               size: 20,
                             ),
                           ),
@@ -1009,7 +1006,7 @@ class _ExpandedContentState extends State<_ExpandedContent> {
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
+                          children: <Widget>[
                             Text(
                               'مبلغ الخصم (دينار)',
                               style: TextStyle(
@@ -1059,9 +1056,9 @@ class _ExpandedContentState extends State<_ExpandedContent> {
                                     width: 2,
                                   ),
                                 ),
-                                prefixIcon: Icon(
+                                prefixIcon: const Icon(
                                   Icons.discount,
-                                  color: const Color(0xFFF59E0B),
+                                  color: Color(0xFFF59E0B),
                                 ),
                                 suffixIcon: Icon(
                                   Icons.edit,
@@ -1074,8 +1071,8 @@ class _ExpandedContentState extends State<_ExpandedContent> {
                                   vertical: 16,
                                 ),
                               ),
-                              onChanged: (value) {
-                                final discount = double.tryParse(value) ?? 0.0;
+                              onChanged: (String value) {
+                                final double discount = double.tryParse(value) ?? 0.0;
                                 onDiscountChanged(discount);
                               },
                             ),
@@ -1095,20 +1092,20 @@ class _ExpandedContentState extends State<_ExpandedContent> {
                             color: const Color(0xFFF59E0B).withOpacity(0.2),
                           ),
                         ),
-                        child: Row(
-                          children: [
+                        child: const Row(
+                          children: <Widget>[
                             Icon(
                               Icons.info_outline,
-                              color: const Color(0xFFF59E0B),
+                              color: Color(0xFFF59E0B),
                               size: 16,
                             ),
-                            const SizedBox(width: 8),
+                            SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 'الخصم سيُطبق على المجموع الإجمالي للمنتجات',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: const Color(0xFFF59E0B),
+                                  color: Color(0xFFF59E0B),
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -1129,8 +1126,7 @@ class _ExpandedContentState extends State<_ExpandedContent> {
 
   /// بناء صف التفاصيل
   Widget _buildDetailRow(
-      String label, String value, IconData icon, Color color, bool isDark) {
-    return Row(
+      String label, String value, IconData icon, Color color, bool isDark) => Row(
       children: [
         Icon(icon, color: color, size: 16),
         const SizedBox(width: 8),
@@ -1157,13 +1153,11 @@ class _ExpandedContentState extends State<_ExpandedContent> {
         ),
       ],
     );
-  }
 
   /// بناء صف معلومات تفصيلي مع إمكانية النسخ
   Widget _buildDetailInfoRow(
       String label, String value, IconData icon, Color color, bool isDark,
-      {VoidCallback? onCopy}) {
-    return Container(
+      {VoidCallback? onCopy}) => Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: color.withOpacity(0.05),
@@ -1221,13 +1215,11 @@ class _ExpandedContentState extends State<_ExpandedContent> {
         ],
       ),
     );
-  }
 
   /// بناء صف معلومات مالي
   Widget _buildFinancialRow(
       String label, String value, IconData icon, Color color, bool isDark,
-      {String? subtitle, bool isHighlighted = false}) {
-    return Container(
+      {String? subtitle, bool isHighlighted = false}) => Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color:
@@ -1284,12 +1276,10 @@ class _ExpandedContentState extends State<_ExpandedContent> {
         ],
       ),
     );
-  }
 
   /// بناء زر الإجراء
   Widget _buildActionButton(
-      String label, IconData icon, Color color, VoidCallback onTap) {
-    return ElevatedButton.icon(
+      String label, IconData icon, Color color, VoidCallback onTap) => ElevatedButton.icon(
       onPressed: onTap,
       icon: Icon(icon, size: 18),
       label: Text(
@@ -1305,7 +1295,6 @@ class _ExpandedContentState extends State<_ExpandedContent> {
         ),
       ),
     );
-  }
 
   /// نسخ الباركود
   Future<void> _copyBarcode(String barcode, BuildContext context) async {

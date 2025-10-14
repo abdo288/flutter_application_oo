@@ -199,7 +199,7 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
 
   /// ✅ بدء الاستماع للأحداث
   void _startEventListening() {
-    _eventSubscription = AppEventBus.stream.listen((event) {
+    _eventSubscription = AppEventBus.stream.listen((AppEvent event) {
       if (!mounted) return;
 
       switch (event.runtimeType) {
@@ -316,7 +316,6 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
       SnackBar(
         content: Text('⚠️ مخزون منخفض: ${event.itemName}'),
         backgroundColor: Colors.orange,
-        duration: const Duration(seconds: 4),
       ),
     );
   }
@@ -350,7 +349,7 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Row(
-              children: [
+              children: <Widget>[
                 Icon(Icons.check_circle, color: Colors.white),
                 SizedBox(width: 8),
                 Text('تم تحديث بيانات POS بنجاح'),
@@ -372,7 +371,7 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
-              children: [
+              children: <Widget>[
                 const Icon(Icons.error, color: Colors.white),
                 const SizedBox(width: 8),
                 Expanded(child: Text('خطأ في التحديث: $e')),
@@ -402,7 +401,7 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
           in snapshot.docs) {
         final Map<String, dynamic> data = doc.data();
         final String sessionId = doc.id;
-        final List<dynamic> items = data['items'] as List<dynamic>? ?? [];
+        final List<dynamic> items = data['items'] as List<dynamic>? ?? <dynamic>[];
         final String platform = data['platform'] as String? ?? 'Unknown';
         final String lastUpdated = data['lastUpdated']?.toString() ?? 'Unknown';
 
@@ -631,7 +630,6 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
         wholesalePrice: product.wholesalePrice,
         retailPrice: product.retailPrice,
         quantity: 1,
-        discount: 0,
       );
 
       // خصم كمية واحدة من المخزون
@@ -689,7 +687,6 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
         inventoryProvider: appProvider.inventoryProvider,
         barcode: barcode,
         currentCart: List<CartItem>.from(appProvider.cartProvider.cart),
-        quantity: 1,
       );
 
       debugPrint(
@@ -966,10 +963,6 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
         productProvider: appProvider.productProvider,
         inventoryProvider: appProvider.inventoryProvider,
         cart: snapshotCart,
-        customerName: null, // لا نحتاج اسم العميل
-        paymentMethod: 'نقدي', // قيمة افتراضية
-        discount: 0, // لا نحتاج خصم إجمالي
-        notes: null, // لا نحتاج ملاحظات
       );
 
       _showSaleDetails(saleId);
@@ -996,7 +989,7 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
             const SizedBox(height: 8),
             Text('المبلغ الإجمالي: ${formatCurrency(_getTotalAmount())}'),
             Text('الربح: ${formatCurrency(_getTotalProfit())}'),
-            Text('طريقة الدفع: نقدي'),
+            const Text('طريقة الدفع: نقدي'),
           ],
         ),
         actions: <Widget>[
@@ -1038,7 +1031,7 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
       // إعادة بناء الواجهة فوراً
       setState(() {});
 
-      SnackbarUtils.showSuccess(context, 'تم تطبيق الخصم: ${discount} دينار');
+      SnackbarUtils.showSuccess(context, 'تم تطبيق الخصم: $discount دينار');
     } else {
       SnackbarUtils.showError(context, 'قيمة الخصم غير صحيحة');
     }
@@ -1048,7 +1041,7 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
   void _cleanupUnusedControllers() {
     final StreamAppProvider appProvider = context.read<StreamAppProvider>();
     final List<String> currentKeys = appProvider.cartProvider.cart
-        .map((item) => '${item.productId}_${item.discount}_${item.quantity}')
+        .map((CartItem item) => '${item.productId}_${item.discount}_${item.quantity}')
         .toList();
 
     final List<String> keysToRemove = <String>[];
@@ -1206,8 +1199,7 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
       );
 
   /// بناء الإحصائيات السريعة
-  Widget _buildQuickStats() {
-    return Consumer<StreamAppProvider>(
+  Widget _buildQuickStats() => Consumer<StreamAppProvider>(
       builder: (context, appProvider, child) {
         return context.shouldUseVerticalLayout
             ? Column(
@@ -1247,7 +1239,6 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
               );
       },
     );
-  }
 
   /// بناء شريط إحصائية
   Widget _buildStatChip({
@@ -1301,11 +1292,9 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
             // المحتوى الرئيسي
             Expanded(
               child: Consumer<StreamAppProvider>(
-                builder: (context, appProvider, child) {
-                  return appProvider.cartProvider.isEmpty
+                builder: (BuildContext context, StreamAppProvider appProvider, Widget? child) => appProvider.cartProvider.isEmpty
                       ? _buildEmptyState()
-                      : _buildCartGrid();
-                },
+                      : _buildCartGrid(),
               ),
             ),
 
@@ -1328,11 +1317,9 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
                   // المحتوى الرئيسي
                   Expanded(
                     child: Consumer<StreamAppProvider>(
-                      builder: (context, appProvider, child) {
-                        return appProvider.cartProvider.isEmpty
+                      builder: (BuildContext context, StreamAppProvider appProvider, Widget? child) => appProvider.cartProvider.isEmpty
                             ? _buildEmptyState()
-                            : _buildCartGrid();
-                      },
+                            : _buildCartGrid(),
                     ),
                   ),
 
@@ -1481,8 +1468,7 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
             ),
             const SizedBox(height: 12),
             Consumer<StreamAppProvider>(
-              builder: (context, appProvider, child) {
-                return Column(
+              builder: (BuildContext context, StreamAppProvider appProvider, Widget? child) => Column(
                   children: [
                     _buildSummaryRow(
                         'المنتجات:', '${appProvider.cartProvider.itemCount}'),
@@ -1491,8 +1477,7 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
                     _buildSummaryRow(
                         'الربح:', formatCurrency(_getTotalProfit())),
                   ],
-                );
-              },
+                ),
             ),
             const Divider(),
             _buildSummaryRow(
@@ -1558,7 +1543,6 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
               onProductSelected: (Product product) {
                 _addProductToCartByName(product.name);
               },
-              placeholder: 'البحث عن منتج بالاسم...',
             ),
 
             const SizedBox(height: 12),
@@ -1661,8 +1645,7 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
       );
 
   /// بناء شبكة المنتجات في السلة
-  Widget _buildCartGrid() {
-    return Consumer<StreamAppProvider>(
+  Widget _buildCartGrid() => Consumer<StreamAppProvider>(
       builder: (context, appProvider, child) {
         // فلترة المنتجات حسب الخصم
         final List<CartItem> filteredCart = _showDiscountedOnly
@@ -1708,14 +1691,13 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
         );
       },
     );
-  }
 
   /// بناء بطاقة منتج محسنة في السلة
   Widget _buildEnhancedCartItemCard(CartItem item, int index) => WindowsPOSCard(
         key: ValueKey(
             '${item.productId}_${item.quantity}_${item.discount}_${item.retailPrice}_${item.discountedPrice}_$index'),
         item: item,
-        onQuantityChanged: (newQuantity) {
+        onQuantityChanged: (int newQuantity) {
           if (newQuantity <= 0) {
             _confirmRemoveItem(item);
           } else {
@@ -1723,10 +1705,10 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
           }
         },
         onRemove: () => _confirmRemoveItem(item),
-        onDiscountChanged: (discount) =>
+        onDiscountChanged: (double discount) =>
             _applyDiscount(item, discount.toInt().toString()),
         isExpanded: _expandedItemId == 'cart_item_$index',
-        onExpansionChanged: (isExpanded) =>
+        onExpansionChanged: (bool isExpanded) =>
             _handleCardExpansion('cart_item_$index', isExpanded),
         onIncreaseQuantity: () => _increaseQuantity(item),
         onDecreaseQuantity: () => _decreaseQuantity(item),
@@ -1765,15 +1747,13 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
                   ),
                   const SizedBox(height: 8),
                   Consumer<StreamAppProvider>(
-                    builder: (context, appProvider, child) {
-                      return Text(
+                    builder: (BuildContext context, StreamAppProvider appProvider, Widget? child) => Text(
                         '${appProvider.cartProvider.itemCount} منتج • ${appProvider.cartProvider.getTotalQuantity()} كمية',
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.grey[600],
                         ),
-                      );
-                    },
+                      ),
                   ),
                 ],
               ),

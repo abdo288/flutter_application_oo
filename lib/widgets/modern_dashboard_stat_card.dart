@@ -87,8 +87,8 @@ class _ModernDashboardStatCardState extends State<ModernDashboardStatCard>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
 
     return FadeTransition(
       opacity: _fadeAnimation,
@@ -102,11 +102,11 @@ class _ModernDashboardStatCardState extends State<ModernDashboardStatCard>
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: isDark
-                  ? [
+                  ? <Color>[
                       const Color(0xFF334155), // surface-dark
                       const Color(0xFF1E293B), // background-dark
                     ]
-                  : [
+                  : <Color>[
                       Colors.white, // surface-light
                       const Color(0xFFF8FAFC), // background-light
                     ],
@@ -114,7 +114,7 @@ class _ModernDashboardStatCardState extends State<ModernDashboardStatCard>
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(16),
-            boxShadow: [
+            boxShadow: <BoxShadow>[
               BoxShadow(
                 color: isDark
                     ? Colors.black.withOpacity(0.3)
@@ -139,22 +139,22 @@ class _ModernDashboardStatCardState extends State<ModernDashboardStatCard>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
-                  children: [
+                  children: <Widget>[
                     // الصف الأول: الأيقونة والعنوان
                     Row(
-                      children: [
+                      children: <Widget>[
                         // أيقونة الإحصائية
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [
+                              colors: <Color>[
                                 widget.color,
                                 widget.color.withOpacity(0.8),
                               ],
                             ),
                             borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
+                            boxShadow: <BoxShadow>[
                               BoxShadow(
                                 color: widget.color.withOpacity(0.3),
                                 blurRadius: 8,
@@ -210,7 +210,7 @@ class _ModernDashboardStatCardState extends State<ModernDashboardStatCard>
                     ),
 
                     // قيمة الاتجاه (إن وجدت)
-                    if (widget.trendValue != null) ...[
+                    if (widget.trendValue != null) ...<Widget>[
                       const SizedBox(height: 6),
                       _buildTrendValue(isDark),
                     ],
@@ -240,7 +240,7 @@ class _ModernDashboardStatCardState extends State<ModernDashboardStatCard>
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        children: [
+        children: <Widget>[
           Icon(
             isUp ? Icons.trending_up : Icons.trending_down,
             size: 14,
@@ -268,7 +268,7 @@ class _ModernDashboardStatCardState extends State<ModernDashboardStatCard>
 
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: [
+      children: <Widget>[
         Icon(
           isUp ? Icons.arrow_upward : Icons.arrow_downward,
           size: 14,

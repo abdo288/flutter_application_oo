@@ -356,7 +356,6 @@ class _RealtimeStatsChartState extends State<RealtimeStatsChart>
           Expanded(
             child: LineChart(
               LineChartData(
-                gridData: const FlGridData(),
                 titlesData: FlTitlesData(
                   rightTitles: const AxisTitles(),
                   topTitles: const AxisTitles(),
@@ -388,7 +387,6 @@ class _RealtimeStatsChartState extends State<RealtimeStatsChart>
                     isCurved: true,
                     color: Colors.blue,
                     barWidth: 3,
-                    dotData: const FlDotData(),
                     belowBarData: BarAreaData(
                         show: true, color: Colors.blue.withOpacity(0.3)),
                   ),
@@ -610,7 +608,7 @@ class _RealtimeStatsChartState extends State<RealtimeStatsChart>
             ...typeStats.entries
                 .map((MapEntry<String, int> entry) =>
                     _buildWindowsTypeItem(entry.key, entry.value))
-                .toList(),
+                ,
           ] else ...<Widget>[
             const Center(
               child: Text('لا توجد بيانات متاحة'),
@@ -659,7 +657,7 @@ class _RealtimeStatsChartState extends State<RealtimeStatsChart>
             ...actionStats.entries
                 .map((MapEntry<String, int> entry) =>
                     _buildWindowsActionItem(entry.key, entry.value))
-                .toList(),
+                ,
           ] else ...<Widget>[
             const Center(
               child: Text('لا توجد بيانات متاحة'),
@@ -672,8 +670,7 @@ class _RealtimeStatsChartState extends State<RealtimeStatsChart>
 
   /// بناء بطاقة إحصائية لـ Windows
   Widget _buildWindowsStatCard(
-      String title, String value, IconData icon, Color color) {
-    return Container(
+      String title, String value, IconData icon, Color color) => Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
@@ -701,11 +698,9 @@ class _RealtimeStatsChartState extends State<RealtimeStatsChart>
         ],
       ),
     );
-  }
 
   /// بناء عنصر نوع لـ Windows
-  Widget _buildWindowsTypeItem(String type, int count) {
-    return Container(
+  Widget _buildWindowsTypeItem(String type, int count) => Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -737,11 +732,9 @@ class _RealtimeStatsChartState extends State<RealtimeStatsChart>
         ],
       ),
     );
-  }
 
   /// بناء عنصر إجراء لـ Windows
-  Widget _buildWindowsActionItem(String action, int count) {
-    return Container(
+  Widget _buildWindowsActionItem(String action, int count) => Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -773,7 +766,6 @@ class _RealtimeStatsChartState extends State<RealtimeStatsChart>
         ],
       ),
     );
-  }
 
   /// الحصول على اسم العرض للنوع
   String _getTypeDisplayName(String type) {

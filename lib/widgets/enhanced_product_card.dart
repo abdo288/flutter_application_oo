@@ -35,7 +35,7 @@ class ProductCardTheme {
 
 /// بطاقة منتج محسنة مع عرض معلومات شاملة
 class EnhancedProductCard extends StatefulWidget {
-  EnhancedProductCard({
+  const EnhancedProductCard({
     super.key,
     required this.product,
     this.onTap,
@@ -163,23 +163,17 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
   }
 
   /// حساب قيمة الربح
-  int _calculateProfitValue() {
-    return widget.product.retailPrice - _cachedWholesalePrice;
-  }
+  int _calculateProfitValue() => widget.product.retailPrice - _cachedWholesalePrice;
 
   /// التحقق من صحة بيانات المنتج
-  bool _validateProduct() {
-    return widget.product.name.isNotEmpty &&
+  bool _validateProduct() => widget.product.name.isNotEmpty &&
         widget.product.retailPrice >= 0 &&
         widget.product.wholesalePrice >= 0;
-  }
 
   /// التحقق من نفاد المخزون
-  bool _checkOutOfStock() {
-    return _linkedInventoryData != null &&
+  bool _checkOutOfStock() => _linkedInventoryData != null &&
         _linkedInventoryData!.isLinked &&
         _linkedInventoryData!.isOutOfStock;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -200,8 +194,7 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
   }
 
   /// بناء البطاقة المتجاوبة
-  Widget _buildResponsiveCard(BuildContext context) {
-    return LayoutBuilder(
+  Widget _buildResponsiveCard(BuildContext context) => LayoutBuilder(
       builder: (context, constraints) {
         // التحقق من صحة القيود
         if (constraints.maxWidth <= 0 || constraints.maxHeight <= 0) {
@@ -222,7 +215,6 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
         );
       },
     );
-  }
 
   /// بناء البطاقة المتحركة
   Widget _buildAnimatedCard(
@@ -231,17 +223,17 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
     required bool isMedium,
     required bool isFull,
   }) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
 
     // تحديد وضع العرض
-    final displayMode = isCompact
+    final DisplayMode displayMode = isCompact
         ? DisplayMode.compact
         : isMedium
             ? DisplayMode.medium
             : DisplayMode.full;
 
-    final cardContent = _buildCardContent(context, displayMode);
+    final Widget cardContent = _buildCardContent(context, displayMode);
 
     if (widget.enableAnimations) {
       return AnimatedContainer(
@@ -266,9 +258,9 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
     bool isDark,
     DisplayMode displayMode,
   ) {
-    final cardColor = widget.customTheme?.cardColor ??
+    final Color cardColor = widget.customTheme?.cardColor ??
         (isDark ? Theme.of(context).cardColor : Colors.white);
-    final borderColor = widget.customTheme?.borderColor ??
+    final Color borderColor = widget.customTheme?.borderColor ??
         widget.product.getStatusColor().withValues(alpha: 0.2);
 
     return BoxDecoration(
@@ -277,12 +269,11 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
           (displayMode == DisplayMode.compact
               ? _compactBorderRadius
               : _defaultBorderRadius),
-      boxShadow: [
+      boxShadow: <BoxShadow>[
         BoxShadow(
           color: isDark
               ? Colors.black.withValues(alpha: 0.3)
               : Colors.black.withValues(alpha: 0.05),
-          spreadRadius: 0,
           blurRadius: displayMode == DisplayMode.compact ? 4 : 8,
           offset: const Offset(0, 2),
         ),
@@ -302,7 +293,7 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
           ? LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
+              colors: <Color>[
                 cardColor,
                 widget.product.getStatusColor().withValues(alpha: 0.05),
               ],
@@ -312,8 +303,7 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
   }
 
   /// بناء محتوى البطاقة
-  Widget _buildCardContent(BuildContext context, DisplayMode displayMode) {
-    return Semantics(
+  Widget _buildCardContent(BuildContext context, DisplayMode displayMode) => Semantics(
       label: 'بطاقة منتج ${widget.product.name}',
       hint: 'اضغط للعرض التفصيلي',
       button: true,
@@ -337,7 +327,6 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
         ),
       ),
     );
-  }
 
   /// الحصول على padding حسب الوضع
   EdgeInsets _getPaddingForMode(DisplayMode displayMode) {
@@ -369,8 +358,8 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
 
   /// بناء بطاقة الخطأ
   Widget _buildErrorCard(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -381,7 +370,7 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
         border: Border.all(color: Colors.red[200]!),
       ),
       child: Row(
-        children: [
+        children: <Widget>[
           Icon(Icons.error, color: Colors.red[700]),
           const SizedBox(width: 8),
           Expanded(
@@ -401,13 +390,13 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
 
   /// بناء المحتوى المضغوط
   Widget _buildCompactContent(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
 
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        children: <Widget>[
           // أيقونة الحالة
           _buildStatusIndicator(),
           SizedBox(width: context.responsiveSpacing * 1.0), // زيادة المسافة
@@ -418,9 +407,9 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
-              children: [
+              children: <Widget>[
                 _buildProductName(context, isDark, maxLines: 1),
-                if (widget.product.category != null) ...[
+                if (widget.product.category != null) ...<Widget>[
                   SizedBox(
                       height: context.responsiveSpacing * 0.5), // زيادة المسافة
                   _buildCategoryChip(context, isDark),
@@ -439,7 +428,7 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisSize: MainAxisSize.min,
-              children: [
+              children: <Widget>[
                 _buildRetailPriceChip(context, isDark),
                 SizedBox(
                     height: context.responsiveSpacing * 0.4), // زيادة المسافة
@@ -451,7 +440,7 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
 
           // أزرار الإجراءات
           if (widget.showActions &&
-              (widget.onEdit != null || widget.onDelete != null)) ...[
+              (widget.onEdit != null || widget.onDelete != null)) ...<Widget>[
             SizedBox(
                 width: context.responsiveSpacing *
                     0.8), // استخدام responsive spacing
@@ -464,16 +453,16 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
 
   /// بناء المحتوى المتوسط
   Widget _buildMediumContent(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+      children: <Widget>[
         // العنوان والحالة
         Row(
-          children: [
-            Expanded(child: _buildProductName(context, isDark, maxLines: 2)),
+          children: <Widget>[
+            Expanded(child: _buildProductName(context, isDark)),
             _buildStatusBadge(context, isDark),
           ],
         ),
@@ -491,16 +480,16 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
 
   /// بناء المحتوى الكامل
   Widget _buildFullContent(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+      children: <Widget>[
         // العنوان والحالة
         Row(
-          children: [
-            Expanded(child: _buildProductName(context, isDark, maxLines: 2)),
+          children: <Widget>[
+            Expanded(child: _buildProductName(context, isDark)),
             _buildStatusBadge(context, isDark),
           ],
         ),
@@ -517,14 +506,13 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
   }
 
   /// بناء مؤشر الحالة
-  Widget _buildStatusIndicator() {
-    return Container(
+  Widget _buildStatusIndicator() => Container(
       width: 12,
       height: 12,
       decoration: BoxDecoration(
         color: widget.product.getStatusColor(),
         shape: BoxShape.circle,
-        boxShadow: [
+        boxShadow: <BoxShadow>[
           BoxShadow(
             color: widget.product.getStatusColor().withValues(alpha: 0.3),
             spreadRadius: 0,
@@ -534,13 +522,12 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
         ],
       ),
     );
-  }
 
   /// بناء اسم المنتج
   Widget _buildProductName(BuildContext context, bool isDark,
       {int maxLines = 2}) {
-    final theme = Theme.of(context);
-    final textColor = widget.customTheme?.textColor ??
+    final ThemeData theme = Theme.of(context);
+    final Color textColor = widget.customTheme?.textColor ??
         (isDark ? theme.colorScheme.onSurface : Colors.black87);
 
     return Text(
@@ -557,9 +544,9 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
 
   /// بناء شريحة الفئة
   Widget _buildCategoryChip(BuildContext context, bool isDark) {
-    final chipColor = isDark ? Colors.blue[800] : Colors.blue[50];
-    final borderColor = isDark ? Colors.blue[600] : Colors.blue[200];
-    final textColor = isDark ? Colors.blue[200] : Colors.blue[700];
+    final Color? chipColor = isDark ? Colors.blue[800] : Colors.blue[50];
+    final Color? borderColor = isDark ? Colors.blue[600] : Colors.blue[200];
+    final Color? textColor = isDark ? Colors.blue[200] : Colors.blue[700];
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -588,9 +575,9 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
 
   /// بناء شريحة سعر التجزئة
   Widget _buildRetailPriceChip(BuildContext context, bool isDark) {
-    final chipColor = isDark ? Colors.green[800] : Colors.green[50];
-    final borderColor = isDark ? Colors.green[600] : Colors.green[200];
-    final textColor = isDark ? Colors.green[200] : Colors.green;
+    final Color? chipColor = isDark ? Colors.green[800] : Colors.green[50];
+    final Color? borderColor = isDark ? Colors.green[600] : Colors.green[200];
+    final Color? textColor = isDark ? Colors.green[200] : Colors.green;
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -620,7 +607,7 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
 
   /// بناء نص سعر الجملة
   Widget _buildWholesalePriceText(BuildContext context, bool isDark) {
-    final textColor = isDark
+    final Color? textColor = isDark
         ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
         : Colors.grey[600];
 
@@ -637,7 +624,7 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
 
   /// بناء نص الربح
   Widget _buildProfitText(BuildContext context, bool isDark) {
-    final textColor = isDark ? Colors.orange[300] : Colors.orange[700];
+    final Color? textColor = isDark ? Colors.orange[300] : Colors.orange[700];
 
     return Text(
       'ربح: ${_profitPercentage.toStringAsFixed(1)}%',
@@ -653,17 +640,17 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
 
   /// بناء شارة الحالة
   Widget _buildStatusBadge(BuildContext context, bool isDark) {
-    final backgroundColor =
+    final Color backgroundColor =
         widget.product.getStatusColor().withValues(alpha: 0.1);
-    final borderColor = widget.product.getStatusColor();
-    final textColor = widget.product.getStatusColor();
+    final Color borderColor = widget.product.getStatusColor();
+    final Color textColor = widget.product.getStatusColor();
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: borderColor, width: 1),
+        border: Border.all(color: borderColor),
       ),
       child: Text(
         widget.product.getStatusText(),
@@ -680,10 +667,10 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
   /// بناء معلومات المنتج
   Widget _buildProductInfo(BuildContext context, bool isDark,
       {required bool isCompact}) {
-    final theme = Theme.of(context);
-    final backgroundColor =
+    final ThemeData theme = Theme.of(context);
+    final Color? backgroundColor =
         isDark ? theme.colorScheme.surface : Colors.grey[50];
-    final borderColor = isDark ? theme.colorScheme.outline : Colors.grey[200];
+    final Color? borderColor = isDark ? theme.colorScheme.outline : Colors.grey[200];
 
     return Container(
       padding: isCompact ? _smallPadding : _defaultPadding,
@@ -693,10 +680,10 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
         border: Border.all(color: borderColor!),
       ),
       child: Column(
-        children: [
+        children: <Widget>[
           // صف الأسعار
           Row(
-            children: [
+            children: <Widget>[
               Flexible(
                 child: _buildInfoCard(
                   'سعر الجملة',
@@ -727,7 +714,7 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
 
           // صف الربح
           Row(
-            children: [
+            children: <Widget>[
               Flexible(
                 child: _buildInfoCard(
                   'الربح',
@@ -755,7 +742,7 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
 
           // عرض بيانات المخزون إذا كانت متوفرة
           if (_linkedInventoryData != null &&
-              _linkedInventoryData!.isLinked) ...[
+              _linkedInventoryData!.isLinked) ...<Widget>[
             const SizedBox(height: 8),
             _buildInventoryInfo(context, isDark),
           ],
@@ -773,8 +760,8 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
     BuildContext context,
     bool isDark,
   ) {
-    final backgroundColor = color.withValues(alpha: 0.1);
-    final borderColor = color.withValues(alpha: 0.3);
+    final Color backgroundColor = color.withValues(alpha: 0.1);
+    final Color borderColor = color.withValues(alpha: 0.3);
 
     return Container(
       padding: const EdgeInsets.all(6),
@@ -785,11 +772,11 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        children: [
+        children: <Widget>[
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
-            children: [
+            children: <Widget>[
               Icon(icon,
                   size: context.responsiveFontSize(14),
                   color: color), // زيادة من 12 إلى 14
@@ -828,9 +815,9 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
 
   /// بناء معلومات المخزون
   Widget _buildInventoryInfo(BuildContext context, bool isDark) {
-    final backgroundColor = isDark ? Colors.blue[800] : Colors.blue[50];
-    final borderColor = isDark ? Colors.blue[600] : Colors.blue[200];
-    final textColor = isDark ? Colors.blue[200] : Colors.blue[700];
+    final Color? backgroundColor = isDark ? Colors.blue[800] : Colors.blue[50];
+    final Color? borderColor = isDark ? Colors.blue[600] : Colors.blue[200];
+    final Color? textColor = isDark ? Colors.blue[200] : Colors.blue[700];
 
     return Container(
       padding: const EdgeInsets.all(8),
@@ -840,7 +827,7 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
         border: Border.all(color: borderColor!),
       ),
       child: Row(
-        children: [
+        children: <Widget>[
           Icon(Icons.inventory,
               size: context.responsiveFontSize(18),
               color: textColor), // زيادة من 16 إلى 18
@@ -877,8 +864,7 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
   }
 
   /// بناء أزرار الإجراءات
-  Widget _buildActionButtons(BuildContext context, bool isDark) {
-    return ConstrainedBox(
+  Widget _buildActionButtons(BuildContext context, bool isDark) => ConstrainedBox(
       constraints: BoxConstraints(
         maxWidth: context.responsiveSpacing * 8, // استخدام responsive spacing
         minHeight:
@@ -914,14 +900,13 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
         ],
       ),
     );
-  }
 
   /// بناء صف أزرار الإجراءات
   Widget _buildActionButtonsRow(BuildContext context, bool isDark) {
-    final theme = Theme.of(context);
-    final backgroundColor =
+    final ThemeData theme = Theme.of(context);
+    final Color? backgroundColor =
         isDark ? theme.colorScheme.surface : Colors.grey[50];
-    final borderColor = isDark ? theme.colorScheme.outline : Colors.grey[200];
+    final Color? borderColor = isDark ? theme.colorScheme.outline : Colors.grey[200];
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -932,7 +917,7 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
-        children: [
+        children: <Widget>[
           if (widget.onEdit != null)
             _buildActionButton(
               icon: Icons.edit,
@@ -966,8 +951,7 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
     required VoidCallback onTap,
     required BuildContext context,
     required bool isDark,
-  }) {
-    return Semantics(
+  }) => Semantics(
       label: label,
       button: true,
       child: Material(
@@ -1020,5 +1004,4 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
         ),
       ),
     );
-  }
 }

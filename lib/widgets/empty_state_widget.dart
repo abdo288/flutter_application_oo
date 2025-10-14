@@ -80,8 +80,8 @@ class _EmptyStateWidgetState extends State<EmptyStateWidget>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
 
     return Center(
       child: SingleChildScrollView(
@@ -89,8 +89,7 @@ class _EmptyStateWidgetState extends State<EmptyStateWidget>
         padding: const EdgeInsets.all(AppConstants.spacing24),
         child: AnimatedBuilder(
           animation: _controller,
-          builder: (context, child) {
-            return FadeTransition(
+          builder: (BuildContext context, Widget? child) => FadeTransition(
               opacity: _fadeAnimation,
               child: SlideTransition(
                 position: _slideAnimation,
@@ -115,7 +114,7 @@ class _EmptyStateWidgetState extends State<EmptyStateWidget>
                                   .withValues(alpha: 0.1),
                             ],
                           ),
-                          boxShadow: [
+                          boxShadow: <BoxShadow>[
                             BoxShadow(
                               color: AppConstants.primaryColor
                                   .withValues(alpha: 0.1),
@@ -202,8 +201,7 @@ class _EmptyStateWidgetState extends State<EmptyStateWidget>
                   ],
                 ),
               ),
-            );
-          },
+            ),
         ),
       ),
     );

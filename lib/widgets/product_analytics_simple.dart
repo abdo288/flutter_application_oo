@@ -132,14 +132,13 @@ class ProductAnalyticsSimple extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: color.withValues(alpha: 0.3),
-            width: 1,
           ),
         ),
         child: Column(
-          children: [
+          children: <Widget>[
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+              children: <Widget>[
                 Icon(icon, size: 16, color: color),
                 const SizedBox(width: 4),
                 Text(
@@ -168,8 +167,8 @@ class ProductAnalyticsSimple extends StatelessWidget {
 
   Widget _buildCategoriesSection(Map<String, int> categories) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
+        children: <Widget>[
+          const Text(
             'الفئات',
             style: TextStyle(
               fontSize: 14,
@@ -181,9 +180,7 @@ class ProductAnalyticsSimple extends StatelessWidget {
           Wrap(
             spacing: 8,
             runSpacing: 4,
-            children: categories.entries.map((entry) {
-              return _buildCategoryChip(entry.key, entry.value);
-            }).toList(),
+            children: categories.entries.map((MapEntry<String, int> entry) => _buildCategoryChip(entry.key, entry.value)).toList(),
           ),
         ],
       );
@@ -266,15 +263,13 @@ class ProductAnalytics {
     required this.categories,
   });
 
-  factory ProductAnalytics.empty() {
-    return const ProductAnalytics(
+  factory ProductAnalytics.empty() => const ProductAnalytics(
       totalProducts: 0,
       averagePrice: 0,
       averageProfit: 0,
       highestProfit: 0,
       categories: {},
     );
-  }
   final int totalProducts;
   final double averagePrice;
   final double averageProfit;

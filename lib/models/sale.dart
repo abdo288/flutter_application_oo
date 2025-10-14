@@ -44,7 +44,6 @@ class Sale {
         notes: data['notes'] as String?,
         paymentMethod: (data['paymentMethod'] as String?) ?? 'نقدي',
         discount: (data['discount'] as int?) ?? 0,
-        isSynced: true, // البيانات من Firestore دائماً مزامنة
       );
     } on Exception catch (e) {
       debugPrint('خطأ في إنشاء عملية البيع من Firestore: $e');

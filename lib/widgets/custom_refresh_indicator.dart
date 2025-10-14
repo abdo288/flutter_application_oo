@@ -22,8 +22,8 @@ class CustomRefreshIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
 
     return RefreshIndicator(
       onRefresh: onRefresh,
@@ -99,14 +99,12 @@ class _AdvancedRefreshIndicatorState extends State<AdvancedRefreshIndicator>
   }
 
   @override
-  Widget build(BuildContext context) {
-    return RefreshIndicator(
+  Widget build(BuildContext context) => RefreshIndicator(
       onRefresh: _handleRefresh,
       color: widget.color ?? AppConstants.primaryColor,
       notificationPredicate: widget.notificationPredicate,
       child: widget.child,
     );
-  }
 }
 
 /// Custom refresh header widget
@@ -122,8 +120,8 @@ class CustomRefreshHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final primaryColor = color ?? theme.colorScheme.primary;
+    final ThemeData theme = Theme.of(context);
+    final Color primaryColor = color ?? theme.colorScheme.primary;
 
     Widget child;
     String text;
@@ -157,7 +155,7 @@ class CustomRefreshHeader extends StatelessWidget {
         text = 'جارٍ التحديث...';
         break;
       case RefreshIndicatorMode.done:
-        child = Icon(
+        child = const Icon(
           Icons.check_circle_rounded,
           color: AppConstants.successColor,
           size: AppConstants.iconSizeLarge,
@@ -173,7 +171,7 @@ class CustomRefreshHeader extends StatelessWidget {
       alignment: Alignment.center,
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        children: [
+        children: <Widget>[
           child,
           const SizedBox(height: AppConstants.spacing8),
           Text(

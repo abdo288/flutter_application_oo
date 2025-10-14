@@ -52,16 +52,15 @@ class _ShimmerLoadingState extends State<ShimmerLoading>
       return widget.child;
     }
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final baseColor = widget.baseColor ??
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color baseColor = widget.baseColor ??
         (isDark ? Colors.grey.shade800 : Colors.grey.shade300);
-    final highlightColor = widget.highlightColor ??
+    final Color highlightColor = widget.highlightColor ??
         (isDark ? Colors.grey.shade700 : Colors.grey.shade100);
 
     return AnimatedBuilder(
       animation: _animation,
-      builder: (context, child) {
-        return ShaderMask(
+      builder: (BuildContext context, Widget? child) => ShaderMask(
           shaderCallback: (bounds) {
             return LinearGradient(
               begin: Alignment.topLeft,
@@ -80,8 +79,7 @@ class _ShimmerLoadingState extends State<ShimmerLoading>
           },
           blendMode: BlendMode.srcATop,
           child: widget.child,
-        );
-      },
+        ),
     );
   }
 }
@@ -99,7 +97,7 @@ class ShimmerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return ShimmerLoading(
       child: Container(
@@ -130,8 +128,7 @@ class ShimmerList extends StatelessWidget {
   final double itemHeight;
 
   @override
-  Widget build(BuildContext context) {
-    return ListView.builder(
+  Widget build(BuildContext context) => ListView.builder(
       itemCount: itemCount,
       physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
@@ -139,7 +136,6 @@ class ShimmerList extends StatelessWidget {
         return ShimmerCard(height: itemHeight);
       },
     );
-  }
 }
 
 /// Shimmer effect for text
@@ -157,7 +153,7 @@ class ShimmerText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return ShimmerLoading(
       child: Container(
@@ -184,7 +180,7 @@ class ShimmerCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return ShimmerLoading(
       child: Container(

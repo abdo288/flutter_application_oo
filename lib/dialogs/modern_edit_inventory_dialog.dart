@@ -231,8 +231,7 @@ class _ModernEditInventoryDialogState extends State<ModernEditInventoryDialog>
               ],
             ),
             SizedBox(height: context.responsiveSpacing * 0.5),
-            context.shouldUseVerticalLayout
-                ? Column(
+            if (context.shouldUseVerticalLayout) Column(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
                       _buildInfoItem(context, 'الباركود',
@@ -244,8 +243,7 @@ class _ModernEditInventoryDialogState extends State<ModernEditInventoryDialog>
                           widget.item.addedDate.toString().split(' ')[0],
                           Icons.calendar_today),
                     ],
-                  )
-                : Row(
+                  ) else Row(
                     children: <Widget>[
                       Expanded(
                         child: _buildInfoItem(context, 'الباركود',
@@ -343,8 +341,7 @@ class _ModernEditInventoryDialogState extends State<ModernEditInventoryDialog>
           SizedBox(height: context.responsiveSpacing),
 
           // الأسعار - responsive layout
-          context.shouldUseVerticalLayout
-              ? Column(
+          if (context.shouldUseVerticalLayout) Column(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
                     _buildTextField(
@@ -391,8 +388,7 @@ class _ModernEditInventoryDialogState extends State<ModernEditInventoryDialog>
                       },
                     ),
                   ],
-                )
-              : Row(
+                ) else Row(
                   children: <Widget>[
                     Expanded(
                       child: _buildTextField(

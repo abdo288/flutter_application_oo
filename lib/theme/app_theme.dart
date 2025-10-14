@@ -28,7 +28,7 @@ class AppTheme {
       materialTapTargetSize: MaterialTapTargetSize.padded,
       // Enhanced animations
       pageTransitionsTheme: const PageTransitionsTheme(
-        builders: {
+        builders: <TargetPlatform, PageTransitionsBuilder>{
           TargetPlatform.android: CupertinoPageTransitionsBuilder(),
           TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
           TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
@@ -89,7 +89,7 @@ class AppTheme {
           overlayColor: WidgetStateProperty.all(
             Colors.white.withValues(alpha: 0.1),
           ),
-          elevation: WidgetStateProperty.resolveWith((states) {
+          elevation: WidgetStateProperty.resolveWith((Set<WidgetState> states) {
             if (states.contains(WidgetState.pressed)) {
               return AppConstants.elevation6;
             }

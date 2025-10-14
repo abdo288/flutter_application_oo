@@ -26,8 +26,8 @@ class ModernConfirmationDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
 
     return RepaintBoundary(
       child: Dialog(
@@ -52,8 +52,8 @@ class ModernConfirmationDialog extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: <Color>[
-                  isDark ? Colors.grey[800]! : Colors.white,
-                  isDark ? Colors.grey[700]! : Colors.grey[50]!,
+                  if (isDark) Colors.grey[800]! else Colors.white,
+                  if (isDark) Colors.grey[700]! else Colors.grey[50]!,
                 ],
               ),
             ),
@@ -77,8 +77,7 @@ class ModernConfirmationDialog extends StatelessWidget {
   }
 
   /// بناء رأس الحوار
-  Widget _buildHeader(BuildContext context) {
-    return Container(
+  Widget _buildHeader(BuildContext context) => Container(
       padding: context.responsivePadding,
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -130,12 +129,11 @@ class ModernConfirmationDialog extends StatelessWidget {
         ],
       ),
     );
-  }
 
   /// بناء محتوى الحوار
   Widget _buildContent(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
 
     return Padding(
       padding: context.responsivePadding,
@@ -201,8 +199,8 @@ class ModernConfirmationDialog extends StatelessWidget {
 
   /// بناء أزرار الإجراءات
   Widget _buildActions(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
 
     return Container(
       padding: context.responsivePadding,

@@ -79,8 +79,8 @@ class _ModernProfitChartState extends State<ModernProfitChart>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
 
     return FadeTransition(
       opacity: _fadeAnimation,
@@ -93,11 +93,11 @@ class _ModernProfitChartState extends State<ModernProfitChart>
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: isDark
-                  ? [
+                  ? <Color>[
                       const Color(0xFF334155),
                       const Color(0xFF1E293B),
                     ]
-                  : [
+                  : <Color>[
                       Colors.white,
                       const Color(0xFFF8FAFC),
                     ],
@@ -105,7 +105,7 @@ class _ModernProfitChartState extends State<ModernProfitChart>
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(20),
-            boxShadow: [
+            boxShadow: <BoxShadow>[
               BoxShadow(
                 color: isDark
                     ? Colors.black.withOpacity(0.3)
@@ -129,15 +129,15 @@ class _ModernProfitChartState extends State<ModernProfitChart>
                 padding: EdgeInsets.all(context.responsiveSpacing * 1.5),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                  children: <Widget>[
                     // العنوان
                     Row(
-                      children: [
+                      children: <Widget>[
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
-                              colors: [
+                              colors: <Color>[
                                 Color(0xFF2563EB),
                                 Color(0xFF3B82F6),
                               ],
@@ -209,8 +209,7 @@ class _ModernProfitChartState extends State<ModernProfitChart>
   }
 
   /// حالة فارغة
-  Widget _buildEmptyState(bool isDark) {
-    return Center(
+  Widget _buildEmptyState(bool isDark) => Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -230,7 +229,6 @@ class _ModernProfitChartState extends State<ModernProfitChart>
         ],
       ),
     );
-  }
 
   /// إنشاء بيانات المخطط
   LineChartData _createChartData(bool isDark) {
@@ -243,7 +241,6 @@ class _ModernProfitChartState extends State<ModernProfitChart>
 
     return LineChartData(
       gridData: FlGridData(
-        show: true,
         getDrawingHorizontalLine: (double value) => FlLine(
           color: isDark
               ? const Color(0xFF475569).withOpacity(0.3)
@@ -309,7 +306,7 @@ class _ModernProfitChartState extends State<ModernProfitChart>
           spots: spots,
           isCurved: true,
           gradient: const LinearGradient(
-            colors: [
+            colors: <Color>[
               Color(0xFF2563EB),
               Color(0xFF3B82F6),
               Color(0xFF8B5CF6),
@@ -318,21 +315,18 @@ class _ModernProfitChartState extends State<ModernProfitChart>
           barWidth: 4,
           isStrokeCapRound: true,
           dotData: FlDotData(
-            show: true,
             getDotPainter: (FlSpot spot, double percent,
-                LineChartBarData barData, int index) {
-              return FlDotCirclePainter(
+                LineChartBarData barData, int index) => FlDotCirclePainter(
                 radius: 4,
                 color: const Color(0xFF2563EB),
                 strokeWidth: 2,
                 strokeColor: Colors.white,
-              );
-            },
+              ),
           ),
           belowBarData: BarAreaData(
             show: true,
             gradient: LinearGradient(
-              colors: [
+              colors: <Color>[
                 const Color(0xFF2563EB).withOpacity(0.3),
                 const Color(0xFF3B82F6).withOpacity(0.1),
                 Colors.transparent,

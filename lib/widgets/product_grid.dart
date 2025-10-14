@@ -44,7 +44,7 @@ class _ProductGridState extends State<ProductGrid> {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         // تحديد عدد الأعمدة حسب عرض الشاشة
-        int crossAxisCount = context.gridColumns;
+        final int crossAxisCount = context.gridColumns;
 
         return _buildResponsiveGrid(crossAxisCount);
       },
@@ -79,17 +79,15 @@ class _ProductGridState extends State<ProductGrid> {
           ),
           itemCount: widget.products.length,
           cacheExtent: 100, // ✅ Cache للعناصر القريبة
-          addAutomaticKeepAlives: true, // ✅ يحتفظ بالحالة
-          addRepaintBoundaries: true, // ✅ يحسّن الرسم
           physics: const BouncingScrollPhysics(
             parent: AlwaysScrollableScrollPhysics(),
           ),
-          itemBuilder: (context, index) {
+          itemBuilder: (BuildContext context, int index) {
             if (index >= widget.products.length) {
               return const SizedBox.shrink();
             }
 
-            final product = widget.products[index];
+            final Product product = widget.products[index];
             return AnimationConfiguration.staggeredGrid(
               position: index,
               columnCount: crossAxisCount,
@@ -114,17 +112,15 @@ class _ProductGridState extends State<ProductGrid> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           itemCount: widget.products.length,
           cacheExtent: 100, // ✅ Cache للعناصر القريبة
-          addAutomaticKeepAlives: true, // ✅ يحتفظ بالحالة
-          addRepaintBoundaries: true, // ✅ يحسّن الرسم
           physics: const BouncingScrollPhysics(
             parent: AlwaysScrollableScrollPhysics(),
           ),
-          itemBuilder: (context, index) {
+          itemBuilder: (BuildContext context, int index) {
             if (index >= widget.products.length) {
               return const SizedBox.shrink();
             }
 
-            final product = widget.products[index];
+            final Product product = widget.products[index];
             return AnimationConfiguration.staggeredList(
               position: index,
               duration: const Duration(milliseconds: 250),
@@ -152,7 +148,6 @@ class _ProductGridState extends State<ProductGrid> {
             ? () => widget.onProductEdit!(product)
             : null,
         showActions: widget.showActions,
-        compactMode: false,
         enableAnimations: false, // ✅ تعطيل للأداء
       );
 
@@ -164,12 +159,12 @@ class _ProductGridState extends State<ProductGrid> {
           childAspectRatio: context.responsiveAspectRatio,
         ),
         delegate: SliverChildBuilderDelegate(
-          (context, index) {
+          (BuildContext context, int index) {
             if (index >= widget.products.length) {
               return const SizedBox.shrink();
             }
 
-            final product = widget.products[index];
+            final Product product = widget.products[index];
             return _buildProductCard(product);
           },
           childCount: widget.products.length,
@@ -178,12 +173,12 @@ class _ProductGridState extends State<ProductGrid> {
 
   Widget _buildSliverListView() => SliverList(
         delegate: SliverChildBuilderDelegate(
-          (context, index) {
+          (BuildContext context, int index) {
             if (index >= widget.products.length) {
               return const SizedBox.shrink();
             }
 
-            final product = widget.products[index];
+            final Product product = widget.products[index];
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               child: _buildProductCard(product),
@@ -196,7 +191,7 @@ class _ProductGridState extends State<ProductGrid> {
   Widget _buildEmptyState() => const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+          children: <Widget>[
             Icon(
               Icons.inventory_outlined,
               size: 64,
@@ -277,8 +272,8 @@ class _CompactProductGridState extends State<CompactProductGrid> {
   }
 
   Widget _buildCompactProductCard(Product product) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
 
     return RepaintBoundary(
       child: Card(
@@ -290,7 +285,6 @@ class _CompactProductGridState extends State<CompactProductGrid> {
           ),
           side: BorderSide(
             color: isDark ? Colors.grey[700]! : Colors.grey[200]!,
-            width: 1,
           ),
         ),
         child: Container(
@@ -299,13 +293,13 @@ class _CompactProductGridState extends State<CompactProductGrid> {
           ),
           padding: context.responsivePadding,
           child: Row(
-            children: [
+            children: <Widget>[
               // معلومات المنتج
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
-                  children: [
+                  children: <Widget>[
                     Text(
                       product.name,
                       maxLines: 1,
@@ -341,11 +335,11 @@ class _CompactProductGridState extends State<CompactProductGrid> {
               ),
 
               // أزرار الإجراءات
-              if (widget.showActions) ...[
+              if (widget.showActions) ...<Widget>[
                 SizedBox(width: context.responsiveSpacing * 0.3),
                 Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: [
+                  children: <Widget>[
                     if (widget.onProductEdit != null)
                       IconButton(
                         onPressed: () => widget.onProductEdit!(product),
@@ -377,8 +371,7 @@ class _CompactProductGridState extends State<CompactProductGrid> {
   }
 
   /// بناء قائمة المنتجات المضغوطة كـ Sliver للاستخدام مع CustomScrollView
-  Widget buildSliver(BuildContext context) {
-    return SliverList(
+  Widget buildSliver(BuildContext context) => SliverList(
       delegate: SliverChildBuilderDelegate(
         (context, index) {
           if (index >= widget.products.length) {
@@ -394,12 +387,11 @@ class _CompactProductGridState extends State<CompactProductGrid> {
         childCount: widget.products.length,
       ),
     );
-  }
 
   Widget _buildEmptyState() => const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+          children: <Widget>[
             Icon(
               Icons.inventory_outlined,
               size: 48,

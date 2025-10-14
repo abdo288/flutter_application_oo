@@ -325,7 +325,7 @@ class _QuickInventoryTabState extends State<QuickInventoryTab> {
 
   /// تسجيل خطأ في عملية الحذف
   void _logDeleteOperationError(String error, QuickInventoryItem item,
-      [dynamic exception]) {
+      [exception]) {
     debugPrint('❌ [DELETE ERROR] $error:');
     debugPrint('   📦 المعرف: ${item.id}');
     debugPrint('   📝 الاسم: ${item.name}');

@@ -33,8 +33,7 @@ class ResponsiveCardWrapper extends StatelessWidget {
   final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
+  Widget build(BuildContext context) => LayoutBuilder(
       builder: (context, constraints) {
         // حساب القيود الآمنة بناءً على المساحة المتاحة
         final BoxConstraints safeConstraints = BoxConstraints(
@@ -83,7 +82,6 @@ class ResponsiveCardWrapper extends StatelessWidget {
         return content;
       },
     );
-  }
 }
 
 /// مكون بطاقة إحصائيات متجاوب
@@ -113,9 +111,9 @@ class ResponsiveStatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final cardColor = color ?? AppConstants.primaryColor;
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
+    final Color cardColor = color ?? AppConstants.primaryColor;
 
     return ResponsiveCardWrapper(
       onTap: onTap,
@@ -124,16 +122,15 @@ class ResponsiveStatCard extends StatelessWidget {
           : cardColor.withValues(alpha: 0.05),
       border: Border.all(
         color: cardColor.withValues(alpha: 0.2),
-        width: 1,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
-        children: [
+        children: <Widget>[
           // Header with icon and trend
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
+            children: <Widget>[
               if (icon != null)
                 Container(
                   padding: EdgeInsets.all(context.responsiveSpacing * 0.4),
@@ -190,8 +187,8 @@ class ResponsiveStatCard extends StatelessWidget {
   }
 
   Widget _buildTrendIndicator(BuildContext context, Color color) {
-    final isPositive = trend == 'up';
-    final icon = isPositive ? Icons.trending_up : Icons.trending_down;
+    final bool isPositive = trend == 'up';
+    final IconData icon = isPositive ? Icons.trending_up : Icons.trending_down;
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -206,7 +203,7 @@ class ResponsiveStatCard extends StatelessWidget {
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        children: [
+        children: <Widget>[
           Icon(
             icon,
             color: color,
@@ -248,9 +245,9 @@ class ResponsiveInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final cardColor = color ?? AppConstants.primaryColor;
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
+    final Color cardColor = color ?? AppConstants.primaryColor;
 
     return ResponsiveCardWrapper(
       onTap: onTap,
@@ -259,13 +256,12 @@ class ResponsiveInfoCard extends StatelessWidget {
           : cardColor.withValues(alpha: 0.05),
       border: Border.all(
         color: cardColor.withValues(alpha: 0.2),
-        width: 1,
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
+        children: <Widget>[
+          if (icon != null) ...<Widget>[
             Container(
               padding: EdgeInsets.all(context.responsiveSpacing * 0.4),
               decoration: BoxDecoration(

@@ -217,7 +217,7 @@ class _StoreDisplayTabState extends State<StoreDisplayTab> {
           horizontal: context.responsiveSpacing * 0.3,
           vertical: context.responsiveSpacing * 0.2, // تقليل المسافة العمودية
         ),
-        separatorBuilder: (context, index) =>
+        separatorBuilder: (BuildContext context, int index) =>
             const SizedBox(height: 6), // مسافة صغيرة بين البطاقات
         itemCount: items.length,
         itemBuilder: (BuildContext context, int index) => _buildInventoryCard(
@@ -270,8 +270,7 @@ class _StoreDisplayTabState extends State<StoreDisplayTab> {
 
   Widget _buildSearchAndFilterBar() => Consumer<StreamAppProvider>(
         builder: (BuildContext context, StreamAppProvider appProvider,
-            Widget? child) {
-          return Container(
+            Widget? child) => Container(
             margin: EdgeInsets.symmetric(
                 horizontal: context.responsiveSpacing * 0.5,
                 vertical: context.responsiveSpacing * 0.4),
@@ -385,8 +384,7 @@ class _StoreDisplayTabState extends State<StoreDisplayTab> {
                 ),
               ],
             ),
-          );
-        },
+          ),
       );
 
   Widget _buildNoResultsState() => Center(
@@ -777,7 +775,7 @@ class _StoreDisplayTabState extends State<StoreDisplayTab> {
         onPrint: () => _printBarcode(item),
         onDelete: () => _confirmAndDeleteItem(item),
         isExpanded: _expandedItemId == item.id,
-        onExpansionChanged: (isExpanded) =>
+        onExpansionChanged: (bool isExpanded) =>
             _handleCardExpansion(item.id ?? '', isExpanded),
       );
     }
@@ -943,7 +941,7 @@ class _StoreDisplayTabState extends State<StoreDisplayTab> {
 
     final SnackBar snackBar = SnackBar(
       content: Row(
-        children: [
+        children: <Widget>[
           Icon(icon, color: Colors.white),
           const SizedBox(width: 8),
           Expanded(child: Text(message)),
@@ -1472,8 +1470,7 @@ class _EnhancedDeleteDialog extends StatelessWidget {
   final VoidCallback onCancel;
 
   @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
+  Widget build(BuildContext context) => AlertDialog(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppConstants.borderRadius),
       ),
@@ -1600,10 +1597,8 @@ class _EnhancedDeleteDialog extends StatelessWidget {
         ),
       ],
     );
-  }
 
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
+  Widget _buildDetailRow(String label, String value) => Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1627,7 +1622,6 @@ class _EnhancedDeleteDialog extends StatelessWidget {
         ],
       ),
     );
-  }
 }
 
 enum _PaperSize { roll57, roll80, a4 }

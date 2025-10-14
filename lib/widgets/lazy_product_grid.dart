@@ -123,12 +123,12 @@ class _LazyProductGridState extends State<LazyProductGrid> {
             childAspectRatio: context.responsiveAspectRatio,
           ),
           itemCount: _displayedProducts.length + (_hasMoreProducts ? 1 : 0),
-          itemBuilder: (context, index) {
+          itemBuilder: (BuildContext context, int index) {
             if (index >= _displayedProducts.length) {
               return _buildLoadMoreButton();
             }
 
-            final product = _displayedProducts[index];
+            final Product product = _displayedProducts[index];
             return AnimationConfiguration.staggeredGrid(
               position: index,
               columnCount: crossAxisCount,
@@ -150,12 +150,12 @@ class _LazyProductGridState extends State<LazyProductGrid> {
               horizontal: context.responsiveSpacing * 0.8,
               vertical: context.responsiveSpacing * 0.5),
           itemCount: _displayedProducts.length + (_hasMoreProducts ? 1 : 0),
-          itemBuilder: (context, index) {
+          itemBuilder: (BuildContext context, int index) {
             if (index >= _displayedProducts.length) {
               return _buildLoadMoreButton();
             }
 
-            final product = _displayedProducts[index];
+            final Product product = _displayedProducts[index];
             return AnimationConfiguration.staggeredList(
               position: index,
               duration: const Duration(milliseconds: 250),
@@ -179,7 +179,6 @@ class _LazyProductGridState extends State<LazyProductGrid> {
             ? () => widget.onProductEdit!(product)
             : null,
         showActions: widget.showActions,
-        compactMode: false,
       );
 
   Widget _buildLoadMoreButton() => Container(
@@ -188,7 +187,7 @@ class _LazyProductGridState extends State<LazyProductGrid> {
           child: _isLoadingMore
               ? const Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: [
+                  children: <Widget>[
                     CircularProgressIndicator(),
                     SizedBox(height: 8),
                     Text('جاري تحميل المزيد...'),
@@ -213,7 +212,7 @@ class _LazyProductGridState extends State<LazyProductGrid> {
   Widget _buildEmptyState() => const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+          children: <Widget>[
             Icon(
               Icons.inventory_outlined,
               size: 64,
@@ -339,12 +338,12 @@ class _OptimizedProductGridState extends State<OptimizedProductGrid> {
           childAspectRatio: context.responsiveAspectRatio,
         ),
         itemCount: widget.products.length,
-        itemBuilder: (context, index) {
+        itemBuilder: (BuildContext context, int index) {
           if (index >= widget.products.length) {
             return const SizedBox.shrink();
           }
 
-          final product = widget.products[index];
+          final Product product = widget.products[index];
           return _buildCachedProductCard(product);
         },
       );
@@ -352,12 +351,12 @@ class _OptimizedProductGridState extends State<OptimizedProductGrid> {
   Widget _buildOptimizedListView() => ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         itemCount: widget.products.length,
-        itemBuilder: (context, index) {
+        itemBuilder: (BuildContext context, int index) {
           if (index >= widget.products.length) {
             return const SizedBox.shrink();
           }
 
-          final product = widget.products[index];
+          final Product product = widget.products[index];
           return _buildCachedProductCard(product);
         },
       );
@@ -365,7 +364,7 @@ class _OptimizedProductGridState extends State<OptimizedProductGrid> {
   Widget _buildEmptyState() => const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+          children: <Widget>[
             Icon(
               Icons.inventory_outlined,
               size: 64,

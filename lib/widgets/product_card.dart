@@ -77,8 +77,8 @@ class _ProductCardState extends State<ProductCard>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
 
     // استخدام ExpandableProductCard للشاشات الكبيرة
     if (context.isDesktopScreen) {
@@ -88,7 +88,6 @@ class _ProductCardState extends State<ProductCard>
         onEdit: widget.onEdit,
         onDelete: widget.onDelete,
         showActions: widget.onEdit != null || widget.onDelete != null,
-        initiallyExpanded: false,
       );
     }
 
@@ -96,8 +95,7 @@ class _ProductCardState extends State<ProductCard>
     return RepaintBoundary(
       child: AnimatedBuilder(
         animation: _controller,
-        builder: (context, child) {
-          return Transform.scale(
+        builder: (BuildContext context, Widget? child) => Transform.scale(
             scale: _scaleAnimation.value,
             child: MouseRegion(
               onEnter: (_) => _onHoverChanged(true),
@@ -251,8 +249,7 @@ class _ProductCardState extends State<ProductCard>
                 ),
               ),
             ),
-          );
-        },
+          ),
       ),
     );
   }
@@ -263,10 +260,9 @@ class _ProductCardState extends State<ProductCard>
 
     return Column(
       mainAxisSize: MainAxisSize.min,
-      children: [
+      children: <Widget>[
         // صف الأسعار
-        context.shouldUseVerticalLayout
-            ? Column(
+        if (context.shouldUseVerticalLayout) Column(
                 children: [
                   _buildModernInfoItem(
                     context,
@@ -288,8 +284,7 @@ class _ProductCardState extends State<ProductCard>
                     isDark,
                   ),
                 ],
-              )
-            : Row(
+              ) else Row(
                 children: <Widget>[
                   Expanded(
                     child: _buildModernInfoItem(
@@ -319,8 +314,7 @@ class _ProductCardState extends State<ProductCard>
         SizedBox(height: context.responsiveSpacing * 0.3),
 
         // صف الأرباح
-        context.shouldUseVerticalLayout
-            ? Column(
+        if (context.shouldUseVerticalLayout) Column(
                 children: [
                   _buildModernInfoItem(
                     context,
@@ -341,8 +335,7 @@ class _ProductCardState extends State<ProductCard>
                     isDark,
                   ),
                 ],
-              )
-            : Row(
+              ) else Row(
                 children: <Widget>[
                   Expanded(
                     child: _buildModernInfoItem(
@@ -372,8 +365,7 @@ class _ProductCardState extends State<ProductCard>
     );
   }
 
-  Widget _buildActionsSection(BuildContext context) {
-    return context.shouldUseVerticalLayout
+  Widget _buildActionsSection(BuildContext context) => context.shouldUseVerticalLayout
         ? Column(
             children: [
               if (widget.onEdit != null)
@@ -424,7 +416,6 @@ class _ProductCardState extends State<ProductCard>
                 ),
             ],
           );
-  }
 
   // Modern info item with icon
   Widget _buildModernInfoItem(
@@ -434,8 +425,7 @@ class _ProductCardState extends State<ProductCard>
     IconData icon,
     Color color,
     bool isDark,
-  ) {
-    return Container(
+  ) => Container(
       padding: EdgeInsets.all(context.responsiveSpacing * 0.4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
@@ -489,7 +479,6 @@ class _ProductCardState extends State<ProductCard>
         ],
       ),
     );
-  }
 
   // Modern action button
   Widget _buildActionButton(
@@ -498,8 +487,7 @@ class _ProductCardState extends State<ProductCard>
     required String label,
     required Color color,
     required VoidCallback onPressed,
-  }) {
-    return Material(
+  }) => Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onPressed,
@@ -552,5 +540,4 @@ class _ProductCardState extends State<ProductCard>
         ),
       ),
     );
-  }
 }

@@ -151,7 +151,6 @@ class _RealtimeUpdatesLogState extends State<RealtimeUpdatesLog> {
         border: Border(
           top: BorderSide(
             color: Theme.of(context).dividerColor,
-            width: 1,
           ),
         ),
       ),
