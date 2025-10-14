@@ -21,6 +21,8 @@ import 'local_sales_service.dart';
 class POSService {
   static const String _salesCollection = 'sales';
   static const String _quickInventoryCollection = 'quick_inventory';
+  static const String _posCollection = 'pos_sessions';
+  static const String _posCartsCollection = 'pos_carts';
   static const Uuid _uuid = Uuid();
   static const int defaultPageSize = 20;
 
@@ -1238,6 +1240,279 @@ class POSService {
       }
     } on Exception catch (e) {
       debugPrint('خطأ في إضافة المنتج للسلة: $e');
+      rethrow;
+    }
+  }
+
+  // ========== دوال Firebase للسلة ==========
+
+  /// حفظ السلة في Firebase
+  static Future<void> saveCartToFirebase({
+    required List<CartItem> cart,
+    required String sessionId,
+    String? userId,
+  }) async {
+    try {
+      final Map<String, dynamic> cartData = {
+        'sessionId': sessionId,
+        'userId': userId,
+        'items': cart.map((item) => item.toMap()).toList(),
+        'totalAmount': calculateCartTotal(cart),
+        'totalProfit': calculateCartProfit(cart),
+        'itemCount': cart.length,
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'createdAt': FieldValue.serverTimestamp(),
+      };
+
+      await FirebaseFirestore.instance
+          .collection(_posCartsCollection)
+          .doc(sessionId)
+          .set(cartData, SetOptions(merge: true));
+
+      debugPrint('✅ تم حفظ السلة في Firebase: $sessionId');
+    } on FirebaseException catch (e, stackTrace) {
+      await ErrorHandlerService.handleError(
+        e,
+        stackTrace: stackTrace.toString(),
+        type: ErrorType.firebase,
+        severity: ErrorSeverity.medium,
+        userAction: 'حفظ السلة في Firebase',
+        context: <String, dynamic>{
+          'operation': 'saveCartToFirebase',
+          'sessionId': sessionId,
+          'itemCount': cart.length,
+        },
+      );
+      rethrow;
+    } on Exception catch (e, stackTrace) {
+      await ErrorHandlerService.handleError(
+        e,
+        stackTrace: stackTrace.toString(),
+        type: ErrorType.unknown,
+        severity: ErrorSeverity.medium,
+        userAction: 'حفظ السلة في Firebase',
+        context: <String, dynamic>{
+          'operation': 'saveCartToFirebase',
+          'sessionId': sessionId,
+          'itemCount': cart.length,
+        },
+      );
+      rethrow;
+    }
+  }
+
+  /// استعادة السلة من Firebase
+  static Future<List<CartItem>> loadCartFromFirebase({
+    required String sessionId,
+    String? userId,
+  }) async {
+    try {
+      final DocumentSnapshot<Map<String, dynamic>> doc = await FirebaseFirestore
+          .instance
+          .collection(_posCartsCollection)
+          .doc(sessionId)
+          .get();
+
+      if (!doc.exists) {
+        debugPrint('ℹ️ لا توجد سلة محفوظة للجلسة: $sessionId');
+        return <CartItem>[];
+      }
+
+      final Map<String, dynamic> data = doc.data()!;
+      final List<dynamic> itemsData = data['items'] as List<dynamic>? ?? [];
+
+      final List<CartItem> cart = itemsData
+          .map((itemData) => CartItem.fromMap(itemData as Map<String, dynamic>))
+          .toList();
+
+      debugPrint('✅ تم استعادة السلة من Firebase: ${cart.length} عنصر');
+      return cart;
+    } on FirebaseException catch (e, stackTrace) {
+      await ErrorHandlerService.handleError(
+        e,
+        stackTrace: stackTrace.toString(),
+        type: ErrorType.firebase,
+        severity: ErrorSeverity.medium,
+        userAction: 'استعادة السلة من Firebase',
+        context: <String, dynamic>{
+          'operation': 'loadCartFromFirebase',
+          'sessionId': sessionId,
+        },
+      );
+      return <CartItem>[];
+    } on Exception catch (e, stackTrace) {
+      await ErrorHandlerService.handleError(
+        e,
+        stackTrace: stackTrace.toString(),
+        type: ErrorType.unknown,
+        severity: ErrorSeverity.medium,
+        userAction: 'استعادة السلة من Firebase',
+        context: <String, dynamic>{
+          'operation': 'loadCartFromFirebase',
+          'sessionId': sessionId,
+        },
+      );
+      return <CartItem>[];
+    }
+  }
+
+  /// حذف السلة من Firebase
+  static Future<void> deleteCartFromFirebase({
+    required String sessionId,
+  }) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection(_posCartsCollection)
+          .doc(sessionId)
+          .delete();
+
+      debugPrint('✅ تم حذف السلة من Firebase: $sessionId');
+    } on FirebaseException catch (e, stackTrace) {
+      await ErrorHandlerService.handleError(
+        e,
+        stackTrace: stackTrace.toString(),
+        type: ErrorType.firebase,
+        severity: ErrorSeverity.low,
+        userAction: 'حذف السلة من Firebase',
+        context: <String, dynamic>{
+          'operation': 'deleteCartFromFirebase',
+          'sessionId': sessionId,
+        },
+      );
+      rethrow;
+    } on Exception catch (e, stackTrace) {
+      await ErrorHandlerService.handleError(
+        e,
+        stackTrace: stackTrace.toString(),
+        type: ErrorType.unknown,
+        severity: ErrorSeverity.low,
+        userAction: 'حذف السلة من Firebase',
+        context: <String, dynamic>{
+          'operation': 'deleteCartFromFirebase',
+          'sessionId': sessionId,
+        },
+      );
+      rethrow;
+    }
+  }
+
+  /// الاستماع لتغييرات السلة في Firebase
+  static Stream<List<CartItem>> watchCartFromFirebase({
+    required String sessionId,
+    String? userId,
+  }) {
+    return FirebaseFirestore.instance
+        .collection(_posCartsCollection)
+        .doc(sessionId)
+        .snapshots()
+        .map((DocumentSnapshot<Map<String, dynamic>> snapshot) {
+      if (!snapshot.exists) {
+        return <CartItem>[];
+      }
+
+      final Map<String, dynamic> data = snapshot.data()!;
+      final List<dynamic> itemsData = data['items'] as List<dynamic>? ?? [];
+
+      return itemsData
+          .map((itemData) => CartItem.fromMap(itemData as Map<String, dynamic>))
+          .toList();
+    });
+  }
+
+  /// حفظ جلسة POS في Firebase
+  static Future<void> savePOSSession({
+    required String sessionId,
+    String? userId,
+    String? deviceInfo,
+    String? platform,
+  }) async {
+    try {
+      final Map<String, dynamic> sessionData = {
+        'sessionId': sessionId,
+        'userId': userId,
+        'deviceInfo': deviceInfo,
+        'platform': platform,
+        'isActive': true,
+        'startedAt': FieldValue.serverTimestamp(),
+        'lastActivity': FieldValue.serverTimestamp(),
+      };
+
+      await FirebaseFirestore.instance
+          .collection(_posCollection)
+          .doc(sessionId)
+          .set(sessionData, SetOptions(merge: true));
+
+      debugPrint('✅ تم حفظ جلسة POS في Firebase: $sessionId');
+    } on FirebaseException catch (e, stackTrace) {
+      await ErrorHandlerService.handleError(
+        e,
+        stackTrace: stackTrace.toString(),
+        type: ErrorType.firebase,
+        severity: ErrorSeverity.medium,
+        userAction: 'حفظ جلسة POS في Firebase',
+        context: <String, dynamic>{
+          'operation': 'savePOSSession',
+          'sessionId': sessionId,
+          'platform': platform,
+        },
+      );
+      rethrow;
+    } on Exception catch (e, stackTrace) {
+      await ErrorHandlerService.handleError(
+        e,
+        stackTrace: stackTrace.toString(),
+        type: ErrorType.unknown,
+        severity: ErrorSeverity.medium,
+        userAction: 'حفظ جلسة POS في Firebase',
+        context: <String, dynamic>{
+          'operation': 'savePOSSession',
+          'sessionId': sessionId,
+          'platform': platform,
+        },
+      );
+      rethrow;
+    }
+  }
+
+  /// إنهاء جلسة POS في Firebase
+  static Future<void> endPOSSession({
+    required String sessionId,
+  }) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection(_posCollection)
+          .doc(sessionId)
+          .update({
+        'isActive': false,
+        'endedAt': FieldValue.serverTimestamp(),
+      });
+
+      debugPrint('✅ تم إنهاء جلسة POS في Firebase: $sessionId');
+    } on FirebaseException catch (e, stackTrace) {
+      await ErrorHandlerService.handleError(
+        e,
+        stackTrace: stackTrace.toString(),
+        type: ErrorType.firebase,
+        severity: ErrorSeverity.low,
+        userAction: 'إنهاء جلسة POS في Firebase',
+        context: <String, dynamic>{
+          'operation': 'endPOSSession',
+          'sessionId': sessionId,
+        },
+      );
+      rethrow;
+    } on Exception catch (e, stackTrace) {
+      await ErrorHandlerService.handleError(
+        e,
+        stackTrace: stackTrace.toString(),
+        type: ErrorType.unknown,
+        severity: ErrorSeverity.low,
+        userAction: 'إنهاء جلسة POS في Firebase',
+        context: <String, dynamic>{
+          'operation': 'endPOSSession',
+          'sessionId': sessionId,
+        },
+      );
       rethrow;
     }
   }

@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -16,6 +15,8 @@ class WindowsPOSCard extends StatefulWidget {
     this.onDiscountChanged,
     this.isExpanded = false,
     this.onExpansionChanged,
+    this.onIncreaseQuantity,
+    this.onDecreaseQuantity,
   });
 
   final CartItem item;
@@ -24,6 +25,8 @@ class WindowsPOSCard extends StatefulWidget {
   final ValueChanged<double>? onDiscountChanged;
   final bool isExpanded;
   final ValueChanged<bool>? onExpansionChanged;
+  final VoidCallback? onIncreaseQuantity;
+  final VoidCallback? onDecreaseQuantity;
 
   @override
   State<WindowsPOSCard> createState() => _WindowsPOSCardState();
@@ -148,6 +151,8 @@ class _WindowsPOSCardState extends State<WindowsPOSCard>
                     onDiscountChanged: widget.onDiscountChanged,
                     onToggleExpanded: _toggleExpanded,
                     discountController: _discountController,
+                    onIncreaseQuantity: widget.onIncreaseQuantity,
+                    onDecreaseQuantity: widget.onDecreaseQuantity,
                   )
                 : _CollapsedRow(
                     item: item,
@@ -155,6 +160,8 @@ class _WindowsPOSCardState extends State<WindowsPOSCard>
                     onQuantityChanged: widget.onQuantityChanged,
                     onRemove: widget.onRemove,
                     onToggleExpanded: _toggleExpanded,
+                    onIncreaseQuantity: widget.onIncreaseQuantity,
+                    onDecreaseQuantity: widget.onDecreaseQuantity,
                   ),
           ),
         ),
@@ -243,6 +250,8 @@ class _CollapsedRow extends StatelessWidget {
     required this.onQuantityChanged,
     required this.onRemove,
     required this.onToggleExpanded,
+    this.onIncreaseQuantity,
+    this.onDecreaseQuantity,
   });
 
   final CartItem item;
@@ -250,6 +259,8 @@ class _CollapsedRow extends StatelessWidget {
   final ValueChanged<int> onQuantityChanged;
   final VoidCallback onRemove;
   final VoidCallback onToggleExpanded;
+  final VoidCallback? onIncreaseQuantity;
+  final VoidCallback? onDecreaseQuantity;
 
   @override
   Widget build(BuildContext context) {
@@ -403,6 +414,8 @@ class _ExpandedContent extends StatefulWidget {
     required this.onDiscountChanged,
     required this.onToggleExpanded,
     required this.discountController,
+    this.onIncreaseQuantity,
+    this.onDecreaseQuantity,
   });
 
   final CartItem item;
@@ -412,6 +425,8 @@ class _ExpandedContent extends StatefulWidget {
   final ValueChanged<double>? onDiscountChanged;
   final VoidCallback onToggleExpanded;
   final TextEditingController discountController;
+  final VoidCallback? onIncreaseQuantity;
+  final VoidCallback? onDecreaseQuantity;
 
   @override
   State<_ExpandedContent> createState() => _ExpandedContentState();
@@ -424,7 +439,6 @@ class _ExpandedContentState extends State<_ExpandedContent> {
   Widget build(BuildContext context) {
     final item = widget.item;
     final isDark = widget.isDark;
-    final onQuantityChanged = widget.onQuantityChanged;
     final onRemove = widget.onRemove;
     final onDiscountChanged = widget.onDiscountChanged;
     final onToggleExpanded = widget.onToggleExpanded;
@@ -890,7 +904,7 @@ class _ExpandedContentState extends State<_ExpandedContent> {
                       'تقليل',
                       Icons.remove,
                       const Color(0xFFEF4444),
-                      () => onQuantityChanged(math.max(0, item.quantity - 1)),
+                      widget.onDecreaseQuantity ?? () {},
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -900,7 +914,7 @@ class _ExpandedContentState extends State<_ExpandedContent> {
                       'زيادة',
                       Icons.add,
                       const Color(0xFF22C55E),
-                      () => onQuantityChanged(item.quantity + 1),
+                      widget.onIncreaseQuantity ?? () {},
                     ),
                   ),
                   const SizedBox(width: 8),

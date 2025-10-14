@@ -154,3 +154,5 @@ doc/api/
 
 # Cursor
 .cursor/
+scripts/run_update.bat
+scripts/update_gists.py

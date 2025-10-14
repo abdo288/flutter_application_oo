@@ -92,6 +92,13 @@ class StreamAppProvider with ChangeNotifier {
               return;
             },
           ),
+          _cartProvider.initialize().timeout(
+            const Duration(seconds: 3),
+            onTimeout: () {
+              debugPrint('⚠️ انتهت مهلة تهيئة CartProvider');
+              return;
+            },
+          ),
         ]).timeout(
           const Duration(seconds: 8), // Overall timeout
           onTimeout: () {

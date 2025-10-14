@@ -1,9 +1,19 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/cart_item.dart';
 
 /// مقدم خدمة السلة - يدير حالة السلة بشكل مركزي
 class CartProvider with ChangeNotifier {
   final List<CartItem> _cart = <CartItem>[];
+
+  // مفاتيح SharedPreferences
+  static const String _cartKey = 'cart_items';
+  static const String _cartTimestampKey = 'cart_timestamp';
+
+  // متغيرات الحفظ
+  SharedPreferences? _prefs;
+  bool _isInitialized = false;
 
   /// الحصول على نسخة غير قابلة للتعديل من السلة
   List<CartItem> get cart => List<CartItem>.unmodifiable(_cart);
@@ -16,6 +26,88 @@ class CartProvider with ChangeNotifier {
 
   /// عدد العناصر في السلة
   int get itemCount => _cart.length;
+
+  /// تهيئة CartProvider
+  Future<void> initialize() async {
+    if (_isInitialized) return;
+
+    try {
+      _prefs = await SharedPreferences.getInstance();
+      await _loadCartFromStorage();
+      _isInitialized = true;
+      debugPrint('🛒 تم تهيئة CartProvider بنجاح');
+    } catch (e) {
+      debugPrint('❌ خطأ في تهيئة CartProvider: $e');
+    }
+  }
+
+  /// حفظ السلة في SharedPreferences
+  Future<void> _saveCartToStorage() async {
+    if (_prefs == null) return;
+
+    try {
+      // تحويل السلة إلى JSON
+      final List<Map<String, dynamic>> cartJson =
+          _cart.map((item) => item.toMap()).toList();
+      final String cartString = jsonEncode(cartJson);
+
+      // حفظ السلة والوقت
+      await _prefs!.setString(_cartKey, cartString);
+      await _prefs!
+          .setString(_cartTimestampKey, DateTime.now().toIso8601String());
+
+      debugPrint('💾 تم حفظ السلة في SharedPreferences');
+    } catch (e) {
+      debugPrint('❌ خطأ في حفظ السلة: $e');
+    }
+  }
+
+  /// استعادة السلة من SharedPreferences
+  Future<void> _loadCartFromStorage() async {
+    if (_prefs == null) return;
+
+    try {
+      final String? cartString = _prefs!.getString(_cartKey);
+      if (cartString != null && cartString.isNotEmpty) {
+        final List<dynamic> cartJson = jsonDecode(cartString) as List<dynamic>;
+        _cart.clear();
+
+        for (final dynamic itemData in cartJson) {
+          final Map<String, dynamic> itemJson =
+              itemData as Map<String, dynamic>;
+          try {
+            final CartItem item = CartItem.fromMap(itemJson);
+            _cart.add(item);
+          } catch (e) {
+            debugPrint('❌ خطأ في تحويل عنصر السلة: $e');
+          }
+        }
+
+        debugPrint('📦 تم استعادة ${_cart.length} عنصر من السلة');
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('❌ خطأ في استعادة السلة: $e');
+    }
+  }
+
+  /// مسح السلة المحفوظة
+  Future<void> _clearStoredCart() async {
+    if (_prefs == null) return;
+
+    try {
+      await _prefs!.remove(_cartKey);
+      await _prefs!.remove(_cartTimestampKey);
+      debugPrint('🗑️ تم مسح السلة المحفوظة');
+    } catch (e) {
+      debugPrint('❌ خطأ في مسح السلة المحفوظة: $e');
+    }
+  }
+
+  /// حفظ السلة يدوياً (للاستخدام الخارجي)
+  Future<void> saveCartManually() async {
+    await _saveCartToStorage();
+  }
 
   /// إضافة عنصر إلى السلة
   void addItem(CartItem item) {
@@ -33,6 +125,7 @@ class CartProvider with ChangeNotifier {
       _cart.add(item);
     }
     notifyListeners();
+    _saveCartToStorage(); // حفظ السلة تلقائياً
   }
 
   /// تحديث كمية منتج في السلة
@@ -46,6 +139,7 @@ class CartProvider with ChangeNotifier {
         _cart.removeAt(index);
       }
       notifyListeners();
+      _saveCartToStorage(); // حفظ السلة تلقائياً
     }
   }
 
@@ -62,6 +156,7 @@ class CartProvider with ChangeNotifier {
         _cart.removeAt(index);
       }
       notifyListeners();
+      _saveCartToStorage(); // حفظ السلة تلقائياً
     } else {
       // إذا لم يتم العثور على العنصر، جرب البحث بالباركود
       final int barcodeIndex = _cart.indexWhere((element) =>
@@ -75,6 +170,7 @@ class CartProvider with ChangeNotifier {
           _cart.removeAt(barcodeIndex);
         }
         notifyListeners();
+        _saveCartToStorage(); // حفظ السلة تلقائياً
       }
     }
   }
@@ -91,6 +187,7 @@ class CartProvider with ChangeNotifier {
         _cart.removeAt(index);
       }
       notifyListeners();
+      _saveCartToStorage(); // حفظ السلة تلقائياً
     }
   }
 
@@ -99,6 +196,7 @@ class CartProvider with ChangeNotifier {
     _cart.removeWhere((element) =>
         element.productId == productId && element.discount == discount);
     notifyListeners();
+    _saveCartToStorage(); // حفظ السلة تلقائياً
   }
 
   /// حذف عنصر محدد من السلة
@@ -110,6 +208,7 @@ class CartProvider with ChangeNotifier {
     if (index != -1) {
       _cart.removeAt(index);
       notifyListeners();
+      _saveCartToStorage(); // حفظ السلة تلقائياً
     } else {
       // إذا لم يتم العثور على العنصر، جرب البحث بالباركود
       final int barcodeIndex = _cart.indexWhere((element) =>
@@ -118,6 +217,7 @@ class CartProvider with ChangeNotifier {
       if (barcodeIndex != -1) {
         _cart.removeAt(barcodeIndex);
         notifyListeners();
+        _saveCartToStorage(); // حفظ السلة تلقائياً
       }
     }
   }
@@ -126,6 +226,8 @@ class CartProvider with ChangeNotifier {
   void clearCart() {
     _cart.clear();
     notifyListeners();
+    _saveCartToStorage(); // حفظ السلة تلقائياً
+    _clearStoredCart(); // مسح السلة المحفوظة أيضاً
   }
 
   /// تطبيق خصم على منتج
@@ -146,6 +248,7 @@ class CartProvider with ChangeNotifier {
         _cart[index] = oldItem.copyWith(discount: discount);
       }
       notifyListeners();
+      _saveCartToStorage(); // حفظ السلة تلقائياً
     }
   }
 
@@ -170,6 +273,7 @@ class CartProvider with ChangeNotifier {
         _cart[index] = oldItem.copyWith(discount: discount);
       }
       notifyListeners();
+      _saveCartToStorage(); // حفظ السلة تلقائياً
     }
   }
 
@@ -191,6 +295,7 @@ class CartProvider with ChangeNotifier {
         _cart[index] = oldItem.copyWith(discount: 0);
       }
       notifyListeners();
+      _saveCartToStorage(); // حفظ السلة تلقائياً
     }
   }
 
@@ -215,6 +320,7 @@ class CartProvider with ChangeNotifier {
         _cart[index] = oldItem.copyWith(discount: 0);
       }
       notifyListeners();
+      _saveCartToStorage(); // حفظ السلة تلقائياً
     }
   }
 

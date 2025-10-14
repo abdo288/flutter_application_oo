@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -10,6 +11,7 @@ import '../models/product.dart';
 import '../providers/stream_app_provider.dart';
 import '../services/pos_service.dart';
 import '../services/unified_sales_service.dart';
+import '../services/app_event_bus.dart';
 import '../utils/constants.dart';
 import '../utils/responsive_breakpoints.dart';
 import '../utils/snackbar_utils.dart';
@@ -37,9 +39,15 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
 
   bool _isLoading = false;
   bool _showDiscountedOnly = false;
+  bool _hasInitialized = false;
 
   // إدارة حالة التوسيع للبطاقات
   String? _expandedItemId;
+
+  // ✅ إدارة الأحداث والتزامن
+  StreamSubscription<AppEvent>? _eventSubscription;
+  StreamSubscription<List<CartItem>>? _cartFirebaseSubscription;
+  String? _currentSessionId;
 
   // Animation controllers
   late AnimationController _fadeController;
@@ -74,6 +82,14 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
 
     // إعداد اختصارات لوحة المفاتيح
     _setupKeyboardShortcuts();
+
+    // ✅ تهيئة البيانات والاستماع للأحداث
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _initializeData();
+        _startEventListening();
+      }
+    });
   }
 
   @override
@@ -85,6 +101,16 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
     _searchController.dispose();
     _fadeController.dispose();
     _slideController.dispose();
+
+    // ✅ إيقاف الاستماع للأحداث والسلة
+    _eventSubscription?.cancel();
+    _cartFirebaseSubscription?.cancel();
+
+    // إنهاء جلسة POS
+    if (_currentSessionId != null) {
+      POSService.endPOSSession(sessionId: _currentSessionId!);
+    }
+
     // تنظيف discount controllers
     for (final TextEditingController controller
         in _discountControllers.values) {
@@ -105,6 +131,381 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
         _expandedItemId = null;
       }
     });
+  }
+
+  /// ✅ تهيئة البيانات عند فتح الشاشة
+  Future<void> _initializeData() async {
+    if (!mounted || _hasInitialized) return;
+
+    try {
+      final StreamAppProvider appProvider = context.read<StreamAppProvider>();
+
+      // ✅ انتظار تهيئة التطبيق بالكامل
+      if (!appProvider.isInitialized) {
+        debugPrint('🪟 Windows POS: انتظار تهيئة التطبيق...');
+        await appProvider.initializationComplete;
+      }
+
+      // تحسين خاص بـ Windows - إعادة تحميل البيانات
+      if (Platform.isWindows) {
+        debugPrint('🪟 Windows POS: إعادة تحميل البيانات...');
+        await appProvider.refreshAll();
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+      }
+
+      // ✅ التأكد من تهيئة CartProvider
+      debugPrint('🪟 Windows POS: تهيئة CartProvider...');
+      await appProvider.cartProvider.initialize();
+
+      // ✅ إنشاء جلسة POS جديدة
+      _currentSessionId = DateTime.now().millisecondsSinceEpoch.toString();
+      await POSService.savePOSSession(
+        sessionId: _currentSessionId!,
+        platform: 'Windows',
+        deviceInfo: 'Windows POS Screen',
+      );
+
+      // ✅ استعادة السلة من Firebase
+      await _loadCartFromFirebase();
+
+      // ✅ تأخير بدء الاستماع لتجنب التضارب
+      await Future<void>.delayed(const Duration(milliseconds: 1000));
+      _startCartFirebaseListening();
+
+      // ✅ التأكد من حفظ السلة الحالية في SharedPreferences
+      debugPrint('🪟 Windows POS: التأكد من حفظ السلة الحالية...');
+      final List<CartItem> currentCart = appProvider.cartProvider.cart;
+      if (currentCart.isNotEmpty) {
+        debugPrint(
+            '🪟 Windows POS: تم العثور على ${currentCart.length} عنصر في السلة المحلية');
+        // إعادة حفظ السلة للتأكد
+        await appProvider.cartProvider.saveCartManually();
+      }
+
+      if (appProvider.isInitialized) {
+        debugPrint('🔄 تم جلب بيانات POS في Windows POS Screen');
+      }
+
+      _hasInitialized = true;
+    } catch (e) {
+      debugPrint('❌ خطأ في جلب بيانات POS: $e');
+    }
+  }
+
+  /// ✅ بدء الاستماع للأحداث
+  void _startEventListening() {
+    _eventSubscription = AppEventBus.stream.listen((event) {
+      if (!mounted) return;
+
+      switch (event.runtimeType) {
+        case ProductAddedEvent:
+          _handleProductAdded(event as ProductAddedEvent);
+          break;
+        case ProductUpdatedEvent:
+          _handleProductUpdated(event as ProductUpdatedEvent);
+          break;
+        case ProductDeletedEvent:
+          _handleProductDeleted(event as ProductDeletedEvent);
+          break;
+        case InventoryUpdatedEvent:
+          _handleInventoryUpdated(event as InventoryUpdatedEvent);
+          break;
+        case SaleCompletedEvent:
+          _handleSaleCompleted(event as SaleCompletedEvent);
+          break;
+        case LowStockAlertEvent:
+          _handleLowStockAlert(event as LowStockAlertEvent);
+          break;
+        case StatsUpdatedEvent:
+          _handleStatsUpdated(event as StatsUpdatedEvent);
+          break;
+        default:
+          debugPrint('📨 حدث غير معالج في Windows POS: ${event.runtimeType}');
+      }
+    });
+  }
+
+  /// ✅ معالجة إضافة منتج جديد
+  void _handleProductAdded(ProductAddedEvent event) {
+    debugPrint('📦 معالجة إضافة منتج في Windows POS: ${event.product.name}');
+
+    // تحديث الواجهة
+    if (mounted) {
+      setState(() {});
+    }
+
+    // إظهار إشعار
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('✅ تمت إضافة "${event.product.name}"'),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  /// ✅ معالجة تحديث منتج
+  void _handleProductUpdated(ProductUpdatedEvent event) {
+    debugPrint('✏️ معالجة تحديث منتج في Windows POS: ${event.product.name}');
+
+    // تحديث الواجهة
+    if (mounted) {
+      setState(() {});
+    }
+
+    // إظهار إشعار
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('✏️ تم تحديث "${event.product.name}"'),
+        backgroundColor: Colors.blue,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  /// ✅ معالجة حذف منتج
+  void _handleProductDeleted(ProductDeletedEvent event) {
+    debugPrint('🗑️ معالجة حذف منتج في Windows POS: ${event.productName}');
+
+    // تحديث الواجهة
+    if (mounted) {
+      setState(() {});
+    }
+
+    // إظهار إشعار
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('🗑️ تم حذف "${event.productName}"'),
+        backgroundColor: Colors.orange,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  /// ✅ معالجة تحديث المخزون
+  void _handleInventoryUpdated(InventoryUpdatedEvent event) {
+    debugPrint('📦 معالجة تحديث المخزون في Windows POS: ${event.itemName}');
+
+    // تحديث الواجهة
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  /// ✅ معالجة إتمام عملية بيع
+  void _handleSaleCompleted(SaleCompletedEvent event) {
+    debugPrint('💰 معالجة إتمام عملية بيع في Windows POS: ${event.sale.id}');
+
+    // تحديث الواجهة
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  /// ✅ معالجة تنبيه المخزون المنخفض
+  void _handleLowStockAlert(LowStockAlertEvent event) {
+    debugPrint('⚠️ معالجة تنبيه مخزون منخفض في Windows POS: ${event.itemName}');
+
+    // إظهار تنبيه
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('⚠️ مخزون منخفض: ${event.itemName}'),
+        backgroundColor: Colors.orange,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  /// ✅ معالجة تحديث الإحصائيات
+  void _handleStatsUpdated(StatsUpdatedEvent event) {
+    debugPrint('📊 معالجة تحديث الإحصائيات في Windows POS');
+
+    // تحديث الواجهة
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  /// ✅ Pull-to-refresh لإعادة تحميل البيانات
+  Future<void> _onRefresh() async {
+    try {
+      debugPrint('🔄 بدء تحديث بيانات POS...');
+
+      final StreamAppProvider appProvider = context.read<StreamAppProvider>();
+
+      // التأكد من أن التطبيق مهيأ
+      if (!appProvider.isInitialized) {
+        debugPrint('⚠️ التطبيق لم يتم تهيئته بعد');
+        return;
+      }
+
+      await appProvider.refreshAll();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('تم تحديث بيانات POS بنجاح'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+        debugPrint('✅ تم تحديث بيانات POS بنجاح');
+      }
+    } catch (e) {
+      debugPrint('❌ خطأ في تحديث بيانات POS: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(child: Text('خطأ في التحديث: $e')),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  /// ✅ استعادة السلة من Firebase
+  Future<void> _loadCartFromFirebase() async {
+    if (_currentSessionId == null) return;
+
+    try {
+      final List<CartItem> firebaseCart = await POSService.loadCartFromFirebase(
+        sessionId: _currentSessionId!,
+      );
+
+      if (firebaseCart.isNotEmpty) {
+        final StreamAppProvider appProvider = context.read<StreamAppProvider>();
+
+        debugPrint('🔄 Firebase: تم العثور على ${firebaseCart.length} عنصر');
+        debugPrint('🔄 المحلي: ${appProvider.cartProvider.cart.length} عنصر');
+
+        // ✅ تحسين: فقط إذا كانت السلة المحلية فارغة أو مختلفة
+        final List<CartItem> currentCart = appProvider.cartProvider.cart;
+        if (currentCart.isEmpty || !_areCartsEqual(firebaseCart, currentCart)) {
+          // مسح السلة الحالية
+          appProvider.cartProvider.clearCart();
+
+          // إضافة العناصر من Firebase
+          for (final CartItem item in firebaseCart) {
+            appProvider.cartProvider.addItem(item);
+          }
+
+          if (mounted) {
+            setState(() {});
+          }
+
+          debugPrint('✅ تم استعادة ${firebaseCart.length} عنصر من Firebase');
+        } else {
+          debugPrint('🔄 السلة المحلية متطابقة مع Firebase - تجاهل التحديث');
+        }
+      } else {
+        debugPrint('🔄 Firebase فارغ - لا توجد عناصر لاستعادتها');
+      }
+    } catch (e) {
+      debugPrint('❌ خطأ في استعادة السلة من Firebase: $e');
+    }
+  }
+
+  /// ✅ بدء الاستماع لتغييرات السلة في Firebase
+  void _startCartFirebaseListening() {
+    if (_currentSessionId == null) return;
+
+    _cartFirebaseSubscription = POSService.watchCartFromFirebase(
+      sessionId: _currentSessionId!,
+    ).listen((List<CartItem> firebaseCart) {
+      if (!mounted) return;
+
+      try {
+        final StreamAppProvider appProvider = context.read<StreamAppProvider>();
+        final List<CartItem> currentCart = appProvider.cartProvider.cart;
+
+        // ✅ تحسين: تجاهل التحديثات الفارغة أو المتطابقة
+        if (firebaseCart.isEmpty && currentCart.isEmpty) {
+          debugPrint('🔄 Firebase و SharedPreferences فارغان - تجاهل التحديث');
+          return;
+        }
+
+        // مقارنة السلة المحلية مع Firebase
+        if (firebaseCart.length != currentCart.length ||
+            !_areCartsEqual(firebaseCart, currentCart)) {
+          debugPrint('🔄 تم اكتشاف تغيير في السلة من Firebase');
+          debugPrint('🔄 Firebase: ${firebaseCart.length} عنصر');
+          debugPrint('🔄 المحلي: ${currentCart.length} عنصر');
+
+          // ✅ تحسين: فقط إذا كان Firebase يحتوي على عناصر
+          if (firebaseCart.isNotEmpty) {
+            // مسح السلة الحالية
+            appProvider.cartProvider.clearCart();
+
+            // إضافة العناصر من Firebase
+            for (final CartItem item in firebaseCart) {
+              appProvider.cartProvider.addItem(item);
+            }
+
+            if (mounted) {
+              setState(() {});
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('❌ خطأ في معالجة تغييرات السلة من Firebase: $e');
+      }
+    });
+  }
+
+  /// ✅ مقارنة السلات
+  bool _areCartsEqual(List<CartItem> cart1, List<CartItem> cart2) {
+    if (cart1.length != cart2.length) return false;
+
+    for (int i = 0; i < cart1.length; i++) {
+      final CartItem item1 = cart1[i];
+      final CartItem item2 = cart2[i];
+
+      if (item1.productId != item2.productId ||
+          item1.quantity != item2.quantity ||
+          item1.discount != item2.discount) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /// ✅ حفظ السلة في Firebase
+  Future<void> _saveCartToFirebase() async {
+    if (_currentSessionId == null) return;
+
+    try {
+      final StreamAppProvider appProvider = context.read<StreamAppProvider>();
+      final List<CartItem> cart = appProvider.cartProvider.cart;
+
+      await POSService.saveCartToFirebase(
+        cart: cart,
+        sessionId: _currentSessionId!,
+      );
+
+      debugPrint('✅ تم حفظ السلة في Firebase: ${cart.length} عنصر');
+    } catch (e) {
+      debugPrint('❌ خطأ في حفظ السلة في Firebase: $e');
+    }
   }
 
   /// إعداد اختصارات لوحة المفاتيح
@@ -184,74 +585,35 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
         return;
       }
 
-      // البحث عن المنتج في السلة الحالية (بالاسم أو الباركود)
-      final CartItem? existingItem = appProvider.cartProvider.cart
-          .where((item) =>
-              item.productId == product.id ||
-              item.name.toLowerCase() == product.name.toLowerCase() ||
-              (item.barcode.isNotEmpty &&
-                  product.barcode != null &&
-                  product.barcode!.isNotEmpty &&
-                  item.barcode == product.barcode))
-          .firstOrNull;
+      debugPrint('🪟 Windows: إضافة منتج للسلة باستخدام CartProvider.addItem');
 
-      if (existingItem != null) {
-        debugPrint('🪟 Windows: المنتج موجود في السلة، تحديث الكمية');
+      // إنشاء عنصر السلة
+      final CartItem newItem = CartItem(
+        productId: product.id ?? 'unknown',
+        name: product.name,
+        barcode: product.barcode ?? product.id ?? 'unknown',
+        wholesalePrice: product.wholesalePrice,
+        retailPrice: product.retailPrice,
+        quantity: 1,
+        discount: 0,
+      );
 
-        // تحديث الكمية إذا كان المنتج موجود بالفعل
-        final int newQuantity = existingItem.quantity + 1;
+      // خصم كمية واحدة من المخزون
+      await POSService.decreaseInventoryQuantityByName(
+        appProvider.inventoryProvider,
+        name,
+        1,
+      );
 
-        // التحقق من توفر الكمية الجديدة
-        if (newQuantity > availableQuantity) {
-          debugPrint(
-              '🪟 Windows: الكمية المطلوبة غير متوفرة: $newQuantity > $availableQuantity');
-          SnackbarUtils.showError(context,
-              'الكمية المطلوبة ($newQuantity) غير متوفرة. المتوفر: $availableQuantity');
-          return;
-        }
+      debugPrint('🪟 Windows: تم خصم الكمية من المخزون');
 
-        // خصم كمية واحدة من المخزون
-        await POSService.decreaseInventoryQuantityByName(
-          appProvider.inventoryProvider,
-          name,
-          1,
-        );
+      // إضافة العنصر إلى CartProvider (سيتعامل مع المنتجات المكررة تلقائياً)
+      appProvider.cartProvider.addItem(newItem);
 
-        debugPrint('🪟 Windows: تم خصم الكمية من المخزون');
+      debugPrint('🪟 Windows: تم إضافة المنتج للسلة');
 
-        // تحديث الكمية في السلة بناءً على الاسم
-        appProvider.cartProvider
-            .updateQuantityForItemByName(product.name, newQuantity);
-
-        debugPrint('🪟 Windows: تم تحديث الكمية في السلة إلى: $newQuantity');
-      } else {
-        debugPrint('🪟 Windows: إضافة منتج جديد للسلة');
-
-        // إضافة منتج جديد للسلة
-        final CartItem newItem = CartItem(
-          productId: product.id ?? 'unknown',
-          name: product.name,
-          barcode: product.barcode ?? product.id ?? 'unknown',
-          wholesalePrice: product.wholesalePrice,
-          retailPrice: product.retailPrice,
-          quantity: 1,
-          discount: 0,
-        );
-
-        // خصم كمية واحدة من المخزون
-        await POSService.decreaseInventoryQuantityByName(
-          appProvider.inventoryProvider,
-          name,
-          1,
-        );
-
-        debugPrint('🪟 Windows: تم خصم الكمية من المخزون');
-
-        // إضافة العنصر إلى CartProvider
-        appProvider.cartProvider.addItem(newItem);
-
-        debugPrint('🪟 Windows: تم إضافة المنتج الجديد للسلة');
-      }
+      // ✅ حفظ السلة في Firebase
+      await _saveCartToFirebase();
 
       // تحديث الواجهة فوراً
       if (mounted) {
@@ -321,6 +683,9 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
         debugPrint('🪟 Windows: تم إضافة العنصر إلى CartProvider');
         debugPrint(
             '🪟 Windows: حجم السلة بعد الإضافة: ${appProvider.cartProvider.cart.length}');
+
+        // ✅ حفظ السلة في Firebase
+        await _saveCartToFirebase();
 
         // تحديث الواجهة فوراً (مثل Android)
         if (mounted) {
@@ -401,6 +766,9 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
       // تحديث الكمية في السلة
       appProvider.cartProvider.updateQuantityForItem(item, newQuantity);
 
+      // ✅ حفظ السلة في Firebase
+      await _saveCartToFirebase();
+
       // إعادة بناء الواجهة فوراً
       setState(() {});
 
@@ -439,6 +807,9 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
       // زيادة الكمية في السلة - استخدام الطريقة الجديدة
       appProvider.cartProvider.updateQuantityForItem(item, item.quantity + 1);
 
+      // ✅ حفظ السلة في Firebase
+      await _saveCartToFirebase();
+
       // تحديث الواجهة
       if (mounted) {
         setState(() {});
@@ -465,6 +836,9 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
 
         // تقليل الكمية في السلة - استخدام الطريقة الجديدة
         appProvider.cartProvider.updateQuantityForItem(item, item.quantity - 1);
+
+        // ✅ حفظ السلة في Firebase
+        await _saveCartToFirebase();
 
         // تحديث الواجهة
         if (mounted) {
@@ -497,6 +871,10 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
     }
 
     appProvider.cartProvider.removeItemByObject(item);
+
+    // ✅ حفظ السلة في Firebase
+    await _saveCartToFirebase();
+
     setState(() {});
     SnackbarUtils.showInfo(
         context, 'تم حذف ${item.name} من السلة وإرجاع الكمية للمخزون');
@@ -520,9 +898,13 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
   }
 
   /// مسح السلة
-  void _clearCart() {
+  Future<void> _clearCart() async {
     final StreamAppProvider appProvider = context.read<StreamAppProvider>();
     appProvider.cartProvider.clearCart();
+
+    // ✅ حفظ السلة في Firebase
+    await _saveCartToFirebase();
+
     setState(() {});
     SnackbarUtils.showInfo(context, 'تم مسح السلة');
   }
@@ -608,11 +990,14 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
   }
 
   /// تطبيق الخصم على منتج
-  void _applyDiscount(CartItem item, String value) {
+  Future<void> _applyDiscount(CartItem item, String value) async {
     final int? discount = int.tryParse(value);
     if (discount != null && discount >= 0) {
       final StreamAppProvider appProvider = context.read<StreamAppProvider>();
       appProvider.cartProvider.applyDiscountToItem(item, discount);
+
+      // ✅ حفظ السلة في Firebase
+      await _saveCartToFirebase();
 
       // إعادة بناء الواجهة فوراً
       setState(() {});
@@ -621,31 +1006,6 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
     } else {
       SnackbarUtils.showError(context, 'قيمة الخصم غير صحيحة');
     }
-  }
-
-  /// إلغاء الخصم على منتج
-  void _cancelDiscount(CartItem item) {
-    final StreamAppProvider appProvider = context.read<StreamAppProvider>();
-    appProvider.cartProvider.removeDiscountFromItem(item);
-    setState(() {});
-    // مسح حقل النص
-    final String uniqueKey =
-        '${item.productId}_${item.discount}_${item.quantity}';
-    if (_discountControllers.containsKey(uniqueKey)) {
-      _discountControllers[uniqueKey]!.text = '0';
-    }
-    SnackbarUtils.showSuccess(context, 'تم إلغاء الخصم');
-  }
-
-  /// الحصول على أو إنشاء controller للخصم
-  TextEditingController _getDiscountController(CartItem item) {
-    // استخدام معرف فريد يجمع productId + discount + quantity
-    final String uniqueKey =
-        '${item.productId}_${item.discount}_${item.quantity}';
-    if (!_discountControllers.containsKey(uniqueKey)) {
-      _discountControllers[uniqueKey] = TextEditingController();
-    }
-    return _discountControllers[uniqueKey]!;
   }
 
   /// تنظيف controllers غير المستخدمة
@@ -692,11 +1052,14 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
       resizeToAvoidBottomInset: true,
       backgroundColor: Colors.grey[50],
       appBar: _buildWindowsAppBar(),
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: SlideTransition(
-          position: _slideAnimation,
-          child: _buildWindowsLayout(),
+      body: RefreshIndicator(
+        onRefresh: _onRefresh,
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: SlideTransition(
+            position: _slideAnimation,
+            child: _buildWindowsLayout(),
+          ),
         ),
       ),
     );
@@ -1329,6 +1692,8 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
         isExpanded: _expandedItemId == 'cart_item_$index',
         onExpansionChanged: (isExpanded) =>
             _handleCardExpansion('cart_item_$index', isExpanded),
+        onIncreaseQuantity: () => _increaseQuantity(item),
+        onDecreaseQuantity: () => _decreaseQuantity(item),
       );
 
   /// بناء قسم إتمام البيع المحسن
