@@ -110,8 +110,6 @@ class ResponsiveNavigation extends StatelessWidget {
         return 'منتجات';
       case 'التقارير':
         return 'تقارير';
-      case 'الجرد السريع':
-        return 'جرد';
       case 'نقطة البيع':
         return 'نقطة';
       case 'عرض المتجر':
@@ -146,10 +144,6 @@ class ResponsiveNavigation extends StatelessWidget {
         const ResponsiveNavigationItem(
           icon: Icon(Icons.analytics),
           label: 'التقارير',
-        ),
-        const ResponsiveNavigationItem(
-          icon: Icon(Icons.qr_code_scanner),
-          label: 'الجرد السريع',
         ),
         const ResponsiveNavigationItem(
           icon: Icon(Icons.point_of_sale),

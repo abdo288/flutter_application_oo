@@ -68,5 +68,6 @@
         "debugConsole.errorForeground": "#ff6b6b",
         "debugConsole.warningForeground": "#ffa500",
         "debugConsole.infoForeground": "#4dabf7"
-    }
+    },
+    "cmake.ignoreCMakeListsMissing": true
 }

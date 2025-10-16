@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../models/page_result.dart';
-import '../models/quick_inventory_item.dart';
 import '../models/sale.dart';
 import '../services/error_handler_service.dart';
 import '../services/pos_service.dart';
@@ -16,7 +15,6 @@ import '../services/pos_service.dart';
 class POSReportsState {
   const POSReportsState({
     this.sales = const <Sale>[],
-    this.quickInventoryItems = const <QuickInventoryItem>[],
     this.isLoading = false,
     this.isLoadingMoreSales = false,
     this.isLoadingMoreQuick = false,
@@ -29,7 +27,6 @@ class POSReportsState {
   });
 
   final List<Sale> sales;
-  final List<QuickInventoryItem> quickInventoryItems;
   final bool isLoading;
   final bool isLoadingMoreSales;
   final bool isLoadingMoreQuick;
@@ -42,7 +39,6 @@ class POSReportsState {
 
   POSReportsState copyWith({
     List<Sale>? sales,
-    List<QuickInventoryItem>? quickInventoryItems,
     bool? isLoading,
     bool? isLoadingMoreSales,
     bool? isLoadingMoreQuick,
@@ -55,7 +51,6 @@ class POSReportsState {
   }) =>
       POSReportsState(
         sales: sales ?? this.sales,
-        quickInventoryItems: quickInventoryItems ?? this.quickInventoryItems,
         isLoading: isLoading ?? this.isLoading,
         isLoadingMoreSales: isLoadingMoreSales ?? this.isLoadingMoreSales,
         isLoadingMoreQuick: isLoadingMoreQuick ?? this.isLoadingMoreQuick,
@@ -73,7 +68,6 @@ class POSReportsState {
       other is POSReportsState &&
           runtimeType == other.runtimeType &&
           sales == other.sales &&
-          quickInventoryItems == other.quickInventoryItems &&
           isLoading == other.isLoading &&
           isLoadingMoreSales == other.isLoadingMoreSales &&
           isLoadingMoreQuick == other.isLoadingMoreQuick &&
@@ -87,7 +81,6 @@ class POSReportsState {
   @override
   int get hashCode =>
       sales.hashCode ^
-      quickInventoryItems.hashCode ^
       isLoading.hashCode ^
       isLoadingMoreSales.hashCode ^
       isLoadingMoreQuick.hashCode ^
@@ -125,7 +118,6 @@ class POSReportsNotifier extends StateNotifier<POSReportsState> {
     try {
       await Future.wait(<Future<void>>[
         _loadSales(),
-        _loadQuickInventoryItems(),
       ]);
       debugPrint('✅ تم تحميل بيانات التقارير بنجاح');
     } catch (e) {
@@ -158,31 +150,6 @@ class POSReportsNotifier extends StateNotifier<POSReportsState> {
         userAction: 'تحميل عمليات البيع في تقارير POS',
         context: <String, dynamic>{
           'operation': '_loadSales',
-        },
-      );
-      rethrow;
-    }
-  }
-
-  /// تحميل عناصر الجرد السريع
-  Future<void> _loadQuickInventoryItems() async {
-    try {
-      final PageResult<QuickInventoryItem> page =
-          await POSService.getQuickInventoryPage();
-
-      state = state.copyWith(
-        quickInventoryItems: page.items,
-        lastQuickDoc: page.lastDocument,
-        hasMoreQuick: page.hasMore,
-      );
-    } on Exception catch (e, stackTrace) {
-      await ErrorHandlerService.handleError(
-        e,
-        stackTrace: stackTrace.toString(),
-        type: ErrorType.unknown,
-        userAction: 'تحميل عناصر الجرد السريع في تقارير POS',
-        context: <String, dynamic>{
-          'operation': '_loadQuickInventoryItems',
         },
       );
       rethrow;
@@ -222,49 +189,12 @@ class POSReportsNotifier extends StateNotifier<POSReportsState> {
     }
   }
 
-  /// تحميل المزيد من الجرد السريع
-  Future<void> loadMoreQuick() async {
-    if (state.isLoadingMoreQuick || !state.hasMoreQuick) return;
-
-    state = state.copyWith(isLoadingMoreQuick: true);
-
-    try {
-      final PageResult<QuickInventoryItem> page =
-          await POSService.getQuickInventoryPage(
-        startAfter: state.lastQuickDoc,
-      );
-
-      state = state.copyWith(
-        quickInventoryItems: <QuickInventoryItem>[
-          ...state.quickInventoryItems,
-          ...page.items
-        ],
-        lastQuickDoc: page.lastDocument,
-        hasMoreQuick: page.hasMore,
-      );
-    } on Exception catch (e, stackTrace) {
-      await ErrorHandlerService.handleError(
-        e,
-        stackTrace: stackTrace.toString(),
-        type: ErrorType.unknown,
-        userAction: 'تحميل المزيد من الجرد السريع في تقارير POS',
-        context: <String, dynamic>{
-          'operation': 'loadMoreQuick',
-        },
-      );
-      rethrow;
-    } finally {
-      state = state.copyWith(isLoadingMoreQuick: false);
-    }
-  }
-
   /// تحديث نطاق التاريخ
   Future<void> updateDateRange(DateTime start, DateTime end) async {
     state = state.copyWith(
       startDate: start,
       endDate: end,
       sales: <Sale>[], // مسح البيانات القديمة
-      quickInventoryItems: <QuickInventoryItem>[],
       hasMoreSales: true,
       hasMoreQuick: true,
       lastQuickDoc: null,

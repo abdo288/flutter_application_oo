@@ -30,17 +30,16 @@ import 'providers/auth_provider.dart';
 import 'providers/cart_provider.dart';
 import 'providers/stream_app_provider.dart';
 import 'screens/add_product_tab_riverpod.dart';
-import 'screens/alerts_tab.dart';
+import 'screens/alerts_tab_riverpod.dart';
 import 'screens/inventory_tab_riverpod.dart';
 import 'screens/dashboard_tab_riverpod.dart';
 import 'screens/enhanced_pos_reports_screen_riverpod.dart';
 import 'screens/login_screen.dart';
-import 'screens/pos_tab.dart';
+import 'screens/pos_tab_riverpod.dart';
 import 'screens/product_list_tab_riverpod.dart';
-import 'screens/quick_inventory_tab.dart';
 import 'screens/realtime_settings_tab.dart';
-import 'screens/settings_tab.dart';
-import 'screens/store_display_tab.dart';
+import 'screens/settings_tab_riverpod.dart';
+import 'screens/store_display_tab_riverpod.dart';
 import 'screens/windows_pos_screen.dart';
 import 'services/appearance_service.dart';
 import 'services/auto_backup_service.dart';
@@ -793,7 +792,7 @@ class StreamProfitCalculatorScreenState
                       Navigator.of(context).push(
                         MaterialPageRoute<void>(
                           builder: (BuildContext context) =>
-                              const SettingsTab(),
+                              const SettingsTabRiverpod(), // Riverpod version
                         ),
                       );
                     }
@@ -820,7 +819,8 @@ class StreamProfitCalculatorScreenState
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (BuildContext context) => const AlertsTab(),
+                    builder: (BuildContext context) =>
+                        const AlertsTabRiverpod(),
                   ),
                 );
               },
@@ -1082,7 +1082,8 @@ class StreamProfitCalculatorScreenState
                 ? () {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (BuildContext context) => const SettingsTab(),
+                        builder: (BuildContext context) =>
+                            const SettingsTabRiverpod(), // Riverpod version
                       ),
                     );
                   }
@@ -1102,7 +1103,7 @@ class StreamProfitCalculatorScreenState
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (BuildContext context) => const AlertsTab(),
+                  builder: (BuildContext context) => const AlertsTabRiverpod(),
                 ),
               );
             },
@@ -1408,22 +1409,27 @@ class StreamProfitCalculatorScreenState
                   ),
                 ),
                 TabErrorOverlay(
-                  tabName: 'quick_inventory',
-                  childBuilder: (BuildContext ctx) => QuickInventoryTab(),
-                ),
-                TabErrorOverlay(
                   tabName: 'pos',
                   childBuilder: (BuildContext ctx) => Platform.isWindows
                       ? const WindowsPOSScreen()
-                      : const POSTab(),
+                      : RiverpodProviderWrapper.wrapWithRiverpod(
+                          appProvider: context.read<StreamAppProvider>(),
+                          context: ctx,
+                          child: const POSTabRiverpod(),
+                        ),
                 ),
                 TabErrorOverlay(
                   tabName: 'store_display',
-                  childBuilder: (BuildContext ctx) => StoreDisplayTab(
-                    onNavigateToAddProduct: () => _pageController.animateToPage(
-                        2,
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut),
+                  childBuilder: (BuildContext ctx) =>
+                      RiverpodProviderWrapper.wrapWithRiverpod(
+                    appProvider: context.read<StreamAppProvider>(),
+                    context: ctx,
+                    child: StoreDisplayTabRiverpod(
+                      onNavigateToAddProduct: () =>
+                          _pageController.animateToPage(2,
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut),
+                    ),
                   ),
                 ),
                 TabErrorOverlay(

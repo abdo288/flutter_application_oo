@@ -9,7 +9,6 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
-import '../models/quick_inventory_item.dart';
 import '../models/sale.dart';
 import '../providers/pos_reports_riverpod_providers.dart';
 import '../utils/constants.dart';
@@ -40,7 +39,7 @@ class _EnhancedPOSReportsScreenRiverpodState
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     // تأجيل تحميل البيانات إلى ما بعد اكتمال أول عملية بناء
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -79,7 +78,6 @@ class _EnhancedPOSReportsScreenRiverpodState
           isScrollable: true,
           tabs: const <Widget>[
             Tab(text: 'المبيعات', icon: Icon(Icons.shopping_cart)),
-            Tab(text: 'الجرد السريع', icon: Icon(Icons.inventory)),
             Tab(text: 'الإحصائيات', icon: Icon(Icons.analytics)),
             Tab(text: 'الرسوم البيانية', icon: Icon(Icons.bar_chart)),
           ],
@@ -112,7 +110,6 @@ class _EnhancedPOSReportsScreenRiverpodState
               controller: _tabController,
               children: <Widget>[
                 _buildSalesTab(),
-                _buildQuickInventoryTab(),
                 _buildStatisticsTab(),
                 _buildChartsTab(),
               ],
@@ -130,22 +127,6 @@ class _EnhancedPOSReportsScreenRiverpodState
         _buildSalesStats(),
         Expanded(
           child: state.sales.isEmpty ? _buildEmptySales() : _buildSalesList(),
-        ),
-      ],
-    );
-  }
-
-  /// بناء تبويب الجرد السريع
-  Widget _buildQuickInventoryTab() {
-    final POSReportsState state = ref.watch(posReportsProvider);
-
-    return Column(
-      children: <Widget>[
-        _buildInventoryStats(),
-        Expanded(
-          child: state.quickInventoryItems.isEmpty
-              ? _buildEmptyInventory()
-              : _buildQuickInventoryList(),
         ),
       ],
     );
@@ -355,42 +336,6 @@ class _EnhancedPOSReportsScreenRiverpodState
     );
   }
 
-  /// بناء قائمة الجرد السريع
-  Widget _buildQuickInventoryList() {
-    final POSReportsState state = ref.watch(posReportsProvider);
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(AppConstants.mediumPadding),
-      itemCount:
-          state.quickInventoryItems.length + (state.hasMoreQuick ? 1 : 0),
-      itemBuilder: (BuildContext context, int index) {
-        if (index == state.quickInventoryItems.length) {
-          return _buildLoadMoreButton(() {
-            ref.read(posReportsProvider.notifier).loadMoreQuick();
-          });
-        }
-
-        final QuickInventoryItem item = state.quickInventoryItems[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: AppConstants.smallPadding),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Colors.blue,
-              child: Text(
-                item.scannedQuantity.toString(),
-                style: const TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold),
-              ),
-            ),
-            title: Text(item.name),
-            subtitle: Text('الباركود: ${item.barcode}'),
-            trailing: Text('${item.wholesalePrice} DZ'),
-          ),
-        );
-      },
-    );
-  }
-
   /// بناء إحصائيات عامة
   Widget _buildGeneralStats() {
     final POSReportsState state = ref.watch(posReportsProvider);
@@ -498,8 +443,6 @@ class _EnhancedPOSReportsScreenRiverpodState
 
   /// بناء إحصائيات الجرد
   Widget _buildInventoryStatistics() {
-    final POSReportsState state = ref.watch(posReportsProvider);
-
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppConstants.mediumPadding),
@@ -511,10 +454,6 @@ class _EnhancedPOSReportsScreenRiverpodState
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: AppConstants.mediumPadding),
-            Text('إجمالي العناصر: ${state.quickInventoryItems.length}'),
-            const SizedBox(height: AppConstants.smallPadding),
-            Text(
-                'إجمالي الكمية: ${state.quickInventoryItems.fold<int>(0, (int sum, QuickInventoryItem item) => sum + item.scannedQuantity)}'),
           ],
         ),
       ),
@@ -675,41 +614,6 @@ class _EnhancedPOSReportsScreenRiverpodState
     );
   }
 
-  /// بناء إحصائيات الجرد
-  Widget _buildInventoryStats() {
-    final POSReportsState state = ref.watch(posReportsProvider);
-
-    return Container(
-      margin: const EdgeInsets.all(AppConstants.mediumPadding),
-      child: Row(
-        children: <Widget>[
-          Expanded(
-            child: _buildStatCard(
-              'إجمالي العناصر',
-              state.quickInventoryItems.length.toString(),
-              Icons.inventory,
-              Colors.blue,
-            ),
-          ),
-          const SizedBox(width: AppConstants.smallPadding),
-          Expanded(
-            child: _buildStatCard(
-              'إجمالي الكمية',
-              state.quickInventoryItems
-                  .fold<int>(
-                      0,
-                      (int sum, QuickInventoryItem item) =>
-                          sum + item.scannedQuantity)
-                  .toString(),
-              Icons.shopping_cart,
-              Colors.orange,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   /// بناء رسالة فارغة للمبيعات
   Widget _buildEmptySales() => Center(
         child: Column(
@@ -723,28 +627,6 @@ class _EnhancedPOSReportsScreenRiverpodState
             const SizedBox(height: AppConstants.mediumPadding),
             Text(
               'لا توجد عمليات بيع في هذه الفترة',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey[600],
-              ),
-            ),
-          ],
-        ),
-      );
-
-  /// بناء رسالة فارغة للجرد
-  Widget _buildEmptyInventory() => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Icon(
-              Icons.inventory_outlined,
-              size: 64,
-              color: Colors.grey[400],
-            ),
-            const SizedBox(height: AppConstants.mediumPadding),
-            Text(
-              'لا توجد عناصر في الجرد السريع',
               style: TextStyle(
                 fontSize: 18,
                 color: Colors.grey[600],

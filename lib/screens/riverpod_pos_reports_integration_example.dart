@@ -126,7 +126,7 @@ class POSReportsStatsWidget extends ConsumerWidget {
                 Expanded(
                   child: _buildStatItem(
                     'الجرد السريع',
-                    state.quickInventoryItems.length.toString(),
+                    '0',
                     Icons.inventory,
                     Colors.blue,
                   ),

@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -10,7 +9,6 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../models/page_result.dart';
-import '../models/quick_inventory_item.dart';
 import '../models/sale.dart';
 import '../services/error_handler_service.dart';
 import '../services/pos_service.dart';
@@ -22,7 +20,8 @@ import '../utils/snackbar_utils.dart';
 String formatCurrency(int amount) => '${amount.toString()} DZ';
 
 // Helper function to convert int to double for CurrencyFormatter
-String formatCurrencyDouble(int amount, BuildContext context) => CurrencyFormatter.formatCurrency(amount.toDouble(), context);
+String formatCurrencyDouble(int amount, BuildContext context) =>
+    CurrencyFormatter.formatCurrency(amount.toDouble(), context);
 
 /// شاشة تقارير نقطة البيع المحسنة
 class EnhancedPOSReportsScreen extends StatefulWidget {
@@ -38,13 +37,9 @@ class _EnhancedPOSReportsScreenState extends State<EnhancedPOSReportsScreen>
   late TabController _tabController;
 
   List<Sale> _sales = <Sale>[];
-  List<QuickInventoryItem> _quickInventoryItems = <QuickInventoryItem>[];
   bool _isLoading = false;
   bool _isLoadingMoreSales = false;
-  bool _isLoadingMoreQuick = false;
   bool _hasMoreSales = true;
-  bool _hasMoreQuick = true;
-  DocumentSnapshot<Map<String, dynamic>>? _lastQuickDoc;
 
   DateTime _startDate = DateTime.now().subtract(const Duration(days: 7));
   DateTime _endDate = DateTime.now();
@@ -58,7 +53,7 @@ class _EnhancedPOSReportsScreenState extends State<EnhancedPOSReportsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     // تأجيل تحميل البيانات إلى ما بعد اكتمال أول عملية بناء
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -84,7 +79,6 @@ class _EnhancedPOSReportsScreenState extends State<EnhancedPOSReportsScreen>
     try {
       await Future.wait(<Future<void>>[
         _loadSales(),
-        _loadQuickInventoryItems(),
       ]);
       _prepareChartData();
     } catch (e) {
@@ -124,33 +118,6 @@ class _EnhancedPOSReportsScreenState extends State<EnhancedPOSReportsScreen>
         },
       );
       debugPrint('خطأ في تحميل عمليات البيع: $e');
-    }
-  }
-
-  /// تحميل عناصر الجرد السريع
-  Future<void> _loadQuickInventoryItems() async {
-    try {
-      _lastQuickDoc = null;
-      final PageResult<QuickInventoryItem> page =
-          await POSService.getQuickInventoryPage();
-      if (mounted) {
-        setState(() {
-          _quickInventoryItems = page.items;
-          _lastQuickDoc = page.lastDocument;
-          _hasMoreQuick = page.hasMore;
-        });
-      }
-    } on Exception catch (e, stackTrace) {
-      await ErrorHandlerService.handleError(
-        e,
-        stackTrace: stackTrace.toString(),
-        type: ErrorType.unknown,
-        userAction: 'تحميل عناصر الجرد السريع في تقارير POS',
-        context: <String, dynamic>{
-          'operation': '_loadQuickInventoryItems',
-        },
-      );
-      debugPrint('خطأ في تحميل عناصر الجرد السريع: $e');
     }
   }
 
@@ -511,7 +478,6 @@ class _EnhancedPOSReportsScreenState extends State<EnhancedPOSReportsScreen>
             isScrollable: true,
             tabs: const <Widget>[
               Tab(text: 'المبيعات', icon: Icon(Icons.shopping_cart)),
-              Tab(text: 'الجرد السريع', icon: Icon(Icons.inventory)),
               Tab(text: 'الإحصائيات', icon: Icon(Icons.analytics)),
               Tab(text: 'الرسوم البيانية', icon: Icon(Icons.bar_chart)),
             ],
@@ -543,7 +509,6 @@ class _EnhancedPOSReportsScreenState extends State<EnhancedPOSReportsScreen>
                 controller: _tabController,
                 children: <Widget>[
                   _buildSalesTab(),
-                  _buildQuickInventoryTab(),
                   _buildStatisticsTab(),
                   _buildChartsTab(),
                 ],
@@ -557,18 +522,6 @@ class _EnhancedPOSReportsScreenState extends State<EnhancedPOSReportsScreen>
           _buildSalesStats(),
           Expanded(
             child: _sales.isEmpty ? _buildEmptySales() : _buildSalesList(),
-          ),
-        ],
-      );
-
-  /// بناء تبويب الجرد السريع
-  Widget _buildQuickInventoryTab() => Column(
-        children: <Widget>[
-          _buildInventoryStats(),
-          Expanded(
-            child: _quickInventoryItems.isEmpty
-                ? _buildEmptyInventory()
-                : _buildQuickInventoryList(),
           ),
         ],
       );
@@ -763,35 +716,6 @@ class _EnhancedPOSReportsScreenState extends State<EnhancedPOSReportsScreen>
         },
       );
 
-  /// بناء قائمة الجرد السريع
-  Widget _buildQuickInventoryList() => ListView.builder(
-        padding: const EdgeInsets.all(AppConstants.mediumPadding),
-        itemCount: _quickInventoryItems.length + (_hasMoreQuick ? 1 : 0),
-        itemBuilder: (BuildContext context, int index) {
-          if (index == _quickInventoryItems.length) {
-            return _buildLoadMoreButton(_loadMoreQuick);
-          }
-
-          final QuickInventoryItem item = _quickInventoryItems[index];
-          return Card(
-            margin: const EdgeInsets.only(bottom: AppConstants.smallPadding),
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: Colors.blue,
-                child: Text(
-                  item.scannedQuantity.toString(),
-                  style: const TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.bold),
-                ),
-              ),
-              title: Text(item.name),
-              subtitle: Text('الباركود: ${item.barcode}'),
-              trailing: Text('${item.wholesalePrice} DZ'),
-            ),
-          );
-        },
-      );
-
   /// بناء إحصائيات عامة
   Widget _buildGeneralStats() => Card(
         child: Padding(
@@ -902,10 +826,9 @@ class _EnhancedPOSReportsScreenState extends State<EnhancedPOSReportsScreen>
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: AppConstants.mediumPadding),
-              Text('إجمالي العناصر: ${_quickInventoryItems.length}'),
+              Text('إجمالي العناصر: 0'),
               const SizedBox(height: AppConstants.smallPadding),
-              Text(
-                  'إجمالي الكمية: ${_quickInventoryItems.fold<int>(0, (int sum, QuickInventoryItem item) => sum + item.scannedQuantity)}'),
+              Text('إجمالي الكمية: 0'),
             ],
           ),
         ),
@@ -1047,37 +970,6 @@ class _EnhancedPOSReportsScreenState extends State<EnhancedPOSReportsScreen>
         ),
       );
 
-  /// بناء إحصائيات الجرد
-  Widget _buildInventoryStats() => Container(
-        margin: const EdgeInsets.all(AppConstants.mediumPadding),
-        child: Row(
-          children: <Widget>[
-            Expanded(
-              child: _buildStatCard(
-                'إجمالي العناصر',
-                _quickInventoryItems.length.toString(),
-                Icons.inventory,
-                Colors.blue,
-              ),
-            ),
-            const SizedBox(width: AppConstants.smallPadding),
-            Expanded(
-              child: _buildStatCard(
-                'إجمالي الكمية',
-                _quickInventoryItems
-                    .fold<int>(
-                        0,
-                        (int sum, QuickInventoryItem item) =>
-                            sum + item.scannedQuantity)
-                    .toString(),
-                Icons.shopping_cart,
-                Colors.orange,
-              ),
-            ),
-          ],
-        ),
-      );
-
   /// بناء رسالة فارغة للمبيعات
   Widget _buildEmptySales() => Center(
         child: Column(
@@ -1091,28 +983,6 @@ class _EnhancedPOSReportsScreenState extends State<EnhancedPOSReportsScreen>
             const SizedBox(height: AppConstants.mediumPadding),
             Text(
               'لا توجد عمليات بيع في هذه الفترة',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey[600],
-              ),
-            ),
-          ],
-        ),
-      );
-
-  /// بناء رسالة فارغة للجرد
-  Widget _buildEmptyInventory() => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Icon(
-              Icons.inventory_outlined,
-              size: 64,
-              color: Colors.grey[400],
-            ),
-            const SizedBox(height: AppConstants.mediumPadding),
-            Text(
-              'لا توجد عناصر في الجرد السريع',
               style: TextStyle(
                 fontSize: 18,
                 color: Colors.grey[600],
@@ -1175,45 +1045,6 @@ class _EnhancedPOSReportsScreenState extends State<EnhancedPOSReportsScreen>
   }
 
   /// تحميل المزيد من الجرد السريع
-  Future<void> _loadMoreQuick() async {
-    if (_isLoadingMoreQuick || !_hasMoreQuick) return;
-
-    setState(() {
-      _isLoadingMoreQuick = true;
-    });
-
-    try {
-      final PageResult<QuickInventoryItem> page =
-          await POSService.getQuickInventoryPage(
-        startAfter: _lastQuickDoc,
-      );
-
-      if (mounted) {
-        setState(() {
-          _quickInventoryItems.addAll(page.items);
-          _lastQuickDoc = page.lastDocument;
-          _hasMoreQuick = page.hasMore;
-        });
-      }
-    } on Exception catch (e, stackTrace) {
-      await ErrorHandlerService.handleError(
-        e,
-        stackTrace: stackTrace.toString(),
-        type: ErrorType.unknown,
-        userAction: 'تحميل المزيد من الجرد السريع في تقارير POS',
-        context: <String, dynamic>{
-          'operation': '_loadMoreQuick',
-        },
-      );
-      debugPrint('خطأ في تحميل المزيد من الجرد السريع: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoadingMoreQuick = false;
-        });
-      }
-    }
-  }
 
   /// بناء مؤشر حالة المزامنة
   Widget _buildSyncStatusIndicator() {
