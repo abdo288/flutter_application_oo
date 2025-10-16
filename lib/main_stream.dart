@@ -37,7 +37,7 @@ import 'screens/enhanced_pos_reports_screen_riverpod.dart';
 import 'screens/login_screen.dart';
 import 'screens/pos_tab_riverpod.dart';
 import 'screens/product_list_tab_riverpod.dart';
-import 'screens/realtime_settings_tab.dart';
+import 'screens/realtime_settings_tab_riverpod.dart';
 import 'screens/settings_tab_riverpod.dart';
 import 'screens/store_display_tab_riverpod.dart';
 import 'screens/windows_pos_screen.dart';
@@ -1434,7 +1434,8 @@ class StreamProfitCalculatorScreenState
                 ),
                 TabErrorOverlay(
                   tabName: 'realtime_settings',
-                  childBuilder: (BuildContext ctx) => RealtimeSettingsTab(),
+                  childBuilder: (BuildContext ctx) =>
+                      const RealtimeSettingsTabRiverpod(),
                 ),
               ],
             ),
