@@ -1,5 +1,20 @@
-// نقطة الدخول الرئيسية للتطبيق
-// هذا الملف يشير إلى main_stream.dart الذي يحتوي على البنية المحسنة
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-export 'main_stream.dart';
-// Updated at Mon Oct 13 15:25:05 WCAST 2025
+import 'app/app_initializer.dart';
+import 'app/app_widget.dart';
+
+void main() async {
+  // ضمان تهيئة Flutter قبل أي شيء آخر
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // تهيئة الخدمات الأساسية قبل تشغيل التطبيق
+  await initializeCoreServices();
+
+  // تشغيل التطبيق بعد اكتمال التهيئة الأساسية
+  runApp(
+    const ProviderScope(
+      child: StreamProfitCalculatorApp(),
+    ),
+  );
+}

@@ -102,18 +102,18 @@ class ResponsiveNavigation extends StatelessWidget {
     switch (label) {
       case 'لوحة التحكم':
         return 'لوحة';
-      case 'إضافة منتج':
-        return 'إضافة';
-      case 'المخزون':
-        return 'مخزون';
-      case 'قائمة المنتجات':
-        return 'منتجات';
+      case 'البيع السريع':
+        return 'بيع';
+      case 'نموذج المنتج':
+        return 'نموذج';
+      case 'سجل المبيعات':
+        return 'مبيعات';
       case 'التقارير':
         return 'تقارير';
       case 'نقطة البيع':
         return 'نقطة';
-      case 'عرض المتجر':
-        return 'عرض';
+      case 'المخزون':
+        return 'مخزون';
       case 'إعدادات التحديثات الفورية':
         return 'إعدادات';
       default:
@@ -131,15 +131,15 @@ class ResponsiveNavigation extends StatelessWidget {
         ),
         const ResponsiveNavigationItem(
           icon: Icon(Icons.add_box),
-          label: 'إضافة منتج',
+          label: 'البيع السريع',
         ),
         const ResponsiveNavigationItem(
           icon: Icon(Icons.inventory_2),
-          label: 'المخزون',
+          label: 'نموذج المنتج',
         ),
         const ResponsiveNavigationItem(
           icon: Icon(Icons.list),
-          label: 'قائمة المنتجات',
+          label: 'سجل المبيعات',
         ),
         const ResponsiveNavigationItem(
           icon: Icon(Icons.analytics),
@@ -151,7 +151,7 @@ class ResponsiveNavigation extends StatelessWidget {
         ),
         const ResponsiveNavigationItem(
           icon: Icon(Icons.show_chart),
-          label: 'عرض المتجر',
+          label: 'المخزون',
         ),
         const ResponsiveNavigationItem(
           icon: Icon(Icons.sync),

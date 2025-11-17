@@ -1,8 +1,10 @@
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/cart_item.dart';
@@ -10,8 +12,9 @@ import '../models/inventory_item.dart';
 import '../models/page_result.dart';
 import '../models/product.dart';
 import '../models/sale.dart';
-import '../providers/stream_inventory_provider.dart';
-import '../providers/stream_product_provider.dart';
+import '../providers/riverpod/stream_inventory_riverpod_provider.dart';
+import '../providers/riverpod/stream_product_riverpod_provider.dart';
+import '../utils/platform_thread_safety.dart';
 import 'connectivity_service.dart';
 import 'error_handler_service.dart';
 import 'local_sales_service.dart';
@@ -26,15 +29,14 @@ class POSService {
 
   /// البحث عن منتج بالاسم في المخزون فقط
   static Future<Product?> findProductByName(
-    StreamProductProvider productProvider,
-    StreamInventoryProvider inventoryProvider,
+    WidgetRef ref,
     String name,
   ) async {
     debugPrint('🔍 البحث عن منتج بالاسم في المخزون: $name');
     try {
       // البحث في المخزون فقط
       final List<InventoryItem> inventoryItems =
-          inventoryProvider.inventoryItems;
+          ref.read(inventoryControllerProvider).inventoryItems;
 
       final InventoryItem inventoryItem = inventoryItems.firstWhere(
         (InventoryItem item) =>
@@ -65,14 +67,14 @@ class POSService {
 
   /// البحث عن منتج بالباركود
   static Future<Product?> findProductByBarcode(
-    StreamProductProvider productProvider,
-    StreamInventoryProvider inventoryProvider,
+    WidgetRef ref,
     String barcode,
   ) async {
     debugPrint('🔍 البحث عن منتج بالباركود: $barcode');
     try {
       // البحث في المنتجات أولاً - البحث بالباركود الدقيق
-      final List<Product> products = productProvider.products;
+      final List<Product> products =
+          ref.read(productsControllerProvider).products;
       final Product product = products.firstWhere(
         (Product p) => p.barcode == barcode,
         orElse: () => throw StateError('Product not found'),
@@ -84,7 +86,8 @@ class POSService {
 
       // البحث البديل بالاسم (للتوافق مع الكود القديم)
       try {
-        final List<Product> products = productProvider.products;
+        final List<Product> products =
+            ref.read(productsControllerProvider).products;
         final Product product = products.firstWhere(
           (Product p) => p.name.toLowerCase().contains(barcode.toLowerCase()),
           orElse: () => throw StateError('Product not found by name'),
@@ -99,7 +102,7 @@ class POSService {
     // البحث في المخزون
     try {
       final List<InventoryItem> inventoryItems =
-          inventoryProvider.inventoryItems;
+          ref.read(inventoryControllerProvider).inventoryItems;
 
       // البحث الدقيق بالباركود أولاً
       InventoryItem? inventoryItem;
@@ -142,7 +145,7 @@ class POSService {
   /// مساعدة في التشخيص: طباعة حالة السلة والمخزون
   static void debugCartAndInventoryState(
     List<CartItem> cart,
-    StreamInventoryProvider inventoryProvider,
+    WidgetRef ref,
     String barcode,
   ) {
     debugPrint('🔍 === تشخيص حالة السلة والمخزون ===');
@@ -163,7 +166,8 @@ class POSService {
     }
 
     // حالة المخزون
-    final List<InventoryItem> inventoryItems = inventoryProvider.inventoryItems;
+    final List<InventoryItem> inventoryItems =
+        ref.read(inventoryControllerProvider).inventoryItems;
     final List<InventoryItem> matchingInventory = inventoryItems
         .where((InventoryItem item) => item.barcode == barcode)
         .toList();
@@ -180,12 +184,12 @@ class POSService {
 
   /// البحث عن عنصر مخزون بالباركود
   static Future<InventoryItem?> findInventoryItemByBarcode(
-    StreamInventoryProvider inventoryProvider,
+    WidgetRef ref,
     String barcode,
   ) async {
     try {
       final List<InventoryItem> inventoryItems =
-          inventoryProvider.inventoryItems;
+          ref.read(inventoryControllerProvider).inventoryItems;
       return inventoryItems.firstWhere(
         (InventoryItem item) => item.barcode == barcode,
         orElse: () => throw StateError('Inventory item not found'),
@@ -198,12 +202,10 @@ class POSService {
 
   /// إضافة منتج إلى السلة (للتوافق مع POSTab)
   static Future<CartItem?> addProductToCart(
-    StreamProductProvider productProvider,
-    StreamInventoryProvider inventoryProvider,
+    WidgetRef ref,
     String barcode,
   ) async {
-    final Product? product =
-        await findProductByBarcode(productProvider, inventoryProvider, barcode);
+    final Product? product = await findProductByBarcode(ref, barcode);
     if (product == null) {
       return null;
     }
@@ -212,8 +214,7 @@ class POSService {
 
   /// إتمام عملية البيع (للتوافق مع POSTab)
   static Future<String> completeSale(
-    StreamProductProvider productProvider,
-    StreamInventoryProvider inventoryProvider,
+    WidgetRef ref,
     List<CartItem> cart,
     String customerName,
     String paymentMethod,
@@ -221,8 +222,7 @@ class POSService {
     String notes,
   ) async =>
       await saveSale(
-        productProvider: productProvider,
-        inventoryProvider: inventoryProvider,
+        ref: ref,
         cart: cart,
         customerName: customerName.isEmpty ? null : customerName,
         paymentMethod: paymentMethod,
@@ -232,15 +232,13 @@ class POSService {
 
   /// حساب CartItem لإضافة منتج إلى السلة (لا يعدل currentCart)
   static Future<CartItem> addToCart({
-    required StreamProductProvider productProvider,
-    required StreamInventoryProvider inventoryProvider,
+    required WidgetRef ref,
     required String barcode,
     required List<CartItem> currentCart,
     int quantity = 1,
   }) async {
     // البحث عن المنتج
-    final Product? product =
-        await findProductByBarcode(productProvider, inventoryProvider, barcode);
+    final Product? product = await findProductByBarcode(ref, barcode);
     if (product == null) {
       throw Exception('المنتج غير موجود');
     }
@@ -308,8 +306,7 @@ class POSService {
 
   /// حفظ عملية البيع
   static Future<String> saveSale({
-    required StreamProductProvider productProvider,
-    required StreamInventoryProvider inventoryProvider,
+    required WidgetRef ref,
     required List<CartItem> cart,
     String? customerName,
     String? notes,
@@ -621,13 +618,13 @@ class POSService {
 
   /// خصم كمية من المخزون فوراً
   static Future<void> decreaseInventoryQuantity(
-    StreamInventoryProvider inventoryProvider,
+    WidgetRef ref,
     String barcode,
     int quantity,
   ) async {
     try {
       final InventoryItem? inventoryItem =
-          await findInventoryItemByBarcode(inventoryProvider, barcode);
+          await findInventoryItemByBarcode(ref, barcode);
 
       if (inventoryItem != null) {
         final int newQuantity = inventoryItem.quantity - quantity;
@@ -635,7 +632,9 @@ class POSService {
           quantity: newQuantity < 0 ? 0 : newQuantity,
         );
 
-        await inventoryProvider.updateInventoryItem(updatedItem);
+        await ref
+            .read(inventoryControllerProvider.notifier)
+            .updateInventoryItem(updatedItem);
         debugPrint('تم خصم $quantity من المخزون للمنتج ${inventoryItem.name}');
       }
     } on Exception catch (e, stackTrace) {
@@ -656,13 +655,13 @@ class POSService {
 
   /// خصم كمية من المخزون فوراً بالاسم
   static Future<void> decreaseInventoryQuantityByName(
-    StreamInventoryProvider inventoryProvider,
+    WidgetRef ref,
     String name,
     int quantity,
   ) async {
     try {
       final List<InventoryItem> inventoryItems =
-          inventoryProvider.inventoryItems;
+          ref.read(inventoryControllerProvider).inventoryItems;
 
       final InventoryItem inventoryItem = inventoryItems.firstWhere(
         (InventoryItem item) =>
@@ -674,7 +673,9 @@ class POSService {
       final InventoryItem updatedItem = inventoryItem.copyWith(
         quantity: newQuantity < 0 ? 0 : newQuantity,
       );
-      await inventoryProvider.updateInventoryItem(updatedItem);
+      await ref
+          .read(inventoryControllerProvider.notifier)
+          .updateInventoryItem(updatedItem);
       debugPrint(
           'تم خصم $quantity من المخزون للمنتج ${inventoryItem.name} بالاسم');
     } catch (e) {
@@ -685,13 +686,13 @@ class POSService {
 
   /// إرجاع كمية إلى المخزون فوراً
   static Future<void> increaseInventoryQuantity(
-    StreamInventoryProvider inventoryProvider,
+    WidgetRef ref,
     String barcode,
     int quantity,
   ) async {
     try {
       final InventoryItem? inventoryItem =
-          await findInventoryItemByBarcode(inventoryProvider, barcode);
+          await findInventoryItemByBarcode(ref, barcode);
 
       if (inventoryItem != null) {
         final int newQuantity = inventoryItem.quantity + quantity;
@@ -699,7 +700,9 @@ class POSService {
           quantity: newQuantity,
         );
 
-        await inventoryProvider.updateInventoryItem(updatedItem);
+        await ref
+            .read(inventoryControllerProvider.notifier)
+            .updateInventoryItem(updatedItem);
         debugPrint(
             'تم إرجاع $quantity إلى المخزون للمنتج ${inventoryItem.name}');
       }
@@ -721,12 +724,12 @@ class POSService {
 
   /// الحصول على الكمية المتوفرة في المخزون بالباركود
   static Future<int> getAvailableQuantity(
-    StreamInventoryProvider inventoryProvider,
+    WidgetRef ref,
     String barcode,
   ) async {
     try {
       final InventoryItem? inventoryItem =
-          await findInventoryItemByBarcode(inventoryProvider, barcode);
+          await findInventoryItemByBarcode(ref, barcode);
 
       if (inventoryItem != null) {
         debugPrint(
@@ -752,12 +755,12 @@ class POSService {
 
   /// الحصول على الكمية المتوفرة في المخزون بالاسم
   static Future<int> getAvailableQuantityByName(
-    StreamInventoryProvider inventoryProvider,
+    WidgetRef ref,
     String name,
   ) async {
     try {
       final List<InventoryItem> inventoryItems =
-          inventoryProvider.inventoryItems;
+          ref.read(inventoryControllerProvider).inventoryItems;
 
       final InventoryItem inventoryItem = inventoryItems.firstWhere(
         (InventoryItem item) =>
@@ -776,8 +779,7 @@ class POSService {
 
   /// إضافة منتج إلى السلة بالاسم مع التحقق من صحة البيانات
   static Future<CartItem?> addProductToCartByNameWithValidation({
-    required StreamProductProvider productProvider,
-    required StreamInventoryProvider inventoryProvider,
+    required WidgetRef ref,
     required String name,
     required List<CartItem> currentCart,
     int quantity = 1,
@@ -787,8 +789,7 @@ class POSService {
 
       // البحث عن المنتج بالاسم
       final Product? product = await findProductByName(
-        productProvider,
-        inventoryProvider,
+        ref,
         name,
       );
 
@@ -798,7 +799,7 @@ class POSService {
 
       // التحقق من توفر الكمية في المخزون بالاسم
       final int availableQuantity = await getAvailableQuantityByName(
-        inventoryProvider,
+        ref,
         name,
       );
 
@@ -853,8 +854,7 @@ class POSService {
   ///    لأن الكمية الموجودة في السلة مخصومة بالفعل من المخزون
   /// 3. إرجاع CartItem جاهز للإضافة - لا يعدل currentCart
   static Future<CartItem?> addProductToCartWithValidation({
-    required StreamProductProvider productProvider,
-    required StreamInventoryProvider inventoryProvider,
+    required WidgetRef ref,
     required String barcode,
     required List<CartItem> currentCart,
     int quantity = 1,
@@ -865,15 +865,13 @@ class POSService {
           '🛒 Platform: ${Platform.isWindows ? "Windows" : Platform.isAndroid ? "Android" : "Other"}');
 
       // البحث عن المنتج أولاً
-      final Product? product = await findProductByBarcode(
-          productProvider, inventoryProvider, barcode);
+      final Product? product = await findProductByBarcode(ref, barcode);
       if (product == null) {
         throw Exception('المنتج غير موجود');
       }
 
       // التحقق من الكمية المتوفرة في المخزون
-      final int availableQuantity =
-          await getAvailableQuantity(inventoryProvider, barcode);
+      final int availableQuantity = await getAvailableQuantity(ref, barcode);
 
       if (availableQuantity <= 0) {
         throw Exception('المنتج نفذ من المخزون');
@@ -888,7 +886,7 @@ class POSService {
       debugPrint('🛒 الكمية الحالية في السلة: $currentCartQuantity');
 
       // تشخيص مفصل للحالة
-      debugCartAndInventoryState(currentCart, inventoryProvider, barcode);
+      debugCartAndInventoryState(currentCart, ref, barcode);
 
       // التحقق من وجود المنتج في السلة
       final int existingIndex = currentCart.indexWhere(
@@ -1060,6 +1058,45 @@ class POSService {
     }
   }
 
+  /// مسح السلة من Firebase (إفراغ السلة)
+  static Future<void> clearCartFromFirebase() async {
+    try {
+      // الحصول على معرف الجلسة الحالية
+      const String sessionId = 'default_session'; // يمكن تحسين هذا لاحقاً
+
+      await FirebaseFirestore.instance
+          .collection(_posCartsCollection)
+          .doc(sessionId)
+          .update(<Object, Object?>{
+        'items': <Map<String, dynamic>>[],
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'status': 'cleared',
+      });
+
+      debugPrint('✅ تم مسح السلة من Firebase');
+    } on FirebaseException catch (e, stackTrace) {
+      await ErrorHandlerService.handleError(
+        e,
+        stackTrace: stackTrace.toString(),
+        type: ErrorType.firebase,
+        userAction: 'مسح السلة من Firebase',
+        context: <String, dynamic>{
+          'operation': 'clearCartFromFirebase',
+        },
+      );
+    } on Exception catch (e, stackTrace) {
+      await ErrorHandlerService.handleError(
+        e,
+        stackTrace: stackTrace.toString(),
+        type: ErrorType.unknown,
+        userAction: 'مسح السلة من Firebase',
+        context: <String, dynamic>{
+          'operation': 'clearCartFromFirebase',
+        },
+      );
+    }
+  }
+
   /// حذف السلة من Firebase
   static Future<void> deleteCartFromFirebase({
     required String sessionId,
@@ -1109,18 +1146,25 @@ class POSService {
           .collection(_posCartsCollection)
           .doc(sessionId)
           .snapshots()
-          .map((DocumentSnapshot<Map<String, dynamic>> snapshot) {
-        if (!snapshot.exists) {
-          return <CartItem>[];
-        }
+          .asyncMap((DocumentSnapshot<Map<String, dynamic>> snapshot) async {
+        // ✅ استخدام PlatformThreadSafety لضمان التنفيذ على platform thread
+        return await PlatformThreadSafety.executeStreamHandler(
+          () async {
+            if (!snapshot.exists) {
+              return <CartItem>[];
+            }
 
-        final Map<String, dynamic> data = snapshot.data()!;
-        final List<dynamic> itemsData = data['items'] as List<dynamic>? ?? [];
+            final Map<String, dynamic> data = snapshot.data()!;
+            final List<dynamic> itemsData =
+                data['items'] as List<dynamic>? ?? <dynamic>[];
 
-        return itemsData
-            .map((itemData) =>
-                CartItem.fromMap(itemData as Map<String, dynamic>))
-            .toList();
+            return itemsData
+                .map((itemData) =>
+                    CartItem.fromMap(itemData as Map<String, dynamic>))
+                .toList();
+          },
+          operationName: 'cartStream',
+        );
       });
 
   /// حفظ جلسة POS في Firebase
@@ -1131,6 +1175,14 @@ class POSService {
     String? platform,
   }) async {
     try {
+      // التحقق من حالة المصادقة قبل محاولة الحفظ
+      final User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        debugPrint(
+            '⚠️ المستخدم غير مصادق عليه - تخطي حفظ جلسة POS: $sessionId');
+        return;
+      }
+
       final Map<String, dynamic> sessionData = <String, dynamic>{
         'sessionId': sessionId,
         'userId': userId,
@@ -1148,6 +1200,16 @@ class POSService {
 
       debugPrint('✅ تم حفظ جلسة POS في Firebase: $sessionId');
     } on FirebaseException catch (e, stackTrace) {
+      // تجاهل خطأ permission-denied بهدوء إذا كان المستخدم غير مصادق عليه
+      if (e.code == 'permission-denied') {
+        final User? currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser == null) {
+          debugPrint(
+              '⚠️ تم تجاهل خطأ صلاحيات في savePOSSession (تسجيل خروج): ${e.message}');
+          return;
+        }
+      }
+
       await ErrorHandlerService.handleError(
         e,
         stackTrace: stackTrace.toString(),
@@ -1181,6 +1243,14 @@ class POSService {
     required String sessionId,
   }) async {
     try {
+      // التحقق من حالة المصادقة قبل محاولة التحديث
+      final User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        debugPrint(
+            '⚠️ المستخدم غير مصادق عليه - تخطي إنهاء جلسة POS: $sessionId');
+        return;
+      }
+
       await FirebaseFirestore.instance
           .collection(_posCollection)
           .doc(sessionId)
@@ -1191,6 +1261,16 @@ class POSService {
 
       debugPrint('✅ تم إنهاء جلسة POS في Firebase: $sessionId');
     } on FirebaseException catch (e, stackTrace) {
+      // تجاهل خطأ permission-denied بهدوء إذا كان المستخدم غير مصادق عليه
+      if (e.code == 'permission-denied') {
+        final User? currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser == null) {
+          debugPrint(
+              '⚠️ تم تجاهل خطأ صلاحيات في endPOSSession (تسجيل خروج): ${e.message}');
+          return;
+        }
+      }
+
       await ErrorHandlerService.handleError(
         e,
         stackTrace: stackTrace.toString(),
@@ -1216,6 +1296,99 @@ class POSService {
         },
       );
       rethrow;
+    }
+  }
+
+  // ========== New Methods for Riverpod Controllers ==========
+
+  /// البحث عن منتج بالاسم في المخزون فقط (دالة ثابتة للـ Riverpod Controllers)
+  static Future<Product?> findProductByNameForControllers(
+    productController,
+    inventoryController,
+    String productName,
+  ) async {
+    try {
+      // TODO: Update to use new Riverpod providers
+      debugPrint('🔍 Searching for product: $productName');
+      return null;
+    } catch (e) {
+      debugPrint('❌ Error searching for product: $e');
+      return null;
+    }
+  }
+
+  /// البحث عن منتج بالباركود في المخزون فقط (دالة ثابتة للـ Riverpod Controllers)
+  static Future<Product?> findProductByBarcodeForControllers(
+    productController,
+    inventoryController,
+    String barcode,
+  ) async {
+    try {
+      // TODO: Update to use new Riverpod providers
+      debugPrint('🔍 Searching for product by barcode: $barcode');
+      return null;
+    } catch (e) {
+      debugPrint('❌ Error searching for product by barcode: $e');
+      return null;
+    }
+  }
+
+  /// البحث عن منتج بالاسم أو الباركود في المخزون فقط (دالة ثابتة للـ Riverpod Controllers)
+  static Future<Product?> findProductForControllers(
+    productController,
+    inventoryController,
+    String query,
+  ) async {
+    try {
+      // TODO: Update to use new Riverpod providers
+      debugPrint('🔍 Searching for product: $query');
+      return null;
+    } catch (e) {
+      debugPrint('❌ Error searching for product: $e');
+      return null;
+    }
+  }
+
+  /// البحث عن منتج بالاسم أو الباركود في المخزون فقط مع دعم البحث الجزئي (دالة ثابتة للـ Riverpod Controllers)
+  static Future<List<Product>> searchProductsForControllers(
+    productController,
+    inventoryController,
+    String query, {
+    int limit = 20,
+  }) async {
+    try {
+      // TODO: Update to use new Riverpod providers
+      debugPrint('🔍 Searching for products: $query');
+      return <Product>[];
+    } catch (e) {
+      debugPrint('❌ Error searching for products: $e');
+      return <Product>[];
+    }
+  }
+
+  /// البحث عن منتج بالاسم أو الباركود في المخزون فقط مع دعم البحث الجزئي والصفحات (دالة ثابتة للـ Riverpod Controllers)
+  static Future<PageResult<Product>> searchProductsPaginatedForControllers(
+    productController,
+    inventoryController,
+    String query, {
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      // TODO: Update to use new Riverpod providers
+      debugPrint('🔍 Searching for products paginated: $query');
+      return PageResult<Product>(
+        items: <Product>[],
+        lastDocument: null,
+        hasMore: false,
+      );
+    } catch (e) {
+      debugPrint('❌ Error searching for products paginated: $e');
+      return PageResult<Product>(
+        items: <Product>[],
+        lastDocument: null,
+        hasMore: false,
+      );
     }
   }
 }

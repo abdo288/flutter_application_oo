@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
 
 import '../utils/responsive_breakpoints.dart';
 
@@ -210,33 +210,34 @@ class _ModernProfitChartState extends State<ModernProfitChart>
 
   /// حالة فارغة
   Widget _buildEmptyState(bool isDark) => Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.analytics_outlined,
-            size: 48,
-            color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'لا توجد بيانات للعرض',
-            style: TextStyle(
-              fontSize: context.responsiveFontSize(16),
-              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Icon(
+              Icons.analytics_outlined,
+              size: 48,
+              color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
             ),
-          ),
-        ],
-      ),
-    );
+            const SizedBox(height: 16),
+            Text(
+              'لا توجد بيانات للعرض',
+              style: TextStyle(
+                fontSize: context.responsiveFontSize(16),
+                color:
+                    isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
+            ),
+          ],
+        ),
+      );
 
   /// إنشاء بيانات المخطط
   LineChartData _createChartData(bool isDark) {
     final List<FlSpot> spots = widget.profitHistory
         .asMap()
         .entries
-        .map((MapEntry<int, Map<String, dynamic>> e) =>
-            FlSpot(e.key.toDouble(), (e.value['profit'] as num).toDouble()))
+        .map((MapEntry<int, Map<String, dynamic>> e) => FlSpot(
+            e.key.toDouble(), ((e.value['profit'] as num?) ?? 0).toDouble()))
         .toList();
 
     return LineChartData(
@@ -316,12 +317,13 @@ class _ModernProfitChartState extends State<ModernProfitChart>
           isStrokeCapRound: true,
           dotData: FlDotData(
             getDotPainter: (FlSpot spot, double percent,
-                LineChartBarData barData, int index) => FlDotCirclePainter(
-                radius: 4,
-                color: const Color(0xFF2563EB),
-                strokeWidth: 2,
-                strokeColor: Colors.white,
-              ),
+                    LineChartBarData barData, int index) =>
+                FlDotCirclePainter(
+              radius: 4,
+              color: const Color(0xFF2563EB),
+              strokeWidth: 2,
+              strokeColor: Colors.white,
+            ),
           ),
           belowBarData: BarAreaData(
             show: true,

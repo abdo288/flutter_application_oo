@@ -289,7 +289,7 @@ class InventoryAlertCard extends StatelessWidget {
                     if (onMarkAsRead != null || onDelete != null) ...<Widget>[
                       SizedBox(height: context.responsiveSpacing * 0.5),
                       if (context.shouldUseVerticalLayout) Column(
-                              children: [
+                              children: <Widget>[
                                 if (onDelete != null)
                                   SizedBox(
                                     width: double.infinity,
@@ -303,7 +303,7 @@ class InventoryAlertCard extends StatelessWidget {
                                       isDark: isDark,
                                     ),
                                   ),
-                                if (onMarkAsRead != null && !alert.isRead) ...[
+                                if (onMarkAsRead != null && !alert.isRead) ...<Widget>[
                                   SizedBox(
                                       height: context.responsiveSpacing * 0.3),
                                   SizedBox(
@@ -419,7 +419,7 @@ class InventoryAlertCard extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
-            children: [
+            children: <Widget>[
               Icon(
                 icon,
                 color: Colors.white,

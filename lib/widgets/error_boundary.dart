@@ -35,7 +35,7 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
         padding: const EdgeInsets.all(AppConstants.largePadding),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+          children: <Widget>[
             const Icon(
               Icons.error_outline,
               size: 64,
@@ -114,7 +114,7 @@ class SimpleErrorBoundary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Builder(
-      builder: (context) {
+      builder: (BuildContext context) {
         try {
           return child;
         } catch (error) {
@@ -128,7 +128,7 @@ class SimpleErrorBoundary extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+          children: <Widget>[
             const Icon(
               Icons.error_outline,
               size: 48,
@@ -144,7 +144,7 @@ class SimpleErrorBoundary extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            if (onRetry != null) ...[
+            if (onRetry != null) ...<Widget>[
               const SizedBox(height: 16),
               ElevatedButton.icon(
                 onPressed: onRetry,
@@ -197,7 +197,7 @@ class LoadingErrorHandler extends StatelessWidget {
   Widget _buildLoadingWidget() => Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: [
+        children: <Widget>[
           const CircularProgressIndicator(
             valueColor:
                 AlwaysStoppedAnimation<Color>(AppConstants.primaryColor),
@@ -219,7 +219,7 @@ class LoadingErrorHandler extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+          children: <Widget>[
             const Icon(
               Icons.error_outline,
               size: 48,
@@ -235,7 +235,7 @@ class LoadingErrorHandler extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            if (onRetry != null) ...[
+            if (onRetry != null) ...<Widget>[
               const SizedBox(height: 16),
               ElevatedButton.icon(
                 onPressed: onRetry,

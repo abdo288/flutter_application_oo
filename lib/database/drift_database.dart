@@ -522,6 +522,10 @@ class AppDatabase extends _$AppDatabase {
   Future<void> deleteInventoryItemById(String id) => (delete(inventoryTable)
         ..where(($InventoryTableTable tbl) => tbl.id.equals(id)))
       .go();
+
+  Future<void> deleteProductById(String id) => (delete(productsTable)
+        ..where(($ProductsTableTable tbl) => tbl.id.equals(id)))
+      .go();
   Future<List<InventoryTableData>> getAllInventoryItems() =>
       select(inventoryTable).get();
 
@@ -829,7 +833,8 @@ class AppDatabase extends _$AppDatabase {
     try {
       final int productCount = await getProductCount();
       final int inventoryCount = await getInventoryCount();
-      final int salesCount = await getAllSales().then((List<SalesTableData> list) => list.length);
+      final int salesCount =
+          await getAllSales().then((List<SalesTableData> list) => list.length);
       final int unprocessedOps = await getUnprocessedOperationsCount();
 
       // إحصائيات الفهارس
@@ -860,11 +865,11 @@ class AppDatabase extends _$AppDatabase {
   /// الحصول على حجم قاعدة البيانات
   Future<int> _getDatabaseSize() async {
     try {
-      final List<QueryRow> result = await customSelect('PRAGMA page_count;').get();
+      final List<QueryRow> result =
+          await customSelect('PRAGMA page_count;').get();
       final int pageCount = result.first.data['page_count'] as int;
-      final int pageSize = await customSelect('PRAGMA page_size;')
-          .get()
-          .then((List<QueryRow> result) => result.first.data['page_size'] as int);
+      final int pageSize = await customSelect('PRAGMA page_size;').get().then(
+          (List<QueryRow> result) => result.first.data['page_size'] as int);
       return pageCount * pageSize;
     } catch (e) {
       debugPrint('خطأ في حساب حجم قاعدة البيانات: $e');

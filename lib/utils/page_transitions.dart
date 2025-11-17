@@ -191,7 +191,7 @@ Future<T?> navigateWithTransition<T>(
   bool fullscreenDialog = false,
 }) => Navigator.of(context).push<T>(
     ModernPageRoute<T>(
-      builder: (context) => page,
+      builder: (BuildContext context) => page,
       transitionType: transition,
       duration: duration ?? AppConstants.animationNormal,
       fullscreenDialog: fullscreenDialog,

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../services/cleanup/models/cleanup_result.dart';
+import '../services/cleanup/models/cleanup_stats.dart';
+import '../services/cleanup/models/storage_info.dart';
 import '../services/data_cleanup_service.dart';
 import '../utils/constants.dart';
 import '../widgets/loading_widget.dart';
@@ -28,14 +31,26 @@ class _DataCleanupScreenState extends State<DataCleanupScreen> {
 
   /// تحميل معلومات التخزين
   Future<void> _loadStorageInfo() async {
-    setState(() => _isLoading = true);
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
+
     try {
+      debugPrint('🔄 بدء تحميل معلومات التخزين...');
       final StorageInfo info = await _cleanupService.getStorageInfo();
-      setState(() => _storageInfo = info);
+
+      if (mounted) {
+        setState(() => _storageInfo = info);
+        debugPrint(
+            '✅ تم تحميل معلومات التخزين: ${info.fileCount} ملف، ${info.formattedSize}');
+      }
     } catch (e) {
+      debugPrint('❌ خطأ في تحميل معلومات التخزين: $e');
       _showError('خطأ في تحميل معلومات التخزين: $e');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -83,40 +98,40 @@ class _DataCleanupScreenState extends State<DataCleanupScreen> {
 
   /// عرض حوار اختيار نوع التنظيف
   Future<String?> _showCleanupTypeDialog() async => await showDialog<String>(
-      context: context,
-      builder: (BuildContext context) => AlertDialog(
-        title: const Text('اختر نوع التنظيف'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            ListTile(
-              leading: const Icon(Icons.phone_android, color: Colors.blue),
-              title: const Text('تنظيف محلي فقط'),
-              subtitle: const Text('حذف البيانات من الجهاز فقط'),
-              onTap: () => Navigator.of(context).pop('local'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.cloud, color: Colors.orange),
-              title: const Text('تنظيف سحابي فقط'),
-              subtitle: const Text('حذف البيانات من Firebase فقط'),
-              onTap: () => Navigator.of(context).pop('cloud'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete_forever, color: Colors.red),
-              title: const Text('تنظيف كامل'),
-              subtitle: const Text('حذف البيانات من الجهاز والسحابة'),
-              onTap: () => Navigator.of(context).pop('both'),
+        context: context,
+        builder: (BuildContext context) => AlertDialog(
+          title: const Text('اختر نوع التنظيف'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.phone_android, color: Colors.blue),
+                title: const Text('تنظيف محلي فقط'),
+                subtitle: const Text('حذف البيانات من الجهاز فقط'),
+                onTap: () => Navigator.of(context).pop('local'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.cloud, color: Colors.orange),
+                title: const Text('تنظيف سحابي فقط'),
+                subtitle: const Text('حذف البيانات من Firebase فقط'),
+                onTap: () => Navigator.of(context).pop('cloud'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_forever, color: Colors.red),
+                title: const Text('تنظيف كامل'),
+                subtitle: const Text('حذف البيانات من الجهاز والسحابة'),
+                onTap: () => Navigator.of(context).pop('both'),
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('إلغاء'),
             ),
           ],
         ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('إلغاء'),
-          ),
-        ],
-      ),
-    );
+      );
 
   /// تنفيذ التنظيف الشامل
   Future<void> _performFullCleanup() async {
@@ -150,7 +165,9 @@ class _DataCleanupScreenState extends State<DataCleanupScreen> {
     final bool confirmed = await _showCleanupConfirmation(title, message);
     if (!confirmed) return;
 
-    setState(() => _isLoading = true);
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
     try {
       CleanupResult result;
       if (cleanupType == 'cloud') {
@@ -160,22 +177,28 @@ class _DataCleanupScreenState extends State<DataCleanupScreen> {
             includeFirestore: includeFirestore);
       }
 
-      setState(() {
-        _lastResult = result.message;
-        _currentStats = result.stats;
-      });
+      if (mounted) {
+        setState(() {
+          _lastResult = result.message;
+          _currentStats = result.stats;
+        });
+      }
 
       if (result.success) {
         _showSuccess(result.message);
         await _loadStorageInfo();
-        setState(() {}); // تحديث الواجهة لإظهار الإحصائيات الجديدة
+        if (mounted) {
+          setState(() {}); // تحديث الواجهة لإظهار الإحصائيات الجديدة
+        }
       } else {
         _showError(result.message);
       }
     } catch (e) {
       _showError('خطأ في التنظيف الشامل: $e');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -188,50 +211,66 @@ class _DataCleanupScreenState extends State<DataCleanupScreen> {
 
     if (!confirmed) return;
 
-    setState(() => _isLoading = true);
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
     try {
       final CleanupResult result = await _cleanupService.cleanupUnsyncedData();
-      setState(() {
-        _lastResult = result.message;
-        _currentStats = result.stats;
-      });
+      if (mounted) {
+        setState(() {
+          _lastResult = result.message;
+          _currentStats = result.stats;
+        });
+      }
 
       if (result.success) {
         _showSuccess('تم تنظيف البيانات غير المزامنة بنجاح');
         await _loadStorageInfo();
-        setState(() {}); // تحديث الواجهة لإظهار الإحصائيات الجديدة
+        if (mounted) {
+          setState(() {}); // تحديث الواجهة لإظهار الإحصائيات الجديدة
+        }
       } else {
         _showError(result.message);
       }
     } catch (e) {
       _showError('خطأ في تنظيف البيانات غير المزامنة: $e');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   /// تنظيف العمليات المعالجة
   Future<void> _cleanupProcessedOperations() async {
-    setState(() => _isLoading = true);
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
     try {
       final CleanupResult result =
           await _cleanupService.cleanupProcessedSyncOperations();
-      setState(() {
-        _lastResult = result.message;
-        _currentStats = result.stats;
-      });
+      if (mounted) {
+        setState(() {
+          _lastResult = result.message;
+          _currentStats = result.stats;
+        });
+      }
 
       if (result.success) {
         _showSuccess('تم تنظيف العمليات المعالجة بنجاح');
         await _loadStorageInfo();
-        setState(() {}); // تحديث الواجهة لإظهار الإحصائيات الجديدة
+        if (mounted) {
+          setState(() {}); // تحديث الواجهة لإظهار الإحصائيات الجديدة
+        }
       } else {
         _showError(result.message);
       }
     } catch (e) {
       _showError('خطأ في تنظيف العمليات المعالجة: $e');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -244,50 +283,65 @@ class _DataCleanupScreenState extends State<DataCleanupScreen> {
 
     if (!confirmed) return;
 
-    setState(() => _isLoading = true);
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
     try {
-      final CleanupResult result =
-          await _cleanupService.cleanupOldData();
-      setState(() {
-        _lastResult = result.message;
-        _currentStats = result.stats;
-      });
+      final CleanupResult result = await _cleanupService.cleanupOldData();
+      if (mounted) {
+        setState(() {
+          _lastResult = result.message;
+          _currentStats = result.stats;
+        });
+      }
 
       if (result.success) {
         _showSuccess('تم تنظيف البيانات القديمة بنجاح');
         await _loadStorageInfo();
-        setState(() {}); // تحديث الواجهة لإظهار الإحصائيات الجديدة
+        if (mounted) {
+          setState(() {}); // تحديث الواجهة لإظهار الإحصائيات الجديدة
+        }
       } else {
         _showError(result.message);
       }
     } catch (e) {
       _showError('خطأ في تنظيف البيانات القديمة: $e');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   /// تنظيف الملفات المؤقتة
   Future<void> _cleanupDatabaseFiles() async {
-    setState(() => _isLoading = true);
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
     try {
       final CleanupResult result = await _cleanupService.cleanupDatabaseFiles();
-      setState(() {
-        _lastResult = result.message;
-        _currentStats = result.stats;
-      });
+      if (mounted) {
+        setState(() {
+          _lastResult = result.message;
+          _currentStats = result.stats;
+        });
+      }
 
       if (result.success) {
         _showSuccess('تم تنظيف الملفات المؤقتة بنجاح');
         await _loadStorageInfo();
-        setState(() {}); // تحديث الواجهة لإظهار الإحصائيات الجديدة
+        if (mounted) {
+          setState(() {}); // تحديث الواجهة لإظهار الإحصائيات الجديدة
+        }
       } else {
         _showError(result.message);
       }
     } catch (e) {
       _showError('خطأ في تنظيف الملفات المؤقتة: $e');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -300,115 +354,125 @@ class _DataCleanupScreenState extends State<DataCleanupScreen> {
 
     if (!confirmed) return;
 
-    setState(() => _isLoading = true);
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
     try {
       final CleanupResult result = await _cleanupService.performSmartCleanup();
-      setState(() {
-        _lastResult = result.message;
-        _currentStats = result.stats;
-      });
+      if (mounted) {
+        setState(() {
+          _lastResult = result.message;
+          _currentStats = result.stats;
+        });
+      }
 
       if (result.success) {
         _showSuccess('تم التنظيف الذكي بنجاح');
         await _loadStorageInfo();
-        setState(() {}); // تحديث الواجهة لإظهار الإحصائيات الجديدة
+        if (mounted) {
+          setState(() {}); // تحديث الواجهة لإظهار الإحصائيات الجديدة
+        }
       } else {
         _showError(result.message);
       }
     } catch (e) {
       _showError('خطأ في التنظيف الذكي: $e');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
-      appBar: AppBar(
-        title: const Text('تنظيف البيانات المحلية'),
-        backgroundColor: AppConstants.primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: _isLoading
-          ? const Center(child: LoadingWidget(message: 'جاري التنظيف...'))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  // معلومات التخزين
-                  _buildStorageInfoCard(),
-                  const SizedBox(height: 16),
+        appBar: AppBar(
+          title: const Text('تنظيف البيانات المحلية'),
+          backgroundColor: AppConstants.primaryColor,
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
+        body: _isLoading
+            ? const Center(child: LoadingWidget(message: 'جاري التنظيف...'))
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    // معلومات التخزين
+                    _buildStorageInfoCard(),
+                    const SizedBox(height: 16),
 
-                  // إحصائيات التنظيف الأخيرة
-                  if (_currentStats != null) _buildCleanupStatsCard(),
-                  if (_currentStats != null) const SizedBox(height: 16),
+                    // إحصائيات التنظيف الأخيرة
+                    if (_currentStats != null) _buildCleanupStatsCard(),
+                    if (_currentStats != null) const SizedBox(height: 16),
 
-                  // خيارات التنظيف
-                  _buildCleanupOptionsCard(),
-                  const SizedBox(height: 16),
+                    // خيارات التنظيف
+                    _buildCleanupOptionsCard(),
+                    const SizedBox(height: 16),
 
-                  // نتيجة العملية الأخيرة
-                  if (_lastResult != null) _buildLastResultCard(),
-                ],
+                    // نتيجة العملية الأخيرة
+                    if (_lastResult != null) _buildLastResultCard(),
+                  ],
+                ),
               ),
-            ),
-    );
+      );
 
   /// بناء بطاقة معلومات التخزين
   Widget _buildStorageInfoCard() => Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                const Icon(Icons.storage, color: AppConstants.primaryColor),
-                const SizedBox(width: 8),
-                const Text(
-                  'معلومات التخزين',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const Spacer(),
-                IconButton(
-                  onPressed: _loadStorageInfo,
-                  icon: const Icon(Icons.refresh),
-                  tooltip: 'تحديث',
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            if (_storageInfo != null) ...<Widget>[
-              _buildInfoRow(
-                  'إجمالي المساحة المستخدمة', _storageInfo!.formattedSize),
-              _buildInfoRow('عدد الملفات', _storageInfo!.fileCount.toString()),
-              if (_storageInfo!.fileDetails.isNotEmpty) ...<Widget>[
-                const SizedBox(height: 8),
-                const Text(
-                  'تفاصيل الملفات:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                ...(_storageInfo!.fileDetails.map(
-                  (String detail) => Padding(
-                    padding: const EdgeInsets.only(left: 16, top: 2),
-                    child: Text(
-                      detail,
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  const Icon(Icons.storage, color: AppConstants.primaryColor),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'معلومات التخزين',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                )),
-              ],
-            ] else
-              const Text('جاري تحميل معلومات التخزين...'),
-          ],
+                  const Spacer(),
+                  IconButton(
+                    onPressed: _loadStorageInfo,
+                    icon: const Icon(Icons.refresh),
+                    tooltip: 'تحديث',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (_storageInfo != null) ...<Widget>[
+                _buildInfoRow(
+                    'إجمالي المساحة المستخدمة', _storageInfo!.formattedSize),
+                _buildInfoRow(
+                    'عدد الملفات', _storageInfo!.fileCount.toString()),
+                if (_storageInfo!.fileDetails.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 8),
+                  const Text(
+                    'تفاصيل الملفات:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  ...(_storageInfo!.fileDetails.map(
+                    (String detail) => Padding(
+                      padding: const EdgeInsets.only(left: 16, top: 2),
+                      child: Text(
+                        detail,
+                        style:
+                            const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ),
+                  )),
+                ],
+              ] else
+                const Text('جاري تحميل معلومات التخزين...'),
+            ],
+          ),
         ),
-      ),
-    );
+      );
 
   /// بناء بطاقة إحصائيات التنظيف
   Widget _buildCleanupStatsCard() {
@@ -455,115 +519,116 @@ class _DataCleanupScreenState extends State<DataCleanupScreen> {
 
   /// بناء بطاقة خيارات التنظيف
   Widget _buildCleanupOptionsCard() => Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            const Row(
-              children: <Widget>[
-                Icon(Icons.cleaning_services, color: AppConstants.primaryColor),
-                SizedBox(width: 8),
-                Text(
-                  'خيارات التنظيف',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Row(
+                children: <Widget>[
+                  Icon(Icons.cleaning_services,
+                      color: AppConstants.primaryColor),
+                  SizedBox(width: 8),
+                  Text(
+                    'خيارات التنظيف',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
 
-            // التنظيف الذكي
-            _buildCleanupButton(
-              title: 'تنظيف ذكي',
-              subtitle: 'تنظيف البيانات غير المهمة فقط',
-              icon: Icons.auto_fix_high,
-              color: Colors.green,
-              onPressed: _performSmartCleanup,
-            ),
-            const SizedBox(height: 12),
+              // التنظيف الذكي
+              _buildCleanupButton(
+                title: 'تنظيف ذكي',
+                subtitle: 'تنظيف البيانات غير المهمة فقط',
+                icon: Icons.auto_fix_high,
+                color: Colors.green,
+                onPressed: _performSmartCleanup,
+              ),
+              const SizedBox(height: 12),
 
-            // تنظيف البيانات غير المزامنة
-            _buildCleanupButton(
-              title: 'تنظيف البيانات غير المزامنة',
-              subtitle: 'حذف البيانات التي لم يتم مزامنتها',
-              icon: Icons.sync_problem,
-              color: Colors.orange,
-              onPressed: _cleanupUnsyncedData,
-            ),
-            const SizedBox(height: 12),
+              // تنظيف البيانات غير المزامنة
+              _buildCleanupButton(
+                title: 'تنظيف البيانات غير المزامنة',
+                subtitle: 'حذف البيانات التي لم يتم مزامنتها',
+                icon: Icons.sync_problem,
+                color: Colors.orange,
+                onPressed: _cleanupUnsyncedData,
+              ),
+              const SizedBox(height: 12),
 
-            // تنظيف العمليات المعالجة
-            _buildCleanupButton(
-              title: 'تنظيف العمليات المعالجة',
-              subtitle: 'حذف عمليات المزامنة المعالجة',
-              icon: Icons.queue,
-              color: Colors.blue,
-              onPressed: _cleanupProcessedOperations,
-            ),
-            const SizedBox(height: 12),
+              // تنظيف العمليات المعالجة
+              _buildCleanupButton(
+                title: 'تنظيف العمليات المعالجة',
+                subtitle: 'حذف عمليات المزامنة المعالجة',
+                icon: Icons.queue,
+                color: Colors.blue,
+                onPressed: _cleanupProcessedOperations,
+              ),
+              const SizedBox(height: 12),
 
-            // تنظيف البيانات القديمة
-            _buildCleanupButton(
-              title: 'تنظيف البيانات القديمة',
-              subtitle: 'حذف البيانات الأقدم من 30 يوم',
-              icon: Icons.history,
-              color: Colors.purple,
-              onPressed: _cleanupOldData,
-            ),
-            const SizedBox(height: 12),
+              // تنظيف البيانات القديمة
+              _buildCleanupButton(
+                title: 'تنظيف البيانات القديمة',
+                subtitle: 'حذف البيانات الأقدم من 30 يوم',
+                icon: Icons.history,
+                color: Colors.purple,
+                onPressed: _cleanupOldData,
+              ),
+              const SizedBox(height: 12),
 
-            // تنظيف الملفات المؤقتة
-            _buildCleanupButton(
-              title: 'تنظيف الملفات المؤقتة',
-              subtitle: 'حذف ملفات قاعدة البيانات المؤقتة',
-              icon: Icons.file_copy,
-              color: Colors.teal,
-              onPressed: _cleanupDatabaseFiles,
-            ),
-            const SizedBox(height: 16),
+              // تنظيف الملفات المؤقتة
+              _buildCleanupButton(
+                title: 'تنظيف الملفات المؤقتة',
+                subtitle: 'حذف ملفات قاعدة البيانات المؤقتة',
+                icon: Icons.file_copy,
+                color: Colors.teal,
+                onPressed: _cleanupDatabaseFiles,
+              ),
+              const SizedBox(height: 16),
 
-            // التنظيف الشامل
-            const Divider(),
-            const SizedBox(height: 8),
-            _buildCleanupButton(
-              title: 'تنظيف شامل',
-              subtitle: 'حذف البيانات المحلية و/أو السحابية (خطير)',
-              icon: Icons.warning,
-              color: Colors.red,
-              onPressed: _performFullCleanup,
-            ),
-          ],
+              // التنظيف الشامل
+              const Divider(),
+              const SizedBox(height: 8),
+              _buildCleanupButton(
+                title: 'تنظيف شامل',
+                subtitle: 'حذف البيانات المحلية و/أو السحابية (خطير)',
+                icon: Icons.warning,
+                color: Colors.red,
+                onPressed: _performFullCleanup,
+              ),
+            ],
+          ),
         ),
-      ),
-    );
+      );
 
   /// بناء بطاقة نتيجة العملية الأخيرة
   Widget _buildLastResultCard() => Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            const Row(
-              children: <Widget>[
-                Icon(Icons.info, color: AppConstants.primaryColor),
-                SizedBox(width: 8),
-                Text(
-                  'نتيجة العملية الأخيرة',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(_lastResult!),
-          ],
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Row(
+                children: <Widget>[
+                  Icon(Icons.info, color: AppConstants.primaryColor),
+                  SizedBox(width: 8),
+                  Text(
+                    'نتيجة العملية الأخيرة',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(_lastResult!),
+            ],
+          ),
         ),
-      ),
-    );
+      );
 
   /// بناء زر التنظيف
   Widget _buildCleanupButton({
@@ -572,58 +637,59 @@ class _DataCleanupScreenState extends State<DataCleanupScreen> {
     required IconData icon,
     required Color color,
     required VoidCallback onPressed,
-  }) => InkWell(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          border: Border.all(color: color.withOpacity(0.3)),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: <Widget>[
-            Icon(icon, color: color),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+  }) =>
+      InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            border: Border.all(color: color.withOpacity(0.3)),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: <Widget>[
+              Icon(icon, color: color),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 14,
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            Icon(Icons.arrow_forward_ios, color: color, size: 16),
-          ],
+              Icon(Icons.arrow_forward_ios, color: color, size: 16),
+            ],
+          ),
         ),
-      ),
-    );
+      );
 
   /// بناء صف معلومات
   Widget _buildInfoRow(String label, String value) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: <Widget>[
-          Text(label),
-          Text(
-            value,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: <Widget>[
+            Text(label),
+            Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      );
 }

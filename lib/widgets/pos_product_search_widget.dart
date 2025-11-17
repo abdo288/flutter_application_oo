@@ -1,15 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/inventory_item.dart';
 import '../models/product.dart';
-import '../providers/stream_app_provider.dart';
+import '../providers/riverpod/stream_inventory_riverpod_provider.dart';
 import '../utils/constants.dart';
 import '../utils/snackbar_utils.dart';
 
 /// مكون البحث عن المنتجات في نقطة البيع
-class POSProductSearchWidget extends StatefulWidget {
+class POSProductSearchWidget extends ConsumerStatefulWidget {
   const POSProductSearchWidget({
     super.key,
     required this.onProductSelected,
@@ -20,10 +20,11 @@ class POSProductSearchWidget extends StatefulWidget {
   final String placeholder;
 
   @override
-  State<POSProductSearchWidget> createState() => _POSProductSearchWidgetState();
+  ConsumerState<POSProductSearchWidget> createState() =>
+      _POSProductSearchWidgetState();
 }
 
-class _POSProductSearchWidgetState extends State<POSProductSearchWidget>
+class _POSProductSearchWidgetState extends ConsumerState<POSProductSearchWidget>
     with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
@@ -73,6 +74,21 @@ class _POSProductSearchWidgetState extends State<POSProductSearchWidget>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // مراقبة تحديثات المخزون
+    final InventoryState inventoryState = ref.watch(inventoryControllerProvider);
+    debugPrint(
+        '🔄 تحديث POSProductSearchWidget: ${inventoryState.inventoryItems.length} عنصر');
+
+    // إعادة البحث إذا كان هناك استعلام نشط
+    if (_searchController.text.trim().isNotEmpty) {
+      _performSearch(_searchController.text);
+    }
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
@@ -109,9 +125,10 @@ class _POSProductSearchWidgetState extends State<POSProductSearchWidget>
     });
 
     try {
-      final StreamAppProvider appProvider = context.read<StreamAppProvider>();
-      final List<InventoryItem> inventoryItems =
-          appProvider.inventoryProvider.inventoryItems;
+      final InventoryState inventoryState = ref.read(inventoryControllerProvider);
+      final List<InventoryItem> inventoryItems = inventoryState.inventoryItems;
+
+      debugPrint('🔍 البحث في ${inventoryItems.length} عنصر مخزون');
 
       // البحث في المخزون فقط
       final List<Product> inventoryResults = <Product>[];
@@ -188,7 +205,7 @@ class _POSProductSearchWidgetState extends State<POSProductSearchWidget>
 
   @override
   Widget build(BuildContext context) => Column(
-        children: [
+        children: <Widget>[
           // شريط البحث
           Container(
             decoration: BoxDecoration(
@@ -215,32 +232,53 @@ class _POSProductSearchWidgetState extends State<POSProductSearchWidget>
                 ),
                 prefixIcon:
                     const Icon(Icons.search, color: AppConstants.primaryColor),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    // زر إعادة تحميل البيانات
+                    IconButton(
+                      onPressed: () async {
+                        debugPrint(
+                            '🔄 إعادة تحميل بيانات المخزون في نقطة البيع...');
+                        await ref
+                            .read(inventoryControllerProvider.notifier)
+                            .refresh();
+                        if (_searchController.text.trim().isNotEmpty) {
+                          _performSearch(_searchController.text);
+                        }
+                      },
+                      icon: const Icon(Icons.refresh,
+                          color: AppConstants.primaryColor),
+                      tooltip: 'إعادة تحميل المخزون',
+                    ),
+                    // زر مسح البحث أو مؤشر التحميل
+                    if (_searchController.text.isNotEmpty)
+                      IconButton(
                         onPressed: () {
                           _searchController.clear();
                           _hideResults();
                         },
                         icon: const Icon(Icons.clear, color: Colors.grey),
                       )
-                    : _isSearching
-                        ? const Padding(
-                            padding: EdgeInsets.all(12),
-                            child: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  AppConstants.primaryColor,
-                                ),
-                              ),
+                    else if (_isSearching)
+                      const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              AppConstants.primaryColor,
                             ),
-                          )
-                        : null,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
               onChanged: _performSearch,
-              onSubmitted: (value) {
+              onSubmitted: (String value) {
                 if (_searchResults.isNotEmpty) {
                   _selectProduct(_searchResults.first);
                 }
@@ -270,7 +308,7 @@ class _POSProductSearchWidgetState extends State<POSProductSearchWidget>
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                    children: <Widget>[
                       // عنوان النتائج
                       Container(
                         padding: const EdgeInsets.all(12),
@@ -283,8 +321,8 @@ class _POSProductSearchWidgetState extends State<POSProductSearchWidget>
                           ),
                         ),
                         child: Row(
-                          children: [
-                            Icon(
+                          children: <Widget>[
+                            const Icon(
                               Icons.search,
                               size: 16,
                               color: AppConstants.primaryColor,
@@ -292,7 +330,7 @@ class _POSProductSearchWidgetState extends State<POSProductSearchWidget>
                             const SizedBox(width: 8),
                             Text(
                               'النتائج (${_searchResults.length})',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: AppConstants.primaryColor,
                               ),
@@ -313,11 +351,11 @@ class _POSProductSearchWidgetState extends State<POSProductSearchWidget>
                           shrinkWrap: true,
                           physics: const BouncingScrollPhysics(),
                           itemCount: _searchResults.length,
-                          separatorBuilder: (context, index) => Divider(
+                          separatorBuilder: (BuildContext context, int index) => Divider(
                             height: 1,
                             color: Colors.grey[200],
                           ),
-                          itemBuilder: (context, index) {
+                          itemBuilder: (BuildContext context, int index) {
                             final Product product = _searchResults[index];
                             return _buildProductItem(product);
                           },
@@ -342,7 +380,7 @@ class _POSProductSearchWidgetState extends State<POSProductSearchWidget>
                   border: Border.all(color: Colors.orange[200]!),
                 ),
                 child: Row(
-                  children: [
+                  children: <Widget>[
                     Icon(Icons.search_off, color: Colors.orange[600]),
                     const SizedBox(width: 12),
                     Expanded(
@@ -370,7 +408,7 @@ class _POSProductSearchWidgetState extends State<POSProductSearchWidget>
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Row(
-              children: [
+              children: <Widget>[
                 // أيقونة المنتج
                 Container(
                   width: 40,
@@ -379,7 +417,7 @@ class _POSProductSearchWidgetState extends State<POSProductSearchWidget>
                     color: AppConstants.primaryColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.inventory_2,
                     color: AppConstants.primaryColor,
                     size: 20,
@@ -392,7 +430,7 @@ class _POSProductSearchWidgetState extends State<POSProductSearchWidget>
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                    children: <Widget>[
                       Text(
                         product.name,
                         style: const TextStyle(
@@ -420,7 +458,7 @@ class _POSProductSearchWidgetState extends State<POSProductSearchWidget>
                 // السعر
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
+                  children: <Widget>[
                     Text(
                       '${product.retailPrice} د.ج',
                       style: const TextStyle(
@@ -441,7 +479,7 @@ class _POSProductSearchWidgetState extends State<POSProductSearchWidget>
                 const SizedBox(width: 8),
 
                 // أيقونة الإضافة
-                Icon(
+                const Icon(
                   Icons.add_circle_outline,
                   color: AppConstants.primaryColor,
                   size: 20,

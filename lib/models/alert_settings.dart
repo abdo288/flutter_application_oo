@@ -16,9 +16,9 @@ class AlertSettings {
     try {
       return AlertSettings(
         lowStockThreshold: _parseInt(map['lowStockThreshold']) ?? 10,
-        enableOutOfStockAlert: map['enableOutOfStockAlert'] == true,
-        enableLowStockAlert: map['enableLowStockAlert'] == true,
-        enableExpiringAlert: map['enableExpiringAlert'] == true,
+        enableOutOfStockAlert: map['enableOutOfStockAlert'] as bool? ?? true,
+        enableLowStockAlert: map['enableLowStockAlert'] as bool? ?? true,
+        enableExpiringAlert: map['enableExpiringAlert'] as bool? ?? false,
         expiringDaysThreshold: _parseInt(map['expiringDaysThreshold']) ?? 7,
       );
     } on Exception catch (e) {

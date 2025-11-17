@@ -11,13 +11,6 @@ class ActiveSession {
     this.isActive = true,
   });
 
-  final String sessionId;
-  final String userId;
-  final String platform;
-  final DateTime createdAt;
-  final DateTime lastSeen;
-  final bool isActive;
-
   /// إنشاء من Firestore Document
   factory ActiveSession.fromFirestore(
       DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -34,8 +27,7 @@ class ActiveSession {
   }
 
   /// إنشاء من Map
-  factory ActiveSession.fromMap(Map<String, dynamic> map) {
-    return ActiveSession(
+  factory ActiveSession.fromMap(Map<String, dynamic> map) => ActiveSession(
       sessionId: map['sessionId'] as String? ?? '',
       userId: map['userId'] as String? ?? '',
       platform: map['platform'] as String? ?? '',
@@ -43,11 +35,16 @@ class ActiveSession {
       lastSeen: (map['lastSeen'] as DateTime?) ?? DateTime.now(),
       isActive: map['isActive'] as bool? ?? true,
     );
-  }
+
+  final String sessionId;
+  final String userId;
+  final String platform;
+  final DateTime createdAt;
+  final DateTime lastSeen;
+  final bool isActive;
 
   /// تحويل إلى Map
-  Map<String, dynamic> toMap() {
-    return {
+  Map<String, dynamic> toMap() => <String, dynamic>{
       'sessionId': sessionId,
       'userId': userId,
       'platform': platform,
@@ -55,18 +52,15 @@ class ActiveSession {
       'lastSeen': lastSeen,
       'isActive': isActive,
     };
-  }
 
   /// تحويل إلى Firestore Map
-  Map<String, dynamic> toFirestoreMap() {
-    return {
+  Map<String, dynamic> toFirestoreMap() => <String, dynamic>{
       'userId': userId,
       'platform': platform,
       'createdAt': Timestamp.fromDate(createdAt),
       'lastSeen': Timestamp.fromDate(lastSeen),
       'isActive': isActive,
     };
-  }
 
   /// نسخ مع تعديلات
   ActiveSession copyWith({
@@ -76,8 +70,7 @@ class ActiveSession {
     DateTime? createdAt,
     DateTime? lastSeen,
     bool? isActive,
-  }) {
-    return ActiveSession(
+  }) => ActiveSession(
       sessionId: sessionId ?? this.sessionId,
       userId: userId ?? this.userId,
       platform: platform ?? this.platform,
@@ -85,7 +78,6 @@ class ActiveSession {
       lastSeen: lastSeen ?? this.lastSeen,
       isActive: isActive ?? this.isActive,
     );
-  }
 
   /// تنسيق آخر نشاط
   String get lastSeenFormatted {
@@ -103,9 +95,7 @@ class ActiveSession {
   }
 
   @override
-  String toString() {
-    return 'ActiveSession(sessionId: $sessionId, userId: $userId, platform: $platform, createdAt: $createdAt, lastSeen: $lastSeen, isActive: $isActive)';
-  }
+  String toString() => 'ActiveSession(sessionId: $sessionId, userId: $userId, platform: $platform, createdAt: $createdAt, lastSeen: $lastSeen, isActive: $isActive)';
 
   @override
   bool operator ==(Object other) {
@@ -120,12 +110,10 @@ class ActiveSession {
   }
 
   @override
-  int get hashCode {
-    return sessionId.hashCode ^
+  int get hashCode => sessionId.hashCode ^
         userId.hashCode ^
         platform.hashCode ^
         createdAt.hashCode ^
         lastSeen.hashCode ^
         isActive.hashCode;
-  }
 }

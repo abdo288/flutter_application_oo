@@ -31,7 +31,13 @@ dependencies:
   
   # State Management & Architecture  
   provider: ^6.1.2
-  flutter_riverpod: ^2.4.9
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+  
+  # Code Generation
+  freezed: ^2.5.7
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
   
   # Data Visualization
   fl_chart: ^1.1.0
@@ -83,10 +89,11 @@ dependencies:
 
   barcode: ^2.2.5
   # Offline Support (moved from dev_dependencies)
-  drift: ^2.28.2
-  drift_flutter: ^0.2.7
+  drift: ^2.20.0
+  drift_flutter: ^0.2.0
   sqlite3_flutter_libs: ^0.5.18
   path_provider: any
+  sqlite3: any
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -95,11 +102,16 @@ dev_dependencies:
   # App Icon Generation
   flutter_launcher_icons: ^0.14.4
   # Testing
-  mockito: ^5.5.1
-  build_runner: ^2.9.0
-  drift_dev: ^2.28.3
+  mockito: ^5.4.4
+  build_runner: ^2.4.0
+  riverpod_generator: ^2.4.0
+  drift_dev: ^2.20.0
+  json_serializable: ^6.8.0
   integration_test:
     sdk: flutter
+  # E2E Testing with Patrol
+  patrol: ^3.0.1
+  patrol_cli: ^3.0.1
 
 # App metadata
 # author حقل مهجور في أحدث إصدارات Dart
@@ -114,6 +126,7 @@ flutter:
   # App Assets
   assets:
     - assets/icon/
+    - assets/.env
   
   # Custom Fonts (optional)
   # fonts:

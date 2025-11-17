@@ -1,21 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../l10n/app_localizations.dart';
 import '../models/alert_settings.dart';
+import '../providers/alerts_riverpod_providers.dart';
 import '../services/inventory_alert_service.dart';
 import '../utils/constants.dart';
-import '../utils/snackbar_utils.dart';
 import '../utils/responsive_breakpoints.dart';
+import '../utils/snackbar_utils.dart';
 
 /// حوار إعدادات التنبيهات
-class AlertSettingsDialog extends StatefulWidget {
+class AlertSettingsDialog extends ConsumerStatefulWidget {
   const AlertSettingsDialog({super.key});
 
   @override
-  State<AlertSettingsDialog> createState() => _AlertSettingsDialogState();
+  ConsumerState<AlertSettingsDialog> createState() => _AlertSettingsDialogState();
 }
 
-class _AlertSettingsDialogState extends State<AlertSettingsDialog> {
+class _AlertSettingsDialogState extends ConsumerState<AlertSettingsDialog> {
   late AlertSettings _settings;
   bool _isLoading = true;
   bool _isSaving = false;
@@ -523,14 +526,14 @@ class _AlertSettingsDialogState extends State<AlertSettingsDialog> {
       // إغلاق النافذة أولاً
       Navigator.of(context).pop();
 
-      // إرسال إشارة للتحديث
+      // تحديث التنبيهات باستخدام Riverpod
       if (mounted) {
-        // يمكن إضافة callback هنا لإعلام الشاشة الرئيسية بالتحديث
-        SnackbarUtils.showSuccess(context, 'تم تحديث التنبيهات');
+        await ref.read(alertsStateProvider.notifier).refreshAlerts();
+        SnackbarUtils.showSuccess(context, 'تم تحديث التنبيهات بنجاح');
       }
-    } on Exception {
+    } on Exception catch (e) {
       if (mounted) {
-        SnackbarUtils.showError(context, 'خطأ في تحديث التنبيهات');
+        SnackbarUtils.showError(context, 'خطأ في تحديث التنبيهات: $e');
       }
     }
   }
@@ -541,13 +544,14 @@ class _AlertSettingsDialogState extends State<AlertSettingsDialog> {
       // إغلاق النافذة أولاً
       Navigator.of(context).pop();
 
-      // إرسال إشارة لفحص التنبيهات
+      // فحص التنبيهات باستخدام Riverpod
       if (mounted) {
-        SnackbarUtils.showSuccess(context, 'تم فحص التنبيهات');
+        await ref.read(alertsStateProvider.notifier).checkInventoryAlerts();
+        SnackbarUtils.showSuccess(context, 'تم فحص التنبيهات بنجاح');
       }
-    } on Exception {
+    } on Exception catch (e) {
       if (mounted) {
-        SnackbarUtils.showError(context, 'خطأ في فحص التنبيهات');
+        SnackbarUtils.showError(context, 'خطأ في فحص التنبيهات: $e');
       }
     }
   }
@@ -557,23 +561,27 @@ class _AlertSettingsDialogState extends State<AlertSettingsDialog> {
     // إغلاق النافذة أولاً
     Navigator.of(context).pop();
 
-    // إرسال إشارة للفلترة
+    // تطبيق الفلتر باستخدام Riverpod
     if (mounted) {
-      SnackbarUtils.showSuccess(context, 'تم تطبيق الفلتر');
+      ref.read(alertsStateProvider.notifier).setFilter(filter == 'unread');
+      SnackbarUtils.showSuccess(context, 'تم تطبيق الفلتر بنجاح');
     }
   }
 
   /// تحديد الكل كمقروء
   Future<void> _markAllAsRead() async {
     try {
-      await InventoryAlertService.markAllAlertsAsRead();
+      // إغلاق النافذة أولاً
+      Navigator.of(context).pop();
+
+      // تحديد جميع التنبيهات كمقروءة باستخدام Riverpod
       if (mounted) {
+        await ref.read(alertsStateProvider.notifier).markAllAsRead();
         SnackbarUtils.showSuccess(context, 'تم تحديد جميع التنبيهات كمقروءة');
-        Navigator.of(context).pop();
       }
-    } on Exception {
+    } on Exception catch (e) {
       if (mounted) {
-        SnackbarUtils.showError(context, 'خطأ في تحديد التنبيهات كمقروءة');
+        SnackbarUtils.showError(context, 'خطأ في تحديد التنبيهات كمقروءة: $e');
       }
     }
   }
@@ -581,14 +589,17 @@ class _AlertSettingsDialogState extends State<AlertSettingsDialog> {
   /// حذف التنبيهات المقروءة
   Future<void> _deleteReadAlerts() async {
     try {
-      await InventoryAlertService.deleteReadAlerts();
+      // إغلاق النافذة أولاً
+      Navigator.of(context).pop();
+
+      // حذف التنبيهات المقروءة باستخدام Riverpod
       if (mounted) {
+        await ref.read(alertsStateProvider.notifier).deleteReadAlerts();
         SnackbarUtils.showSuccess(context, 'تم حذف التنبيهات المقروءة');
-        Navigator.of(context).pop();
       }
-    } on Exception {
+    } on Exception catch (e) {
       if (mounted) {
-        SnackbarUtils.showError(context, 'خطأ في حذف التنبيهات المقروءة');
+        SnackbarUtils.showError(context, 'خطأ في حذف التنبيهات المقروءة: $e');
       }
     }
   }
@@ -596,14 +607,17 @@ class _AlertSettingsDialogState extends State<AlertSettingsDialog> {
   /// تنظيف التنبيهات القديمة
   Future<void> _cleanupOldAlerts() async {
     try {
-      await InventoryAlertService.cleanupOldAlerts();
+      // إغلاق النافذة أولاً
+      Navigator.of(context).pop();
+
+      // تنظيف التنبيهات القديمة باستخدام Riverpod
       if (mounted) {
+        await ref.read(alertsStateProvider.notifier).cleanupOldAlerts();
         SnackbarUtils.showSuccess(context, 'تم تنظيف التنبيهات القديمة');
-        Navigator.of(context).pop();
       }
-    } on Exception {
+    } on Exception catch (e) {
       if (mounted) {
-        SnackbarUtils.showError(context, 'خطأ في تنظيف التنبيهات القديمة');
+        SnackbarUtils.showError(context, 'خطأ في تنظيف التنبيهات القديمة: $e');
       }
     }
   }
@@ -614,8 +628,9 @@ class _AlertSettingsDialogState extends State<AlertSettingsDialog> {
       // إغلاق النافذة أولاً
       Navigator.of(context).pop();
 
-      // إرسال إشارة لتبديل المجموعات
+      // تبديل حالة جميع المجموعات باستخدام Riverpod
       if (mounted) {
+        ref.read(alertsStateProvider.notifier).toggleAllGroups();
         SnackbarUtils.showSuccess(context, 'تم تبديل حالة المجموعات');
       }
     } catch (e) {

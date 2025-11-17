@@ -173,11 +173,11 @@ class _ModernBottomNavigationState extends State<ModernBottomNavigation>
                 : null,
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: [
+              children: <Widget>[
                 // Icon with badge
                 Stack(
                   clipBehavior: Clip.none,
-                  children: [
+                  children: <Widget>[
                     ScaleTransition(
                       scale: _scaleAnimations[index],
                       child: FadeTransition(
@@ -224,7 +224,7 @@ class _ModernBottomNavigationState extends State<ModernBottomNavigation>
                   ],
                 ),
                 // Label
-                if (widget.showLabels) ...[
+                if (widget.showLabels) ...<Widget>[
                   const SizedBox(height: AppConstants.spacing4),
                   FadeTransition(
                     opacity: _fadeAnimations[index],

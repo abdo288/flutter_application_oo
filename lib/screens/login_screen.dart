@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/auth_provider.dart';
+import '../providers/auth_riverpod_providers.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -70,26 +70,30 @@ class _LoginScreenState extends State<LoginScreen> {
               }
 
               try {
-                await context
-                    .read<AuthProvider>()
+                await ref
+                    .read(authStateProvider.notifier)
                     .resetPassword(emailController.text.trim());
-                if (Navigator.of(context).canPop()) {
+                if (context.mounted && Navigator.of(context).canPop()) {
                   Navigator.of(context).pop();
                 }
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                        'تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          'تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('خطأ: ${e.toString()}'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('خطأ: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               }
             },
             child: const Text('إرسال'),
@@ -101,7 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final AuthProvider auth = context.watch<AuthProvider>();
+    final AuthState auth = ref.watch(authStateProvider);
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
@@ -184,7 +188,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                           true) {
                                         return;
                                       }
-                                      await context.read<AuthProvider>().signIn(
+                                      await ref
+                                          .read(authStateProvider.notifier)
+                                          .signIn(
                                             _emailController.text,
                                             _passwordController.text,
                                           );

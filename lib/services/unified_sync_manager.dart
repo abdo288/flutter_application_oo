@@ -9,6 +9,7 @@ import '../database/drift_database.dart';
 import '../repositories/unified_repository.dart';
 import '../services/sync_coordination_service.dart';
 import '../services/sync_state_service.dart';
+import '../utils/platform_thread_safety.dart';
 
 /// مدير المزامنة الموحد - يحل محل جميع خدمات المزامنة المتضاربة
 class UnifiedSyncManager {
@@ -33,7 +34,7 @@ class UnifiedSyncManager {
   // ========== إعدادات المزامنة ==========
 
   static const Duration syncInterval =
-      Duration(minutes: 2); // تقليل تكرار المزامنة
+      Duration(minutes: 5); // تقليل تكرار المزامنة لتحسين الأداء
   static const Duration connectivityCheckInterval =
       Duration(minutes: 1); // تقليل فحص الاتصال
   static const int maxRetryCount = 3;
@@ -41,16 +42,32 @@ class UnifiedSyncManager {
   // ========== التهيئة والإيقاف ==========
 
   /// تهيئة مدير المزامنة الموحد
+  /// ✅ تفعيل Firestore offline persistence
   Future<void> initialize(String userId) async {
     if (_isInitialized && _currentUserId == userId) {
       debugPrint('مدير المزامنة الموحد مهيأ بالفعل للمستخدم: $userId');
       return;
     }
 
+    // ✅ تهيئة PlatformThreadSafety أولاً
+    PlatformThreadSafety.initialize();
+
     try {
       debugPrint('🚀 تهيئة مدير المزامنة الموحد للمستخدم: $userId');
 
       _currentUserId = userId;
+
+      // ✅ تفعيل Firestore offline persistence مع cache غير محدود
+      try {
+        _firestore.settings = const Settings(
+          persistenceEnabled: true,
+          cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+        );
+        debugPrint('✅ تم تفعيل Firestore offline persistence');
+      } catch (e) {
+        debugPrint(
+            '⚠️ خطأ في تفعيل offline persistence (قد يكون مفعلاً بالفعل): $e');
+      }
 
       // التحقق من الاتصال
       await _checkConnectivity();
@@ -508,10 +525,16 @@ class UnifiedSyncManager {
         ..['last_modified'] = FieldValue.serverTimestamp()
         ..['app_id'] = 'local_app';
 
-      await _firestore
-          .collection('products')
-          .doc(data['id']?.toString() ?? '')
-          .set(dataWithTimestamp);
+      // ✅ استخدام PlatformThreadSafety لضمان التنفيذ على platform thread
+      await PlatformThreadSafety.executeFirestoreOperation(
+        () async {
+          await _firestore
+              .collection('products')
+              .doc(data['id']?.toString() ?? '')
+              .set(dataWithTimestamp);
+        },
+        operationName: '_syncProductToFirestore',
+      );
       return true;
     } catch (e) {
       debugPrint('❌ خطأ في مزامنة المنتج إلى Firestore: $e');
@@ -522,10 +545,16 @@ class UnifiedSyncManager {
   /// حذف منتج من Firestore
   Future<bool> _syncDeleteProductToFirestore(Map<String, dynamic> data) async {
     try {
-      await _firestore
-          .collection('products')
-          .doc(data['id']?.toString() ?? '')
-          .delete();
+      // ✅ استخدام PlatformThreadSafety لضمان التنفيذ على platform thread
+      await PlatformThreadSafety.executeFirestoreOperation(
+        () async {
+          await _firestore
+              .collection('products')
+              .doc(data['id']?.toString() ?? '')
+              .delete();
+        },
+        operationName: '_syncDeleteProductToFirestore',
+      );
       return true;
     } catch (e) {
       debugPrint('❌ خطأ في حذف المنتج من Firestore: $e');
@@ -551,7 +580,16 @@ class UnifiedSyncManager {
         ..['last_modified'] = FieldValue.serverTimestamp()
         ..['app_id'] = 'local_app';
 
-      await _firestore.collection('quantities').doc(id).set(dataWithTimestamp);
+      // ✅ استخدام PlatformThreadSafety لضمان التنفيذ على platform thread
+      await PlatformThreadSafety.executeFirestoreOperation(
+        () async {
+          await _firestore
+              .collection('quantities')
+              .doc(id)
+              .set(dataWithTimestamp);
+        },
+        operationName: '_syncInventoryToFirestore',
+      );
       debugPrint('✅ تم مزامنة عنصر المخزون إلى Firestore: $id');
       return true;
     } catch (e) {
@@ -572,7 +610,13 @@ class UnifiedSyncManager {
         return false;
       }
 
-      await _firestore.collection('quantities').doc(id).delete();
+      // ✅ استخدام PlatformThreadSafety لضمان التنفيذ على platform thread
+      await PlatformThreadSafety.executeFirestoreOperation(
+        () async {
+          await _firestore.collection('quantities').doc(id).delete();
+        },
+        operationName: '_syncDeleteInventoryToFirestore',
+      );
       debugPrint('✅ تم حذف عنصر المخزون من Firestore: $id');
       return true;
     } catch (e) {

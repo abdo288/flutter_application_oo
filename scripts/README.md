@@ -162,6 +162,50 @@ class GistUpdater:
 2. حدد المسار والاسم والوصف
 3. اختبر التحديث
 
+## 🔐 Firebase Authentication Scripts
+
+### تفعيل Anonymous Authentication
+
+هذه السكريبتات تساعد في تفعيل Anonymous Authentication في Firebase Console.
+
+#### للأنظمة Windows:
+```bash
+scripts\enable_auth.bat
+```
+
+#### للأنظمة Unix/Linux/macOS:
+```bash
+./scripts/enable_auth.sh
+```
+
+#### تشغيل مباشر:
+```bash
+cd scripts
+pip install -r requirements.txt
+python enable_anonymous_auth.py
+```
+
+### المتطلبات
+
+- Python 3.6+
+- pip
+- Firebase Admin SDK (يتم تثبيته تلقائياً)
+
+### ملاحظات مهمة
+
+1. **Anonymous Authentication** يجب تفعيله يدوياً في Firebase Console
+2. السكريبت يعطي تعليمات واضحة لتفعيل Anonymous Authentication
+3. بعد التفعيل، أعد تشغيل التطبيق للتحقق من الحل
+
+### استكشاف الأخطاء
+
+إذا فشل السكريبت:
+
+1. تأكد من تثبيت Python 3.6+
+2. تأكد من تثبيت pip
+3. تحقق من اتصال الإنترنت
+4. راجع ملف `FIREBASE_AUTH_FIX_INSTRUCTIONS.md` للحل اليدوي
+
 ## 📄 الترخيص
 
 هذا المشروع مفتوح المصدر ومتاح للاستخدام العام.

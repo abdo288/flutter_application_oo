@@ -108,7 +108,7 @@ class _EmptyStateWidgetState extends State<EmptyStateWidget>
                           gradient: LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
-                            colors: [
+                            colors: <Color>[
                               AppConstants.primaryColor.withValues(alpha: 0.1),
                               AppConstants.secondaryColor
                                   .withValues(alpha: 0.1),
@@ -135,7 +135,7 @@ class _EmptyStateWidgetState extends State<EmptyStateWidget>
                     const SizedBox(height: AppConstants.spacing24),
 
                     // Title
-                    if (widget.title != null) ...[
+                    if (widget.title != null) ...<Widget>[
                       Text(
                         widget.title!,
                         textAlign: TextAlign.center,
@@ -162,7 +162,7 @@ class _EmptyStateWidgetState extends State<EmptyStateWidget>
                     ),
 
                     // Subtitle
-                    if (widget.subtitle != null) ...[
+                    if (widget.subtitle != null) ...<Widget>[
                       const SizedBox(height: AppConstants.spacing12),
                       Text(
                         widget.subtitle!,
@@ -179,7 +179,7 @@ class _EmptyStateWidgetState extends State<EmptyStateWidget>
 
                     // Action button
                     if (widget.actionText != null &&
-                        widget.onActionPressed != null) ...[
+                        widget.onActionPressed != null) ...<Widget>[
                       const SizedBox(height: AppConstants.spacing32),
                       ElevatedButton.icon(
                         onPressed: widget.onActionPressed,

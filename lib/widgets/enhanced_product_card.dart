@@ -195,17 +195,17 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
 
   /// بناء البطاقة المتجاوبة
   Widget _buildResponsiveCard(BuildContext context) => LayoutBuilder(
-      builder: (context, constraints) {
+      builder: (BuildContext context, BoxConstraints constraints) {
         // التحقق من صحة القيود
         if (constraints.maxWidth <= 0 || constraints.maxHeight <= 0) {
           return const SizedBox.shrink();
         }
 
-        final screenWidth = constraints.maxWidth;
-        final isCompact = screenWidth < 300 || context.isSmallScreen;
-        final isMedium =
+        final double screenWidth = constraints.maxWidth;
+        final bool isCompact = screenWidth < 300 || context.isSmallScreen;
+        final bool isMedium =
             screenWidth >= 300 && screenWidth < 600 && !context.isSmallScreen;
-        final isFull = screenWidth >= 600 && !context.isSmallScreen;
+        final bool isFull = screenWidth >= 600 && !context.isSmallScreen;
 
         return _buildAnimatedCard(
           context,
@@ -515,7 +515,6 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
         boxShadow: <BoxShadow>[
           BoxShadow(
             color: widget.product.getStatusColor().withValues(alpha: 0.3),
-            spreadRadius: 0,
             blurRadius: 4,
             offset: const Offset(0, 1),
           ),
@@ -872,7 +871,7 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        children: [
+        children: <Widget>[
           if (widget.onEdit != null)
             Flexible(
               child: _buildActionButton(
@@ -979,7 +978,7 @@ class _EnhancedProductCardState extends State<EnhancedProductCard>
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: [
+                children: <Widget>[
                   Icon(icon,
                       size: context.responsiveFontSize(16),
                       color: color), // زيادة من 14 إلى 16

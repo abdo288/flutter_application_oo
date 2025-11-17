@@ -1,15 +1,17 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import 'connectivity_service.dart';
-import '../repositories/unified_repository.dart';
 import '../models/update_log.dart';
-import 'realtime_settings_service.dart';
+import '../repositories/unified_repository.dart';
+import '../utils/platform_thread_safety.dart';
+import 'connectivity_service.dart';
 import 'realtime_notification_service.dart';
+import 'realtime_settings_service.dart';
 
 /// خدمة التحديثات الفورية عبر المنصات
 class RealtimeUpdateService {
@@ -166,27 +168,61 @@ class RealtimeUpdateService {
     }
 
     try {
-      // استخدام scheduleMicrotask للتأكد من تشغيل العمليات على platform thread
-      await Future.microtask(() {
-        // مستمع المنتجات
+      // ✅ استخدام PlatformThreadSafety لضمان التنفيذ على platform thread
+      await Future.microtask(() async {
+        // ✅ مستمع المنتجات مع platform thread safety محسن
         _productsListener = _db
             .collection('products')
             .orderBy('saved_at', descending: true)
             .snapshots()
             .listen(
-          _onProductsUpdate,
+          (QuerySnapshot snapshot) {
+            // ✅ استخدام PlatformThreadSafety لضمان التنفيذ على platform thread
+            PlatformThreadSafety.executeStreamListenerCallback(
+              () => _onProductsUpdate(snapshot),
+              operationName: 'productsListener',
+            );
+          },
           onError: (Object error) {
+            // تجاهل أخطاء الصلاحيات بعد تسجيل الخروج
+            if (error.toString().contains('permission-denied') ||
+                error
+                    .toString()
+                    .contains('Missing or insufficient permissions')) {
+              debugPrint('⚠️ تم تجاهل خطأ صلاحيات في مستمع المنتجات: $error');
+              return;
+            }
             debugPrint('خطأ في مستمع المنتجات: $error');
-            _handleListenerError('products', error);
+            PlatformThreadSafety.executeStreamListenerCallback(
+              () => _handleListenerError('products', error),
+              operationName: 'productsListener_error',
+            );
           },
         );
 
-        // مستمع المخزون - بدون ترتيب لتجنب مشاكل الفهرس
+        // ✅ مستمع المخزون مع platform thread safety محسن
         _inventoryListener = _db.collection('quantities').snapshots().listen(
-          _onInventoryUpdate,
+          (QuerySnapshot snapshot) {
+            // ✅ استخدام PlatformThreadSafety لضمان التنفيذ على platform thread
+            PlatformThreadSafety.executeStreamListenerCallback(
+              () => _onInventoryUpdate(snapshot),
+              operationName: 'inventoryListener',
+            );
+          },
           onError: (Object error) {
+            // تجاهل أخطاء الصلاحيات بعد تسجيل الخروج
+            if (error.toString().contains('permission-denied') ||
+                error
+                    .toString()
+                    .contains('Missing or insufficient permissions')) {
+              debugPrint('⚠️ تم تجاهل خطأ صلاحيات في مستمع المخزون: $error');
+              return;
+            }
             debugPrint('خطأ في مستمع المخزون: $error');
-            _handleListenerError('inventory', error);
+            PlatformThreadSafety.executeStreamListenerCallback(
+              () => _handleListenerError('inventory', error),
+              operationName: 'inventoryListener_error',
+            );
           },
         );
       });
@@ -201,8 +237,8 @@ class RealtimeUpdateService {
   /// بدء المزامنة الدورية لـ Windows (محسنة للأداء)
   void _startWindowsPeriodicSync() {
     _windowsSyncTimer?.cancel();
-    // تحسين: تقليل التكرار من 3 ثوانٍ إلى 10 ثوانٍ لتحسين الأداء
-    _windowsSyncTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
+    // تحسين: تقليل التكرار من 10 ثوانٍ إلى 30 ثانية لتحسين الأداء
+    _windowsSyncTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
       if (!_isOnline) return;
       try {
         debugPrint('🪟 Windows periodic sync running...');
@@ -223,7 +259,7 @@ class RealtimeUpdateService {
       }
     });
     debugPrint(
-        '🪟 Windows periodic sync started (every 10 seconds) - optimized for performance');
+        '🪟 Windows periodic sync started (every 30 seconds) - optimized for performance');
   }
 
   /// إعداد مستمع الاتصال
@@ -267,8 +303,8 @@ class RealtimeUpdateService {
       debugPrint(
           '📦 تفاصيل التحديث: ${snapshot.metadata.isFromCache ? "من التخزين المؤقت" : "من الخادم"}');
 
-      // استخدام scheduleMicrotask لمعالجة التحديثات على platform thread
-      scheduleMicrotask(() {
+      // ✅ استخدام Future.microtask لضمان التنفيذ على platform thread
+      Future.microtask(() {
         try {
           _lastUpdateTime = DateTime.now();
           final Duration responseTime = DateTime.now().difference(startTime);
@@ -353,8 +389,8 @@ class RealtimeUpdateService {
       debugPrint(
           '📦 تفاصيل التحديث: ${snapshot.metadata.isFromCache ? "من التخزين المؤقت" : "من الخادم"}');
 
-      // استخدام scheduleMicrotask لمعالجة التحديثات على platform thread
-      scheduleMicrotask(() {
+      // ✅ استخدام Future.microtask لضمان التنفيذ على platform thread
+      Future.microtask(() {
         try {
           _lastUpdateTime = DateTime.now();
           final Duration responseTime = DateTime.now().difference(startTime);
@@ -434,8 +470,8 @@ class RealtimeUpdateService {
   void _handleListenerError(String listenerType, Object error) {
     debugPrint('خطأ في مستمع $listenerType: $error');
 
-    // استخدام scheduleMicrotask للتأكد من تشغيل العملية على platform thread
-    scheduleMicrotask(() {
+    // ✅ استخدام Future.microtask للتأكد من تشغيل العملية على platform thread
+    Future.microtask(() {
       // إعادة تشغيل المستمع بعد 5 ثوانٍ
       Timer(const Duration(seconds: 5), () {
         if (_isListening) {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
 
-/// حاوية قسم منسّقة موحّدة لتطبيق نفس نمط تبويب المخزون على بقية التبويبات
+/// حاوية قسم منسّقة موحّدة لتطبيق نفس نمط تبويب نموذج المنتج على بقية التبويبات
 class StyledSection extends StatelessWidget {
   const StyledSection({
     super.key,

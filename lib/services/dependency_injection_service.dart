@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/stream_app_provider.dart';
 import 'delta_sync_service.dart';
 import 'unified_sync_manager.dart';
 
@@ -15,7 +15,7 @@ class DependencyInjectionService {
       DependencyInjectionService._internal();
 
   // التبعيات المحقونة
-  StreamAppProvider? _appProvider;
+  WidgetRef? _ref;
   DeltaSyncService? _deltaSyncService;
   UnifiedSyncManager? _unifiedSyncManager;
 
@@ -26,7 +26,7 @@ class DependencyInjectionService {
   // ========== التهيئة ==========
 
   /// تهيئة خدمة حقن التبعيات
-  Future<void> initialize(String userId, StreamAppProvider appProvider) async {
+  Future<void> initialize(String userId, WidgetRef ref) async {
     if (_isInitialized && _currentUserId == userId) {
       debugPrint('خدمة حقن التبعيات مهيأة بالفعل للمستخدم: $userId');
       return;
@@ -41,7 +41,7 @@ class DependencyInjectionService {
       }
 
       _currentUserId = userId;
-      _appProvider = appProvider;
+      _ref = ref;
 
       // تهيئة الخدمات مع حقن التبعيات
       await _initializeServices();
@@ -55,7 +55,7 @@ class DependencyInjectionService {
       // إعادة تعيين الحالة في حالة الخطأ
       _isInitialized = false;
       _currentUserId = null;
-      _appProvider = null;
+      _ref = null;
 
       rethrow;
     }
@@ -64,9 +64,9 @@ class DependencyInjectionService {
   /// تهيئة الخدمات مع حقن التبعيات
   Future<void> _initializeServices() async {
     try {
-      // تهيئة DeltaSyncService مع حقن AppProvider
+      // تهيئة DeltaSyncService مع حقن Riverpod ref
       _deltaSyncService = DeltaSyncService();
-      _deltaSyncService!.initialize(_appProvider!);
+      _deltaSyncService!.initialize(_ref!);
       debugPrint('✅ تم تهيئة DeltaSyncService مع حقن التبعيات');
 
       // تهيئة UnifiedSyncManager مع حقن التبعيات
@@ -98,7 +98,7 @@ class DependencyInjectionService {
       // تنظيف التبعيات
       _deltaSyncService = null;
       _unifiedSyncManager = null;
-      _appProvider = null;
+      _ref = null;
       _currentUserId = null;
       _isInitialized = false;
 
@@ -110,8 +110,8 @@ class DependencyInjectionService {
 
   // ========== Getters للتبعيات ==========
 
-  /// الحصول على StreamAppProvider
-  StreamAppProvider? get appProvider => _appProvider;
+  /// الحصول على WidgetRef
+  WidgetRef? get ref => _ref;
 
   /// الحصول على DeltaSyncService
   DeltaSyncService? get deltaSyncService => _deltaSyncService;
@@ -129,7 +129,7 @@ class DependencyInjectionService {
 
   /// التحقق من توفر التبعية
   bool hasDependency<T>() {
-    if (T == StreamAppProvider) return _appProvider != null;
+    if (T == WidgetRef) return _ref != null;
     if (T == DeltaSyncService) return _deltaSyncService != null;
     if (T == UnifiedSyncManager) return _unifiedSyncManager != null;
     return false;
@@ -137,7 +137,7 @@ class DependencyInjectionService {
 
   /// الحصول على التبعية مع التحقق من التوفر
   T? getDependency<T>() {
-    if (T == StreamAppProvider) return _appProvider as T?;
+    if (T == WidgetRef) return _ref as T?;
     if (T == DeltaSyncService) return _deltaSyncService as T?;
     if (T == UnifiedSyncManager) return _unifiedSyncManager as T?;
     return null;

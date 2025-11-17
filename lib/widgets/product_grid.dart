@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+
 import '../models/product.dart';
-import '../utils/responsive_breakpoints.dart';
 import '../utils/constants.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/responsive_breakpoints.dart';
 import 'enhanced_product_card.dart';
 
 /// مكون شبكة المنتجات المحسنة
@@ -373,7 +374,7 @@ class _CompactProductGridState extends State<CompactProductGrid> {
   /// بناء قائمة المنتجات المضغوطة كـ Sliver للاستخدام مع CustomScrollView
   Widget buildSliver(BuildContext context) => SliverList(
       delegate: SliverChildBuilderDelegate(
-        (context, index) {
+        (BuildContext context, int index) {
           if (index >= widget.products.length) {
             return const SizedBox.shrink();
           }

@@ -2,26 +2,25 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/inventory_alert.dart';
 import '../services/inventory_alert_service.dart';
-import '../providers/stream_inventory_provider.dart';
-import '../providers/stream_riverpod_providers.dart';
+import 'riverpod/stream_inventory_riverpod_provider.dart';
 
 /// حالة تبويب التنبيهات
 class AlertsState {
+
+  const AlertsState({
+    this.alerts = const <InventoryAlert>[],
+    this.alertStatistics = const <String, int>{},
+    this.expandedGroups = const <AlertType, bool>{},
+    this.isLoading = false,
+    this.showOnlyUnread = false,
+    this.errorMessage,
+  });
   final List<InventoryAlert> alerts;
   final Map<String, int> alertStatistics;
   final Map<AlertType, bool> expandedGroups;
   final bool isLoading;
   final bool showOnlyUnread;
   final String? errorMessage;
-
-  const AlertsState({
-    this.alerts = const [],
-    this.alertStatistics = const {},
-    this.expandedGroups = const {},
-    this.isLoading = false,
-    this.showOnlyUnread = false,
-    this.errorMessage,
-  });
 
   AlertsState copyWith({
     List<InventoryAlert>? alerts,
@@ -30,8 +29,7 @@ class AlertsState {
     bool? isLoading,
     bool? showOnlyUnread,
     String? errorMessage,
-  }) {
-    return AlertsState(
+  }) => AlertsState(
       alerts: alerts ?? this.alerts,
       alertStatistics: alertStatistics ?? this.alertStatistics,
       expandedGroups: expandedGroups ?? this.expandedGroups,
@@ -39,7 +37,6 @@ class AlertsState {
       showOnlyUnread: showOnlyUnread ?? this.showOnlyUnread,
       errorMessage: errorMessage ?? this.errorMessage,
     );
-  }
 }
 
 /// مدير حالة التنبيهات
@@ -50,7 +47,7 @@ class AlertsNotifier extends StateNotifier<AlertsState> {
 
   /// تحميل التنبيهات
   Future<void> loadAlerts() async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    state = state.copyWith(isLoading: true);
 
     try {
       final List<InventoryAlert> alerts =
@@ -82,12 +79,13 @@ class AlertsNotifier extends StateNotifier<AlertsState> {
 
   /// فحص المخزون وإنشاء التنبيهات
   Future<void> checkInventoryAlerts() async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    state = state.copyWith(isLoading: true);
 
     try {
-      final StreamInventoryProvider inventoryProvider =
-          ref.read(streamInventoryProvider);
-      await InventoryAlertService.checkInventoryAlerts(inventoryProvider);
+      final InventoryController inventoryController =
+          ref.read(inventoryControllerProvider.notifier);
+      await InventoryAlertService.checkInventoryAlertsForControllers(
+          inventoryController);
       await loadAlerts();
     } catch (e) {
       state = state.copyWith(
@@ -104,7 +102,7 @@ class AlertsNotifier extends StateNotifier<AlertsState> {
       await InventoryAlertService.markAlertAsRead(alertId);
 
       // تحديث التنبيه في القائمة
-      final List<InventoryAlert> updatedAlerts = state.alerts.map((alert) {
+      final List<InventoryAlert> updatedAlerts = state.alerts.map((InventoryAlert alert) {
         if (alert.id == alertId) {
           return alert.copyWith(isRead: true);
         }
@@ -125,7 +123,7 @@ class AlertsNotifier extends StateNotifier<AlertsState> {
 
       // إزالة التنبيه من القائمة
       final List<InventoryAlert> updatedAlerts =
-          state.alerts.where((alert) => alert.id != alertId).toList();
+          state.alerts.where((InventoryAlert alert) => alert.id != alertId).toList();
 
       state = state.copyWith(alerts: updatedAlerts);
     } catch (e) {
@@ -206,7 +204,7 @@ class AlertsNotifier extends StateNotifier<AlertsState> {
 
   /// مسح رسالة الخطأ
   void clearError() {
-    state = state.copyWith(errorMessage: null);
+    state = state.copyWith();
   }
 
   /// التحقق من فتح جميع المجموعات
@@ -269,38 +267,38 @@ class AlertsNotifier extends StateNotifier<AlertsState> {
 // ========== Providers ==========
 
 /// Provider الرئيسي لحالة تبويب التنبيهات
-final alertsStateProvider =
+final AutoDisposeStateNotifierProvider<AlertsNotifier, AlertsState> alertsStateProvider =
     StateNotifierProvider.autoDispose<AlertsNotifier, AlertsState>(
-  (ref) => AlertsNotifier(ref),
+  AlertsNotifier.new,
 );
 
 /// Provider للتحقق من حالة التحميل
-final alertsLoadingProvider = Provider.autoDispose<bool>(
-  (ref) {
+final AutoDisposeProvider<bool> alertsLoadingProvider = Provider.autoDispose<bool>(
+  (AutoDisposeProviderRef<bool> ref) {
     final AlertsState state = ref.watch(alertsStateProvider);
     return state.isLoading;
   },
-  dependencies: [alertsStateProvider],
+  dependencies: <ProviderOrFamily>[alertsStateProvider],
 );
 
 /// Provider للتنبيهات المفلترة
-final filteredAlertsProvider = Provider.autoDispose<List<InventoryAlert>>(
-  (ref) {
+final AutoDisposeProvider<List<InventoryAlert>> filteredAlertsProvider = Provider.autoDispose<List<InventoryAlert>>(
+  (AutoDisposeProviderRef<List<InventoryAlert>> ref) {
     final AlertsState state = ref.watch(alertsStateProvider);
 
     if (state.showOnlyUnread) {
-      return state.alerts.where((alert) => !alert.isRead).toList();
+      return state.alerts.where((InventoryAlert alert) => !alert.isRead).toList();
     }
 
     return state.alerts;
   },
-  dependencies: [alertsStateProvider],
+  dependencies: <ProviderOrFamily>[alertsStateProvider],
 );
 
 /// Provider للتنبيهات المجمعة
-final groupedAlertsProvider =
+final AutoDisposeProvider<Map<AlertType, List<InventoryAlert>>> groupedAlertsProvider =
     Provider.autoDispose<Map<AlertType, List<InventoryAlert>>>(
-  (ref) {
+  (AutoDisposeProviderRef<Map<AlertType, List<InventoryAlert>>> ref) {
     final List<InventoryAlert> filteredAlerts =
         ref.watch(filteredAlertsProvider);
 
@@ -335,43 +333,43 @@ final groupedAlertsProvider =
 
     return orderedGroups;
   },
-  dependencies: [filteredAlertsProvider, alertsStateProvider],
+  dependencies: <ProviderOrFamily>[filteredAlertsProvider, alertsStateProvider],
 );
 
 /// Provider لإحصائيات التنبيهات
-final alertStatisticsProvider = Provider.autoDispose<Map<String, int>>(
-  (ref) {
+final AutoDisposeProvider<Map<String, int>> alertStatisticsProvider = Provider.autoDispose<Map<String, int>>(
+  (AutoDisposeProviderRef<Map<String, int>> ref) {
     final AlertsState state = ref.watch(alertsStateProvider);
     return state.alertStatistics;
   },
-  dependencies: [alertsStateProvider],
+  dependencies: <ProviderOrFamily>[alertsStateProvider],
 );
 
 /// Provider لرسالة الخطأ
-final alertsErrorProvider = Provider.autoDispose<String?>(
-  (ref) {
+final AutoDisposeProvider<String?> alertsErrorProvider = Provider.autoDispose<String?>(
+  (AutoDisposeProviderRef<String?> ref) {
     final AlertsState state = ref.watch(alertsStateProvider);
     return state.errorMessage;
   },
-  dependencies: [alertsStateProvider],
+  dependencies: <ProviderOrFamily>[alertsStateProvider],
 );
 
 /// Provider لحالة المجموعات المفتوحة
-final expandedGroupsProvider = Provider.autoDispose<Map<AlertType, bool>>(
-  (ref) {
+final AutoDisposeProvider<Map<AlertType, bool>> expandedGroupsProvider = Provider.autoDispose<Map<AlertType, bool>>(
+  (AutoDisposeProviderRef<Map<AlertType, bool>> ref) {
     final AlertsState state = ref.watch(alertsStateProvider);
     return state.expandedGroups;
   },
-  dependencies: [alertsStateProvider],
+  dependencies: <ProviderOrFamily>[alertsStateProvider],
 );
 
 /// Provider للتحقق من فتح جميع المجموعات
-final allGroupsExpandedProvider = Provider.autoDispose<bool>(
-  (ref) {
+final AutoDisposeProvider<bool> allGroupsExpandedProvider = Provider.autoDispose<bool>(
+  (AutoDisposeProviderRef<bool> ref) {
     final Map<AlertType, bool> expandedGroups =
         ref.watch(expandedGroupsProvider);
     if (expandedGroups.isEmpty) return false;
     return expandedGroups.values.every((bool isExpanded) => isExpanded);
   },
-  dependencies: [expandedGroupsProvider],
+  dependencies: <ProviderOrFamily>[expandedGroupsProvider],
 );

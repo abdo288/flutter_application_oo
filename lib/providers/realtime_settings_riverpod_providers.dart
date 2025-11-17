@@ -4,50 +4,33 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../models/active_session.dart';
-import '../models/update_log.dart';
 import '../models/realtime_settings.dart';
-import '../services/presence_service.dart' hide ActiveSession;
-import '../services/realtime_debug_service.dart';
-import '../services/realtime_update_service.dart';
-import '../services/realtime_settings_service.dart';
+import '../models/update_log.dart';
 import '../services/connectivity_service.dart';
+import '../services/presence_service.dart';
+import '../services/realtime_debug_service.dart';
+import '../services/realtime_settings_service.dart';
+import '../services/realtime_update_service.dart';
 
 // ========== Service Providers (Singleton) ==========
 
 /// Provider لخدمة التحديثات الفورية
-final realtimeUpdateServiceProvider = Provider<RealtimeUpdateService>((ref) {
-  return RealtimeUpdateService.instance;
-});
+final Provider<RealtimeUpdateService> realtimeUpdateServiceProvider = Provider<RealtimeUpdateService>((ProviderRef<RealtimeUpdateService> ref) => RealtimeUpdateService.instance);
 
 /// Provider لخدمة الحضور
-final presenceServiceProvider = Provider<PresenceService>((ref) {
-  return PresenceService.instance;
-});
+final Provider<PresenceService> presenceServiceProvider = Provider<PresenceService>((ProviderRef<PresenceService> ref) => PresenceService.instance);
 
 /// Provider لخدمة الإعدادات
-final realtimeSettingsServiceProvider =
-    Provider<RealtimeSettingsService>((ref) {
-  return RealtimeSettingsService.instance;
-});
+final Provider<RealtimeSettingsService> realtimeSettingsServiceProvider =
+    Provider<RealtimeSettingsService>((ProviderRef<RealtimeSettingsService> ref) => RealtimeSettingsService.instance);
 
 /// Provider لخدمة الاتصال
-final connectivityServiceProvider = Provider<ConnectivityService>((ref) {
-  return ConnectivityService();
-});
+final Provider<ConnectivityService> connectivityServiceProvider = Provider<ConnectivityService>((ProviderRef<ConnectivityService> ref) => ConnectivityService());
 
 // ========== State Classes ==========
 
 /// حالة التحديثات الفورية
 class RealtimeStatusState {
-  final bool isOnline;
-  final bool isListening;
-  final DateTime? lastUpdateTime;
-  final int productCallbackCount;
-  final int inventoryCallbackCount;
-  final int connectionCallbackCount;
-  final bool isLoading;
-  final String? error;
 
   const RealtimeStatusState({
     required this.isOnline,
@@ -68,6 +51,14 @@ class RealtimeStatusState {
         connectionCallbackCount: 0,
         isLoading: false,
       );
+  final bool isOnline;
+  final bool isListening;
+  final DateTime? lastUpdateTime;
+  final int productCallbackCount;
+  final int inventoryCallbackCount;
+  final int connectionCallbackCount;
+  final bool isLoading;
+  final String? error;
 
   RealtimeStatusState copyWith({
     bool? isOnline,
@@ -78,8 +69,7 @@ class RealtimeStatusState {
     int? connectionCallbackCount,
     bool? isLoading,
     String? error,
-  }) {
-    return RealtimeStatusState(
+  }) => RealtimeStatusState(
       isOnline: isOnline ?? this.isOnline,
       isListening: isListening ?? this.isListening,
       lastUpdateTime: lastUpdateTime ?? this.lastUpdateTime,
@@ -91,20 +81,10 @@ class RealtimeStatusState {
       isLoading: isLoading ?? this.isLoading,
       error: error ?? this.error,
     );
-  }
 }
 
 /// حالة الإعدادات
 class RealtimeSettingsState {
-  final bool notificationsEnabled;
-  final bool soundsEnabled;
-  final bool vibrationEnabled;
-  final String priority;
-  final int maxNotifications;
-  final bool autoSyncEnabled;
-  final Duration syncInterval;
-  final bool isLoading;
-  final String? error;
 
   const RealtimeSettingsState({
     required this.notificationsEnabled,
@@ -128,6 +108,15 @@ class RealtimeSettingsState {
         syncInterval: Duration(seconds: 10),
         isLoading: false,
       );
+  final bool notificationsEnabled;
+  final bool soundsEnabled;
+  final bool vibrationEnabled;
+  final String priority;
+  final int maxNotifications;
+  final bool autoSyncEnabled;
+  final Duration syncInterval;
+  final bool isLoading;
+  final String? error;
 
   RealtimeSettingsState copyWith({
     bool? notificationsEnabled,
@@ -139,8 +128,7 @@ class RealtimeSettingsState {
     Duration? syncInterval,
     bool? isLoading,
     String? error,
-  }) {
-    return RealtimeSettingsState(
+  }) => RealtimeSettingsState(
       notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
       soundsEnabled: soundsEnabled ?? this.soundsEnabled,
       vibrationEnabled: vibrationEnabled ?? this.vibrationEnabled,
@@ -151,7 +139,6 @@ class RealtimeSettingsState {
       isLoading: isLoading ?? this.isLoading,
       error: error ?? this.error,
     );
-  }
 }
 
 // ========== State Notifiers ==========
@@ -194,7 +181,7 @@ class RealtimeStatusNotifier extends StateNotifier<RealtimeStatusState> {
 
   /// بدء التحديثات الفورية
   Future<void> startRealtimeUpdates() async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(isLoading: true);
     try {
       await _realtimeService.startRealtimeUpdates();
       _updateStatus();
@@ -209,7 +196,7 @@ class RealtimeStatusNotifier extends StateNotifier<RealtimeStatusState> {
 
   /// إيقاف التحديثات الفورية
   Future<void> stopRealtimeUpdates() async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(isLoading: true);
     try {
       await _realtimeService.stopRealtimeUpdates();
       _updateStatus();
@@ -224,7 +211,7 @@ class RealtimeStatusNotifier extends StateNotifier<RealtimeStatusState> {
 
   /// إعادة تشغيل التحديثات الفورية
   Future<void> restartRealtimeUpdates() async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(isLoading: true);
     try {
       await _realtimeService.stopRealtimeUpdates();
       await Future<void>.delayed(const Duration(seconds: 1));
@@ -241,7 +228,7 @@ class RealtimeStatusNotifier extends StateNotifier<RealtimeStatusState> {
 
   /// تحديث شامل للنظام
   Future<void> performFullRefresh() async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(isLoading: true);
     try {
       await _realtimeService.stopRealtimeUpdates();
       await Future<void>.delayed(const Duration(seconds: 1));
@@ -332,7 +319,7 @@ class RealtimeSettingsNotifier extends StateNotifier<RealtimeSettingsState> {
 
   /// تحديث إعداد الإشعارات
   Future<void> setNotificationsEnabled(bool enabled) async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(isLoading: true);
     try {
       // تحديث بسيط للحالة
       state = state.copyWith(
@@ -349,7 +336,7 @@ class RealtimeSettingsNotifier extends StateNotifier<RealtimeSettingsState> {
 
   /// تحديث إعداد الأصوات
   Future<void> setSoundsEnabled(bool enabled) async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(isLoading: true);
     try {
       state = state.copyWith(
         soundsEnabled: enabled,
@@ -365,7 +352,7 @@ class RealtimeSettingsNotifier extends StateNotifier<RealtimeSettingsState> {
 
   /// تحديث إعداد الاهتزاز
   Future<void> setVibrationEnabled(bool enabled) async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(isLoading: true);
     try {
       state = state.copyWith(
         vibrationEnabled: enabled,
@@ -381,7 +368,7 @@ class RealtimeSettingsNotifier extends StateNotifier<RealtimeSettingsState> {
 
   /// تحديث المزامنة التلقائية
   Future<void> setAutoSyncEnabled(bool enabled) async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(isLoading: true);
     try {
       state = state.copyWith(
         autoSyncEnabled: enabled,
@@ -397,7 +384,7 @@ class RealtimeSettingsNotifier extends StateNotifier<RealtimeSettingsState> {
 
   /// تحديث فترة المزامنة
   Future<void> setSyncInterval(Duration interval) async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(isLoading: true);
     try {
       state = state.copyWith(
         syncInterval: interval,
@@ -415,59 +402,55 @@ class RealtimeSettingsNotifier extends StateNotifier<RealtimeSettingsState> {
 // ========== Providers ==========
 
 /// Provider لحالة التحديثات الفورية
-final realtimeStatusProvider =
-    StateNotifierProvider<RealtimeStatusNotifier, RealtimeStatusState>((ref) {
-  final realtimeService = ref.watch(realtimeUpdateServiceProvider);
+final StateNotifierProvider<RealtimeStatusNotifier, RealtimeStatusState> realtimeStatusProvider =
+    StateNotifierProvider<RealtimeStatusNotifier, RealtimeStatusState>((StateNotifierProviderRef<RealtimeStatusNotifier, RealtimeStatusState> ref) {
+  final RealtimeUpdateService realtimeService = ref.watch(realtimeUpdateServiceProvider);
   return RealtimeStatusNotifier(realtimeService);
 });
 
 /// Provider لإعدادات التحديثات الفورية
-final realtimeSettingsProvider =
+final StateNotifierProvider<RealtimeSettingsNotifier, RealtimeSettingsState> realtimeSettingsProvider =
     StateNotifierProvider<RealtimeSettingsNotifier, RealtimeSettingsState>(
-        (ref) {
-  final settingsService = ref.watch(realtimeSettingsServiceProvider);
+        (StateNotifierProviderRef<RealtimeSettingsNotifier, RealtimeSettingsState> ref) {
+  final RealtimeSettingsService settingsService = ref.watch(realtimeSettingsServiceProvider);
   return RealtimeSettingsNotifier(settingsService);
 });
 
 // ========== Stream Providers ==========
 
 /// Provider للجلسات النشطة
-final activeSessionsStreamProvider = StreamProvider<List<ActiveSession>>((ref) {
-  final presenceService = ref.watch(presenceServiceProvider);
-  return presenceService.getActiveSessionsStream().map((sessions) => sessions
-      .map((session) => ActiveSession.fromMap(session.toMap()))
-      .toList());
+final StreamProvider<List<ActiveSession>> activeSessionsStreamProvider = StreamProvider<List<ActiveSession>>((StreamProviderRef<List<ActiveSession>> ref) {
+  final PresenceService presenceService = ref.watch(presenceServiceProvider);
+  return presenceService.getActiveSessionsStream();
 });
 
 /// Provider لسجل التحديثات
-final updateLogStreamProvider = StreamProvider<UpdateLog>((ref) {
-  final realtimeService = ref.watch(realtimeUpdateServiceProvider);
+final StreamProvider<UpdateLog> updateLogStreamProvider = StreamProvider<UpdateLog>((StreamProviderRef<UpdateLog> ref) {
+  final RealtimeUpdateService realtimeService = ref.watch(realtimeUpdateServiceProvider);
   return realtimeService.updateLogStream;
 });
 
 /// Provider لحالة الاتصال
-final connectivityStatusProvider = StreamProvider<bool>((ref) {
-  return ConnectivityService.connectionStream;
-});
+final StreamProvider<bool> connectivityStatusProvider = StreamProvider<bool>((StreamProviderRef<bool> ref) => ConnectivityService.connectionStream);
 
 // ========== Computed Providers ==========
 
 /// Provider لعدد الجلسات النشطة
-final activeSessionsCountProvider = Provider<int>((ref) {
-  final sessionsAsync = ref.watch(activeSessionsStreamProvider);
+final Provider<int> activeSessionsCountProvider = Provider<int>((ProviderRef<int> ref) {
+  final AsyncValue<List<ActiveSession>> sessionsAsync = ref.watch(activeSessionsStreamProvider);
   return sessionsAsync.when(
-    data: (sessions) => sessions.length,
+    data: (List<ActiveSession> sessions) => sessions.length,
     loading: () => 0,
     error: (_, __) => 0,
   );
 });
 
 /// Provider لعدد جلسات Windows
-final windowsSessionsCountProvider = Provider<int>((ref) {
-  final sessionsAsync = ref.watch(activeSessionsStreamProvider);
+final Provider<int> windowsSessionsCountProvider = Provider<int>((ProviderRef<int> ref) {
+  final AsyncValue<List<ActiveSession>> sessionsAsync = ref.watch(activeSessionsStreamProvider);
   return sessionsAsync.when(
-    data: (sessions) => sessions
-        .where((session) => session.platform.toLowerCase().contains('windows'))
+    data: (List<ActiveSession> sessions) => sessions
+        .where((ActiveSession session) => session.platform.toLowerCase().contains('windows'))
         .length,
     loading: () => 0,
     error: (_, __) => 0,
@@ -475,11 +458,11 @@ final windowsSessionsCountProvider = Provider<int>((ref) {
 });
 
 /// Provider لعدد جلسات الموبايل
-final mobileSessionsCountProvider = Provider<int>((ref) {
-  final sessionsAsync = ref.watch(activeSessionsStreamProvider);
+final Provider<int> mobileSessionsCountProvider = Provider<int>((ProviderRef<int> ref) {
+  final AsyncValue<List<ActiveSession>> sessionsAsync = ref.watch(activeSessionsStreamProvider);
   return sessionsAsync.when(
-    data: (sessions) => sessions
-        .where((session) =>
+    data: (List<ActiveSession> sessions) => sessions
+        .where((ActiveSession session) =>
             session.platform.toLowerCase().contains('android') ||
             session.platform.toLowerCase().contains('ios'))
         .length,
@@ -489,9 +472,9 @@ final mobileSessionsCountProvider = Provider<int>((ref) {
 });
 
 /// Provider لإحصائيات التحديثات
-final updateStatsProvider = Provider<Map<String, dynamic>>((ref) {
+final Provider<Map<String, dynamic>> updateStatsProvider = Provider<Map<String, dynamic>>((ProviderRef<Map<String, dynamic>> ref) {
   // final realtimeService = ref.watch(realtimeUpdateServiceProvider);
-  return {
+  return <String, dynamic>{
     'successCount': 0,
     'failureCount': 0,
     'responseTimes': <Duration>[],
@@ -499,14 +482,14 @@ final updateStatsProvider = Provider<Map<String, dynamic>>((ref) {
 });
 
 /// Provider للجلسة الحالية
-final currentSessionProvider = Provider<ActiveSession?>((ref) {
-  final sessionsAsync = ref.watch(activeSessionsStreamProvider);
+final Provider<ActiveSession?> currentSessionProvider = Provider<ActiveSession?>((ProviderRef<ActiveSession?> ref) {
+  final AsyncValue<List<ActiveSession>> sessionsAsync = ref.watch(activeSessionsStreamProvider);
   return sessionsAsync.when(
-    data: (sessions) {
-      final currentPlatform = _getCurrentPlatform();
+    data: (List<ActiveSession> sessions) {
+      final String currentPlatform = _getCurrentPlatform();
       try {
         return sessions.firstWhere(
-          (session) => session.platform == currentPlatform,
+          (ActiveSession session) => session.platform == currentPlatform,
         );
       } catch (e) {
         return sessions.isNotEmpty ? sessions.first : null;

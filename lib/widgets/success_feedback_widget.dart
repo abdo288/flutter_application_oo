@@ -119,13 +119,12 @@ class _SuccessFeedbackWidgetState extends State<SuccessFeedbackWidget>
                   scale: _scaleAnimation,
                   child: Stack(
                     alignment: Alignment.center,
-                    children: [
+                    children: <Widget>[
                       // Background circles
                       for (int i = 0; i < 3; i++)
                         AnimatedBuilder(
                           animation: _checkmarkController,
-                          builder: (context, child) {
-                            return Transform.scale(
+                          builder: (BuildContext context, Widget? child) => Transform.scale(
                               scale: 1 + (i * 0.2 * _checkmarkAnimation.value),
                               child: Container(
                                 width: 120,
@@ -136,8 +135,7 @@ class _SuccessFeedbackWidgetState extends State<SuccessFeedbackWidget>
                                       .withValues(alpha: 0.1 / (i + 1)),
                                 ),
                               ),
-                            );
-                          },
+                            ),
                         ),
                       // Main icon container
                       Container(
@@ -148,7 +146,7 @@ class _SuccessFeedbackWidgetState extends State<SuccessFeedbackWidget>
                           gradient: LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
-                            colors: [
+                            colors: <Color>[
                               AppConstants.successColor.withValues(alpha: 0.2),
                               AppConstants.successDarkColor
                                   .withValues(alpha: 0.1),
@@ -198,7 +196,6 @@ class _SuccessFeedbackWidgetState extends State<SuccessFeedbackWidget>
                         BorderRadius.circular(AppConstants.borderRadius),
                     border: Border.all(
                       color: AppConstants.successColor.withValues(alpha: 0.2),
-                      width: 1,
                     ),
                   ),
                   child: Text(
@@ -215,7 +212,7 @@ class _SuccessFeedbackWidgetState extends State<SuccessFeedbackWidget>
 
                 // Action button
                 if (widget.actionText != null &&
-                    widget.onActionPressed != null) ...[
+                    widget.onActionPressed != null) ...<Widget>[
                   const SizedBox(height: AppConstants.spacing32),
                   ElevatedButton.icon(
                     onPressed: widget.onActionPressed,
@@ -238,7 +235,7 @@ class _SuccessFeedbackWidgetState extends State<SuccessFeedbackWidget>
                 ],
 
                 // Dismiss button
-                if (widget.onDismiss != null && !widget.autoDismiss) ...[
+                if (widget.onDismiss != null && !widget.autoDismiss) ...<Widget>[
                   const SizedBox(height: AppConstants.spacing16),
                   TextButton(
                     onPressed: widget.onDismiss,
@@ -299,8 +296,7 @@ Future<void> showSuccessDialog(
     showDialog<void>(
       context: context,
       barrierDismissible: barrierDismissible,
-      builder: (BuildContext context) {
-        return Dialog(
+      builder: (BuildContext context) => Dialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppConstants.borderRadiusLarge),
           ),
@@ -320,6 +316,5 @@ Future<void> showSuccessDialog(
               autoDismiss: false,
             ),
           ),
-        );
-      },
+        ),
     );

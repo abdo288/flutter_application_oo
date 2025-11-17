@@ -1,12 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/stream_app_provider.dart';
 import 'delta_sync_service.dart';
 import 'dependency_injection_service.dart';
-import 'stream_sync_service.dart';
 import 'unified_sync_manager.dart';
+
+// ❌ إزالة: import stream_sync_service - لم تعد مطلوبة (تم دمجها في UnifiedRepository)
 
 /// خدمة تهيئة الخدمات مع حقن التبعيات المحسن
 /// تتعامل مع تهيئة جميع الخدمات بطريقة منظمة وآمنة
@@ -23,13 +24,12 @@ class ServiceInitializer {
   bool _isInitialized = false;
   bool _isInitializing = false;
   String? _currentUserId;
-  StreamAppProvider? _appProvider;
+  WidgetRef? _ref;
 
   // ========== التهيئة ==========
 
   /// تهيئة جميع الخدمات
-  Future<void> initializeServices(
-      String userId, StreamAppProvider appProvider) async {
+  Future<void> initializeServices(String userId, WidgetRef ref) async {
     if (_isInitialized && _currentUserId == userId) {
       debugPrint('الخدمات مهيأة بالفعل للمستخدم: $userId');
       return;
@@ -52,10 +52,10 @@ class ServiceInitializer {
       }
 
       _currentUserId = userId;
-      _appProvider = appProvider;
+      _ref = ref;
 
       // استخدام خدمة حقن التبعيات المركزية
-      await _dependencyInjection.initialize(userId, appProvider);
+      await _dependencyInjection.initialize(userId, ref);
       debugPrint('✅ تم تهيئة جميع الخدمات مع حقن التبعيات');
 
       // ✅ إضافة إعادة تهيئة UnifiedSyncManager مع معرف المستخدم الحقيقي
@@ -81,17 +81,10 @@ class ServiceInitializer {
         // لا نريد إيقاف العملية الأساسية بسبب فشل إعادة التهيئة
       }
 
-      // ✅ تشغيل StreamSyncService للاستماع لتغييرات Firestore
-      try {
-        debugPrint('🎧 بدء تشغيل StreamSyncService...');
-        final StreamSyncService streamSync = StreamSyncService();
-        await streamSync.startRealtimeSync();
-        debugPrint(
-            '✅ تم تشغيل StreamSyncService - الآن يستمع لتغييرات Firestore');
-      } catch (e) {
-        debugPrint('⚠️ خطأ في تشغيل StreamSyncService: $e');
-        // لا نريد إيقاف العملية الأساسية
-      }
+      // ❌ تم إزالة: StreamSyncService - تم دمج وظائفه في UnifiedRepository
+      // الآن Firestore listeners موجودة مباشرة في repository.productsStream و repository.inventoryStream
+      debugPrint(
+          '✅ المزامنة الفورية فعّالة عبر UnifiedRepository (Firestore → Local DB → UI)');
 
       _isInitialized = true;
       debugPrint('🎉 تم تهيئة جميع الخدمات بنجاح');
@@ -102,7 +95,7 @@ class ServiceInitializer {
       // إعادة تعيين الحالة في حالة الخطأ
       _isInitialized = false;
       _currentUserId = null;
-      _appProvider = null;
+      _ref = null;
 
       rethrow;
     } finally {
@@ -124,7 +117,7 @@ class ServiceInitializer {
 
       _isInitialized = false;
       _currentUserId = null;
-      _appProvider = null;
+      _ref = null;
 
       debugPrint('✅ تم إيقاف جميع الخدمات بنجاح');
     } on Exception catch (e) {
@@ -133,10 +126,9 @@ class ServiceInitializer {
   }
 
   /// إعادة تهيئة الخدمات (مفيد عند تغيير المستخدم)
-  Future<void> reinitializeServices(
-      String userId, StreamAppProvider appProvider) async {
+  Future<void> reinitializeServices(String userId, WidgetRef ref) async {
     await shutdownServices();
-    await initializeServices(userId, appProvider);
+    await initializeServices(userId, ref);
   }
 
   // ========== Getters ==========
@@ -155,8 +147,8 @@ class ServiceInitializer {
   /// الحصول على معرف المستخدم الحالي
   String? get currentUserId => _currentUserId;
 
-  /// الحصول على مقدم التطبيق
-  StreamAppProvider? get appProvider => _appProvider;
+  /// الحصول على WidgetRef
+  WidgetRef? get ref => _ref;
 
   /// الحصول على خدمة حقن التبعيات
   DependencyInjectionService get dependencyInjection => _dependencyInjection;

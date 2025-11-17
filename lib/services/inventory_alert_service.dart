@@ -1,11 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:profit_calculator/models/inventory_item.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/alert_settings.dart';
 import '../models/inventory_alert.dart';
-import '../providers/stream_inventory_provider.dart';
+import '../providers/riverpod/stream_inventory_riverpod_provider.dart';
 
 /// خدمة تنبيهات المخزون
 class InventoryAlertService {
@@ -20,10 +21,10 @@ class InventoryAlertService {
 
   /// فحص المخزون وإنشاء التنبيهات
   static Future<List<InventoryAlert>> checkInventoryAlerts(
-      StreamInventoryProvider inventoryProvider) async {
+      WidgetRef ref) async {
     try {
-      final List<InventoryItem> inventoryItems =
-          inventoryProvider.inventoryItems;
+      final InventoryState inventoryState = ref.read(inventoryControllerProvider);
+      final List<InventoryItem> inventoryItems = inventoryState.inventoryItems;
       final AlertSettings settings = await getAlertSettings();
       final List<InventoryAlert> alerts = <InventoryAlert>[];
 
@@ -341,8 +342,12 @@ class InventoryAlertService {
               QueryDocumentSnapshot<Object?> b) {
             final Map<String, dynamic> dataA = a.data() as Map<String, dynamic>;
             final Map<String, dynamic> dataB = b.data() as Map<String, dynamic>;
-            final DateTime dateA = DateTime.parse(dataA['alertDate'] as String);
-            final DateTime dateB = DateTime.parse(dataB['alertDate'] as String);
+            final DateTime dateA = DateTime.parse(
+                (dataA['alertDate'] as String?) ??
+                    DateTime.now().toIso8601String());
+            final DateTime dateB = DateTime.parse(
+                (dataB['alertDate'] as String?) ??
+                    DateTime.now().toIso8601String());
             return dateB.compareTo(dateA);
           });
 
@@ -397,7 +402,7 @@ class InventoryAlertService {
 
       for (final QueryDocumentSnapshot<Object?> doc in allAlerts.docs) {
         final Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        final String alertType = data['alertType'] as String;
+        final String alertType = (data['alertType'] as String?) ?? 'unknown';
 
         switch (alertType) {
           case 'outOfStock':
@@ -433,4 +438,72 @@ class InventoryAlertService {
 
   /// الحصول على مرجع مجموعة التنبيهات للاستماع للتغييرات
   static CollectionReference get alertsCollection => _alertsCollection;
+
+  /// فحص المخزون وإنشاء التنبيهات (دالة ثابتة للـ Riverpod Controllers)
+  static Future<List<InventoryAlert>> checkInventoryAlertsForControllers(
+      inventoryController) async {
+    try {
+      debugPrint('🔍 فحص تنبيهات المخزون...');
+      
+      // الحصول على قائمة عناصر المخزون من الـ controller
+      final dynamic controllerState = inventoryController.state;
+      final List<InventoryItem> inventoryItems = 
+          controllerState.inventoryItems as List<InventoryItem>;
+      
+      // الحصول على إعدادات التنبيهات
+      final AlertSettings settings = await getAlertSettings();
+      final List<InventoryAlert> alerts = <InventoryAlert>[];
+
+      for (final InventoryItem item in inventoryItems) {
+        // فحص نفاد الكمية
+        if (settings.enableOutOfStockAlert && item.isOutOfStock()) {
+          final InventoryAlert? alert = await _createAlert(
+            productName: item.name,
+            alertType: AlertType.outOfStock,
+            currentQuantity: 0,
+            threshold: 0,
+          );
+          if (alert != null) alerts.add(alert);
+        }
+
+        // فحص الحد الأدنى
+        if (settings.enableLowStockAlert &&
+            !item.isOutOfStock() &&
+            item.quantity <= settings.lowStockThreshold) {
+          final InventoryAlert? alert = await _createAlert(
+            productName: item.name,
+            alertType: AlertType.lowStock,
+            currentQuantity: item.quantity,
+            threshold: settings.lowStockThreshold,
+          );
+          if (alert != null) alerts.add(alert);
+        }
+
+        // فحص قرب الانتهاء (إذا كان مفعلاً)
+        if (settings.enableExpiringAlert) {
+          if (item.expiryDate != null) {
+            final DateTime now = DateTime.now();
+            final int daysUntilExpiry = item.expiryDate!.difference(now).inDays;
+            if (daysUntilExpiry <= settings.expiringDaysThreshold &&
+                daysUntilExpiry >= 0) {
+              final InventoryAlert? alert = await _createAlert(
+                productName: item.name,
+                alertType: AlertType.expiringSoon,
+                currentQuantity: item.quantity,
+                threshold: settings.expiringDaysThreshold,
+                description: 'ينتهي خلال $daysUntilExpiry يوم',
+              );
+              if (alert != null) alerts.add(alert);
+            }
+          }
+        }
+      }
+
+      debugPrint('✅ تم فحص التنبيهات: ${alerts.length} تنبيه جديد');
+      return alerts;
+    } catch (e) {
+      debugPrint('❌ خطأ في فحص تنبيهات المخزون: $e');
+      return <InventoryAlert>[];
+    }
+  }
 }

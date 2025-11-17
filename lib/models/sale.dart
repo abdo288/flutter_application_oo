@@ -28,8 +28,8 @@ class Sale {
                 productId: (item['productId'] as String?) ?? '',
                 name: (item['name'] as String?) ?? '',
                 barcode: (item['barcode'] as String?) ?? '',
-                retailPrice: (item['retailPrice'] as num?)?.toInt() ?? 0,
-                wholesalePrice: (item['wholesalePrice'] as num?)?.toInt() ?? 0,
+                retailPrice: _safeParseInt(item['retailPrice']),
+                wholesalePrice: _safeParseInt(item['wholesalePrice']),
                 quantity: (item['quantity'] as int?) ?? 0,
               ))
           .toList();
@@ -60,8 +60,8 @@ class Sale {
                 productId: (item['productId'] as String?) ?? '',
                 name: (item['name'] as String?) ?? '',
                 barcode: (item['barcode'] as String?) ?? '',
-                retailPrice: (item['retailPrice'] as num?)?.toInt() ?? 0,
-                wholesalePrice: (item['wholesalePrice'] as num?)?.toInt() ?? 0,
+                retailPrice: _safeParseInt(item['retailPrice']),
+                wholesalePrice: _safeParseInt(item['wholesalePrice']),
                 quantity: (item['quantity'] as int?) ?? 0,
               ))
           .toList();
@@ -181,4 +181,17 @@ class Sale {
 
   @override
   int get hashCode => id.hashCode;
+
+  /// تحويل آمن للقيم إلى int
+  static int _safeParseInt(Object? value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is num) return value.toInt();
+    if (value is String) {
+      if (value.isEmpty) return 0;
+      return int.tryParse(value) ?? 0;
+    }
+    return 0;
+  }
 }

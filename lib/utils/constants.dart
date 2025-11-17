@@ -266,10 +266,11 @@ class AppConstants {
   // النصوص
   static const String appTitle = 'حاسبة الأرباح';
   static const String dashboard = 'لوحة التحكم';
-  static const String addProduct = 'إضافة منتج';
-  static const String productList = 'قائمة المنتجات';
+  static const String addProduct = 'البيع السريع';
+  static const String productList = 'سجل المبيعات';
   static const String inventory = 'المخزون';
-  static const String storeDisplay = 'عرض المتجر';
+  static const String productForm = 'نموذج المنتج';
+  static const String storeDisplay = 'المخزون';
 
   // رسائل الأخطاء
   static const String errorGeneral = 'حدث خطأ غير متوقع';

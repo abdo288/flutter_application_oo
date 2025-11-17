@@ -3,11 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/inventory_item.dart';
 import '../providers/inventory_riverpod_providers.dart';
-import 'modern_edit_inventory_dialog_riverpod.dart';
 import '../utils/constants.dart';
 import '../utils/responsive_breakpoints.dart';
 import '../utils/snackbar_utils.dart';
 import 'modern_confirmation_dialog.dart';
+import 'modern_edit_inventory_dialog_riverpod.dart';
 
 /// حوار خيارات عنصر المخزون المحسن بـ Riverpod
 class ModernInventoryOptionsDialogRiverpod extends ConsumerWidget {

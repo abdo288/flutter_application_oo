@@ -25,7 +25,11 @@ class _AlertsTabRiverpodState extends ConsumerState<AlertsTabRiverpod> {
     // تأجيل تحميل البيانات إلى ما بعد اكتمال أول عملية بناء
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        ref.read(alertsStateProvider.notifier).loadAlerts();
+        Future.microtask(() {
+          if (mounted) {
+            ref.read(alertsStateProvider.notifier).loadAlerts();
+          }
+        });
       }
     });
   }
@@ -433,6 +437,7 @@ class _AlertsTabRiverpodState extends ConsumerState<AlertsTabRiverpod> {
           ],
         ),
         child: FloatingActionButton.extended(
+          heroTag: 'alerts_tab_fab',
           onPressed: () =>
               ref.read(alertsStateProvider.notifier).checkInventoryAlerts(),
           backgroundColor: Colors.transparent,

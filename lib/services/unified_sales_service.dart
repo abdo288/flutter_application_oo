@@ -1,16 +1,19 @@
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/cart_item.dart';
 import '../models/inventory_item.dart';
 import '../models/product.dart';
 import '../models/sale.dart';
-import '../providers/stream_inventory_provider.dart';
-import '../providers/stream_product_provider.dart';
+import '../providers/riverpod/stream_inventory_riverpod_provider.dart';
+import '../providers/riverpod/stream_product_riverpod_provider.dart';
 import '../repositories/unified_repository.dart';
+import '../services/app_event_bus.dart';
 import '../services/error_handler_service.dart';
 import '../services/local_sales_service.dart';
 import '../services/server_timestamp_service.dart';
@@ -18,17 +21,17 @@ import '../services/server_timestamp_service.dart';
 /// خدمة المبيعات الموحدة - المصدر الوحيد لجميع عمليات البيع
 class UnifiedSalesService {
   UnifiedSalesService({
-    required StreamProductProvider productProvider,
-    required StreamInventoryProvider inventoryProvider,
-  })  : _productProvider = productProvider,
-        _inventoryProvider = inventoryProvider;
+    required WidgetRef ref,
+  }) : _ref = ref {
+    _localSalesService = LocalSalesService();
+  }
   static const String _salesCollection = 'sales';
   static const Uuid _uuid = Uuid();
 
-  final StreamProductProvider _productProvider;
-  final StreamInventoryProvider _inventoryProvider;
+  final WidgetRef _ref;
+  late final LocalSalesService _localSalesService;
 
-  /// إتمام عملية بيع من السلة (POSTab)
+  /// إتمام عملية بيع من السلة (POSTab) - محسن مع Transactions
   Future<String> completeCartSale({
     required List<CartItem> cart,
     String? customerName,
@@ -41,11 +44,10 @@ class UnifiedSalesService {
     }
 
     try {
-      // استخدام الخدمة المحلية الجديدة للحفظ المحلي أولاً
-      final LocalSalesService localSalesService = LocalSalesService();
-      final String saleId = await localSalesService.completeCartSale(
+      // استخدام الخدمة المحلية مع Transactions محسنة
+      final String saleId = await _localSalesService.completeCartSale(
         cart: cart,
-        inventoryProvider: _inventoryProvider,
+        ref: _ref,
         customerName: customerName,
         notes: notes,
         paymentMethod: paymentMethod,
@@ -117,7 +119,7 @@ class UnifiedSalesService {
     }
   }
 
-  /// إتمام عملية بيع منتج واحد (AddProductTab)
+  /// إتمام عملية بيع منتج واحد (QuickSellTab)
   static Future<String> completeSingleProductSale({
     required String itemId,
     required Product product,
@@ -246,7 +248,7 @@ class UnifiedSalesService {
                       saleProduct.toMap());
               transaction.set(saleRef, saleData);
 
-              // تحديث المنتج في مجموعة quantities للعرض في StoreDisplayTab
+              // تحديث المنتج في مجموعة quantities للعرض في InventoryDisplayTab
               final DocumentReference<Object?> quantityRef = FirebaseFirestore
                   .instance
                   .collection('quantities')
@@ -271,9 +273,18 @@ class UnifiedSalesService {
 
       debugPrint('تم تنفيذ عملية البيع بنجاح للعنصر: $itemId');
 
-      // تحديث StreamInventoryProvider لإظهار التغييرات فوراً
+      // ✅ إصلاح: إرسال حدث لتحديث التبويبات
       try {
         debugPrint('🔄 إشعار تحديث المخزون...');
+
+        // إرسال حدث لتحديث جميع التبويبات
+        AppEventBus.fire(InventoryUpdatedEvent(
+          itemId,
+          product.name,
+          1, // الكمية قبل البيع
+          0, // الكمية بعد البيع
+          sourceTab: 'UnifiedSalesService',
+        ));
 
         // Windows-specific: Use delayed sync to avoid threading issues
         if (Platform.isWindows) {
@@ -342,7 +353,8 @@ class UnifiedSalesService {
   Future<Product?> findProductByBarcode(String barcode) async {
     try {
       // البحث في المنتجات أولاً
-      final List<Product> products = _productProvider.products;
+      final List<Product> products =
+          _ref.read(productsControllerProvider).products;
       final Product? product = products.cast<Product?>().firstWhere(
             (Product? p) =>
                 p?.name.toLowerCase().contains(barcode.toLowerCase()) ?? false,
@@ -359,7 +371,7 @@ class UnifiedSalesService {
     // البحث في المخزون
     try {
       final List<InventoryItem> inventoryItems =
-          _inventoryProvider.inventoryItems;
+          _ref.read(inventoryControllerProvider).inventoryItems;
       final InventoryItem? inventoryItem =
           inventoryItems.cast<InventoryItem?>().firstWhere(
                 (InventoryItem? item) => item?.barcode == barcode,
@@ -484,32 +496,63 @@ class UnifiedSalesService {
 
   /// تحليل كمية المخزون
   static int _parseQuantity(Object? quantity) {
+    if (quantity == null) return 0;
     if (quantity is int) return quantity;
+    if (quantity is double) return quantity.toInt();
     if (quantity is String) {
+      if (quantity.isEmpty) return 0;
       if (quantity == 'نفذت الكمية') return 0;
       return int.tryParse(quantity) ?? 0;
     }
     return 0;
   }
 
-  /// الحصول على تقرير المبيعات
+  /// الحصول على تقرير المبيعات مع pagination وتحسين الأداء
   static Future<Map<String, dynamic>> getSalesReport({
     required DateTime startDate,
     required DateTime endDate,
+    int limit = 500, // حد أقصى للبيانات
+    DocumentSnapshot<Map<String, dynamic>>? startAfter,
   }) async {
     try {
+      // ✅ التحقق من حالة المصادقة
+      final User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        debugPrint('⚠️ المستخدم غير مصادق عليه - إرجاع تقرير فارغ');
+        return <String, dynamic>{
+          'sales': <Sale>[],
+          'totalRevenue': 0.0,
+          'totalProfit': 0.0,
+          'totalTransactions': 0,
+          'averageTransactionValue': 0.0,
+          'lastDocument': null,
+          'hasMore': false,
+          'startDate': startDate,
+          'endDate': endDate,
+        };
+      }
+
+      // استخدام pagination لتجنب جلب كل البيانات مرة واحدة
+      Query<Map<String, dynamic>> query = FirebaseFirestore.instance
+          .collection(_salesCollection)
+          .where('saleDate', isGreaterThanOrEqualTo: startDate)
+          .where('saleDate', isLessThanOrEqualTo: endDate)
+          .orderBy('saleDate', descending: true)
+          .limit(limit);
+
+      if (startAfter != null) {
+        query = query.startAfterDocument(startAfter);
+      }
+
       final QuerySnapshot<Map<String, dynamic>> querySnapshot =
-          await FirebaseFirestore.instance
-              .collection(_salesCollection)
-              .where('saleDate', isGreaterThanOrEqualTo: startDate)
-              .where('saleDate', isLessThanOrEqualTo: endDate)
-              .get();
+          await query.get();
 
       final List<Sale> sales = querySnapshot.docs
           .map((QueryDocumentSnapshot<Map<String, dynamic>> doc) =>
               Sale.fromMap(doc.data()))
           .toList();
 
+      // استخدام Firestore aggregation queries إذا كانت متاحة
       final double totalRevenue = sales.fold<double>(
           0, (double sum, Sale sale) => sum + sale.totalAmount);
       final double totalProfit = sales.fold<double>(
@@ -522,7 +565,10 @@ class UnifiedSalesService {
         'totalProfit': totalProfit,
         'totalTransactions': totalTransactions,
         'averageTransactionValue':
-            totalTransactions > 0 ? totalRevenue / totalTransactions : 0,
+            totalTransactions > 0 ? totalRevenue / totalTransactions : 0.0,
+        'lastDocument':
+            querySnapshot.docs.isNotEmpty ? querySnapshot.docs.last : null,
+        'hasMore': querySnapshot.docs.length == limit,
         'startDate': startDate,
         'endDate': endDate,
       };
@@ -581,9 +627,12 @@ class UnifiedSalesService {
         for (final CartItem item in sale.items) {
           if (productStats.containsKey(item.name)) {
             final Map<String, dynamic> stats = productStats[item.name]!;
-            stats['quantity'] = (stats['quantity'] as int) + item.quantity;
-            stats['revenue'] = (stats['revenue'] as double) + item.totalPrice;
-            stats['profit'] = (stats['profit'] as double) + item.totalProfit;
+            stats['quantity'] =
+                ((stats['quantity'] as int?) ?? 0) + item.quantity;
+            stats['revenue'] =
+                ((stats['revenue'] as double?) ?? 0.0) + item.totalPrice;
+            stats['profit'] =
+                ((stats['profit'] as double?) ?? 0.0) + item.totalProfit;
           } else {
             productStats[item.name] = <String, dynamic>{
               'name': item.name,
@@ -598,7 +647,8 @@ class UnifiedSalesService {
       final List<Map<String, dynamic>> topProducts = productStats.values
           .toList()
         ..sort((Map<String, dynamic> a, Map<String, dynamic> b) =>
-            (b['quantity'] as int).compareTo(a['quantity'] as int));
+            ((b['quantity'] as int?) ?? 0)
+                .compareTo((a['quantity'] as int?) ?? 0));
 
       return topProducts.take(limit).toList();
     } on FirebaseException catch (e, stackTrace) {
@@ -710,7 +760,7 @@ class UnifiedSalesService {
       String productName, int requiredQuantity) async {
     try {
       final List<InventoryItem> inventoryItems =
-          _inventoryProvider.inventoryItems;
+          _ref.read(inventoryControllerProvider).inventoryItems;
       final InventoryItem? inventoryItem =
           inventoryItems.cast<InventoryItem?>().firstWhere(
                 (InventoryItem? item) => item?.name == productName,
@@ -785,18 +835,15 @@ class UnifiedSalesService {
 
   /// إنشاء مثيل من الخدمة مع المزودات المطلوبة
   static UnifiedSalesService create({
-    required StreamProductProvider productProvider,
-    required StreamInventoryProvider inventoryProvider,
+    required WidgetRef ref,
   }) =>
       UnifiedSalesService(
-        productProvider: productProvider,
-        inventoryProvider: inventoryProvider,
+        ref: ref,
       );
 
   /// إتمام عملية بيع من السلة (دالة ثابتة للتوافق)
   static Future<String> completeCartSaleStatic({
-    required StreamProductProvider productProvider,
-    required StreamInventoryProvider inventoryProvider,
+    required WidgetRef ref,
     required List<CartItem> cart,
     String? customerName,
     String? notes,
@@ -804,8 +851,7 @@ class UnifiedSalesService {
     int discount = 0,
   }) async {
     final UnifiedSalesService service = UnifiedSalesService(
-      productProvider: productProvider,
-      inventoryProvider: inventoryProvider,
+      ref: ref,
     );
     return await service.completeCartSale(
       cart: cart,
@@ -818,42 +864,46 @@ class UnifiedSalesService {
 
   /// البحث عن منتج بالباركود (دالة ثابتة للتوافق)
   static Future<Product?> findProductByBarcodeStatic({
-    required StreamProductProvider productProvider,
-    required StreamInventoryProvider inventoryProvider,
+    required WidgetRef ref,
     required String barcode,
   }) async {
     final UnifiedSalesService service = UnifiedSalesService(
-      productProvider: productProvider,
-      inventoryProvider: inventoryProvider,
+      ref: ref,
     );
     return await service.findProductByBarcode(barcode);
   }
 
   /// إضافة منتج إلى السلة (دالة ثابتة للتوافق)
   static Future<CartItem?> addProductToCartStatic({
-    required StreamProductProvider productProvider,
-    required StreamInventoryProvider inventoryProvider,
+    required WidgetRef ref,
     required String barcode,
   }) async {
     final UnifiedSalesService service = UnifiedSalesService(
-      productProvider: productProvider,
-      inventoryProvider: inventoryProvider,
+      ref: ref,
     );
     return await service.addProductToCart(barcode);
   }
 
   /// التحقق من توفر المنتج في المخزون (دالة ثابتة للتوافق)
   static Future<bool> checkProductAvailabilityStatic({
-    required StreamProductProvider productProvider,
-    required StreamInventoryProvider inventoryProvider,
+    required WidgetRef ref,
     required String productName,
     required int requiredQuantity,
   }) async {
     final UnifiedSalesService service = UnifiedSalesService(
-      productProvider: productProvider,
-      inventoryProvider: inventoryProvider,
+      ref: ref,
     );
     return await service.checkProductAvailability(
         productName, requiredQuantity);
+  }
+
+  /// الحصول على إحصائيات المزامنة
+  Future<Map<String, dynamic>> getSyncStats() async =>
+      await _localSalesService.getSyncStats();
+
+  /// إعادة محاولة مزامنة المبيعات المتأخرة
+  Future<void> retryFailedSyncs() async {
+    // TODO: تنفيذ آلية إعادة المحاولة
+    debugPrint('🔄 إعادة محاولة مزامنة المبيعات المتأخرة...');
   }
 }

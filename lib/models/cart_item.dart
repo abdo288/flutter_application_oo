@@ -11,7 +11,21 @@ class CartItem {
     required this.quantity,
     this.wholesalePrice = 0,
     this.discount = 0,
-  });
+  }) {
+    // التحقق من صحة البيانات قبل التعيين
+    if (retailPrice < 0) {
+      throw ArgumentError('retailPrice cannot be negative: $retailPrice');
+    }
+    if (wholesalePrice < 0) {
+      throw ArgumentError('wholesalePrice cannot be negative: $wholesalePrice');
+    }
+    if (quantity < 0) {
+      throw ArgumentError('quantity cannot be negative: $quantity');
+    }
+    if (discount < 0) {
+      throw ArgumentError('discount cannot be negative: $discount');
+    }
+  }
 
   factory CartItem.fromInventoryItem(InventoryItem inventoryItem,
           {int quantity = 1, int discount = 0}) =>
@@ -41,10 +55,10 @@ class CartItem {
         productId: map['productId'] as String? ?? '',
         name: map['name'] as String? ?? '',
         barcode: map['barcode'] as String? ?? '',
-        retailPrice: map['retailPrice'] as int? ?? 0,
-        wholesalePrice: map['wholesalePrice'] as int? ?? 0,
-        quantity: map['quantity'] as int? ?? 1,
-        discount: map['discount'] as int? ?? 0,
+        retailPrice: _safeParseInt(map['retailPrice']),
+        wholesalePrice: _safeParseInt(map['wholesalePrice']),
+        quantity: _safeParseInt(map['quantity'], defaultValue: 1),
+        discount: _safeParseInt(map['discount']),
       );
 
   String productId;
@@ -109,4 +123,17 @@ class CartItem {
 
   @override
   int get hashCode => productId.hashCode;
+
+  /// تحويل آمن للقيم إلى int
+  static int _safeParseInt(Object? value, {int defaultValue = 0}) {
+    if (value == null) return defaultValue;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is num) return value.toInt();
+    if (value is String) {
+      if (value.isEmpty) return defaultValue;
+      return int.tryParse(value) ?? defaultValue;
+    }
+    return defaultValue;
+  }
 }

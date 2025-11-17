@@ -149,7 +149,7 @@ class _AnimatedStatCardState extends State<AnimatedStatCard>
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [
+                        colors: <Color>[
                           _cardColor,
                           _cardColor.withValues(alpha: 0.8),
                         ],
@@ -175,11 +175,11 @@ class _AnimatedStatCardState extends State<AnimatedStatCard>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
-                          children: [
+                          children: <Widget>[
                             // Icon and trend row
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
+                              children: <Widget>[
                                 Container(
                                   padding: EdgeInsets.all(
                                     context.responsiveSpacing * 0.5,

@@ -1,0 +1,84 @@
+# إعدادات Patrol للاختبارات End-to-End
+# هذا الملف يحدد إعدادات اختبارات التطبيق
+
+# إعدادات التطبيق
+app:
+  # مسار التطبيق المبنى
+  android: build/app/outputs/flutter-apk/app-debug.apk
+  ios: build/ios/iphoneos/Runner.app
+  
+# إعدادات الاختبارات
+test:
+  # المجلد الذي يحتوي على اختبارات E2E
+  directory: test/e2e
+  
+  # المهلة الزمنية للاختبارات (بالثواني)
+  timeout: 300
+  
+  # إعدادات الجهاز الافتراضي
+  device:
+    # استخدام محاكي Android
+    android:
+      device_id: emulator-5554
+      api_level: 30
+      
+    # استخدام محاكي iOS
+    ios:
+      device_id: iPhone 14
+      os_version: 16.0
+
+# إعدادات السجلات
+logging:
+  # مستوى السجلات (debug, info, warning, error)
+  level: info
+  
+  # حفظ السجلات في ملف
+  file: test/e2e/logs/patrol.log
+  
+  # إضافة لقطات الشاشة عند الفشل
+  screenshots_on_failure: true
+
+# إعدادات Firebase Emulators
+firebase:
+  # استخدام Emulators للاختبارات
+  use_emulators: true
+  
+  # منافذ Emulators
+  emulators:
+    firestore: 8080
+    auth: 9099
+    storage: 9199
+    ui: 4000
+
+# إعدادات البيانات التجريبية
+test_data:
+  # بيانات المستخدمين التجريبية
+  users:
+    - email: "test@example.com"
+      password: "password123"
+      role: "admin"
+    - email: "user@example.com"
+      password: "password123"
+      role: "user"
+      
+  # بيانات المنتجات التجريبية
+  products:
+    - name: "منتج تجريبي 1"
+      wholesale_price: 10000
+      retail_price: 15000
+      barcode: "123456789"
+    - name: "منتج تجريبي 2"
+      wholesale_price: 20000
+      retail_price: 30000
+      barcode: "987654321"
+
+# إعدادات الأداء
+performance:
+  # مهلة انتظار العناصر (بالثواني)
+  element_timeout: 10
+  
+  # مهلة انتظار الصفحات (بالثواني)
+  page_timeout: 30
+  
+  # مهلة انتظار الشبكة (بالثواني)
+  network_timeout: 60

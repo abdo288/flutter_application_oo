@@ -61,22 +61,20 @@ class _ShimmerLoadingState extends State<ShimmerLoading>
     return AnimatedBuilder(
       animation: _animation,
       builder: (BuildContext context, Widget? child) => ShaderMask(
-          shaderCallback: (bounds) {
-            return LinearGradient(
+          shaderCallback: (Rect bounds) => LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
+              colors: <Color>[
                 baseColor,
                 highlightColor,
                 baseColor,
               ],
-              stops: [
+              stops: <double>[
                 _animation.value - 0.3,
                 _animation.value,
                 _animation.value + 0.3,
-              ].map((e) => e.clamp(0.0, 1.0)).toList(),
-            ).createShader(bounds);
-          },
+              ].map((double e) => e.clamp(0.0, 1.0)).toList(),
+            ).createShader(bounds),
           blendMode: BlendMode.srcATop,
           child: widget.child,
         ),
@@ -132,9 +130,7 @@ class ShimmerList extends StatelessWidget {
       itemCount: itemCount,
       physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
-      itemBuilder: (context, index) {
-        return ShimmerCard(height: itemHeight);
-      },
+      itemBuilder: (BuildContext context, int index) => ShimmerCard(height: itemHeight),
     );
 }
 

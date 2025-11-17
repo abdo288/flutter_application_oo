@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/app_state_manager.dart';
 import '../utils/constants.dart';
 
 /// مؤشر حالة المزامنة في الوقت الفعلي
-class SyncStatusIndicator extends StatelessWidget {
+class SyncStatusIndicator extends ConsumerWidget {
   const SyncStatusIndicator({
     super.key,
     this.showDetails = false,
@@ -15,20 +15,18 @@ class SyncStatusIndicator extends StatelessWidget {
   final bool compact;
 
   @override
-  Widget build(BuildContext context) => Consumer<AppStateManager>(
-        builder: (context, stateManager, child) {
-          if (compact) {
-            return _buildCompactIndicator(context, stateManager);
-          } else {
-            return _buildFullIndicator(context, stateManager);
-          }
-        },
-      );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AppState state = ref.watch(appStateNotifierProvider);
+    if (compact) {
+      return _buildCompactIndicator(context, state);
+    } else {
+      return _buildFullIndicator(context, state);
+    }
+  }
 
   /// بناء المؤشر المضغوط
-  Widget _buildCompactIndicator(
-      BuildContext context, AppStateManager stateManager) {
-    if (stateManager.isSyncing) {
+  Widget _buildCompactIndicator(BuildContext context, AppState state) {
+    if (state.isSyncing) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
@@ -63,7 +61,7 @@ class SyncStatusIndicator extends StatelessWidget {
       );
     }
 
-    if (stateManager.pendingOperations > 0) {
+    if (state.pendingOperations > 0) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
@@ -83,7 +81,7 @@ class SyncStatusIndicator extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             Text(
-              '${stateManager.pendingOperations}',
+              '${state.pendingOperations}',
               style: TextStyle(
                 fontSize: 10,
                 color: Colors.blue[700],
@@ -95,7 +93,7 @@ class SyncStatusIndicator extends StatelessWidget {
       );
     }
 
-    if (!stateManager.isOnline) {
+    if (!state.isOnline) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
@@ -159,9 +157,7 @@ class SyncStatusIndicator extends StatelessWidget {
   }
 
   /// بناء المؤشر الكامل
-  Widget _buildFullIndicator(
-          BuildContext context, AppStateManager stateManager) =>
-      Container(
+  Widget _buildFullIndicator(BuildContext context, AppState state) => Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -175,21 +171,20 @@ class SyncStatusIndicator extends StatelessWidget {
           ],
           border: Border.all(
             color: Colors.grey.withValues(alpha: 0.2),
-            width: 1,
           ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: [
+          children: <Widget>[
             // العنوان
-            Row(
-              children: [
+            const Row(
+              children: <Widget>[
                 Icon(
                   Icons.sync,
                   size: 20,
                   color: AppConstants.primaryColor,
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 Text(
                   'حالة المزامنة',
                   style: TextStyle(
@@ -203,50 +198,48 @@ class SyncStatusIndicator extends StatelessWidget {
             const SizedBox(height: 12),
 
             // حالة الاتصال
-            _buildConnectionStatus(context, stateManager),
+            _buildConnectionStatus(context, state),
             const SizedBox(height: 8),
 
             // حالة المزامنة
-            _buildSyncStatus(context, stateManager),
+            _buildSyncStatus(context, state),
 
             // العمليات المعلقة
-            if (stateManager.pendingOperations > 0) ...[
+            if (state.pendingOperations > 0) ...<Widget>[
               const SizedBox(height: 8),
-              _buildPendingOperations(context, stateManager),
+              _buildPendingOperations(context, state),
             ],
 
             // التفاصيل
-            if (showDetails) ...[
+            if (showDetails) ...<Widget>[
               const SizedBox(height: 12),
-              _buildDetails(context, stateManager),
+              _buildDetails(context, state),
             ],
           ],
         ),
       );
 
   /// بناء حالة الاتصال
-  Widget _buildConnectionStatus(
-          BuildContext context, AppStateManager stateManager) =>
-      Row(
-        children: [
+  Widget _buildConnectionStatus(BuildContext context, AppState state) => Row(
+        children: <Widget>[
           Icon(
-            stateManager.isOnline ? Icons.wifi : Icons.wifi_off,
+            state.isOnline ? Icons.wifi : Icons.wifi_off,
             size: 16,
-            color: stateManager.isOnline ? Colors.green : Colors.red,
+            color: state.isOnline ? Colors.green : Colors.red,
           ),
           const SizedBox(width: 8),
           Text(
-            stateManager.isOnline ? 'متصل' : 'غير متصل',
+            state.isOnline ? 'متصل' : 'غير متصل',
             style: TextStyle(
               fontSize: 14,
-              color: stateManager.isOnline ? Colors.green : Colors.red,
+              color: state.isOnline ? Colors.green : Colors.red,
               fontWeight: FontWeight.w500,
             ),
           ),
-          if (stateManager.connectionType != null) ...[
+          if (state.connectionType != null) ...<Widget>[
             const SizedBox(width: 4),
             Text(
-              '(${stateManager.connectionType})',
+              '(${state.connectionType})',
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.grey[600],
@@ -257,8 +250,8 @@ class SyncStatusIndicator extends StatelessWidget {
       );
 
   /// بناء حالة المزامنة
-  Widget _buildSyncStatus(BuildContext context, AppStateManager stateManager) {
-    if (stateManager.isSyncing) {
+  Widget _buildSyncStatus(BuildContext context, AppState state) {
+    if (state.isSyncing) {
       return Row(
         children: <Widget>[
           const SizedBox(
@@ -282,7 +275,7 @@ class SyncStatusIndicator extends StatelessWidget {
       );
     }
 
-    if (stateManager.pendingOperations > 0) {
+    if (state.pendingOperations > 0) {
       return Row(
         children: <Widget>[
           Icon(
@@ -292,7 +285,7 @@ class SyncStatusIndicator extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Text(
-            '${stateManager.pendingOperations} عملية معلقة',
+            '${state.pendingOperations} عملية معلقة',
             style: TextStyle(
               fontSize: 14,
               color: Colors.blue[700],
@@ -324,8 +317,7 @@ class SyncStatusIndicator extends StatelessWidget {
   }
 
   /// بناء العمليات المعلقة
-  Widget _buildPendingOperations(
-          BuildContext context, AppStateManager stateManager) =>
+  Widget _buildPendingOperations(BuildContext context, AppState state) =>
       Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
@@ -333,11 +325,10 @@ class SyncStatusIndicator extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: Colors.blue.withValues(alpha: 0.3),
-            width: 1,
           ),
         ),
         child: Row(
-          children: [
+          children: <Widget>[
             Icon(
               Icons.queue,
               size: 16,
@@ -346,7 +337,7 @@ class SyncStatusIndicator extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                '${stateManager.pendingOperations} عملية في الانتظار',
+                '${state.pendingOperations} عملية في الانتظار',
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.blue[700],
@@ -358,8 +349,8 @@ class SyncStatusIndicator extends StatelessWidget {
       );
 
   /// بناء التفاصيل
-  Widget _buildDetails(BuildContext context, AppStateManager stateManager) {
-    final Map<String, dynamic> summary = stateManager.getStateSummary();
+  Widget _buildDetails(BuildContext context, AppState state) {
+    // final Map<String, dynamic> summary = ref.read(appStateNotifierProvider.notifier).getStateSummary();
 
     return Container(
       padding: const EdgeInsets.all(8),
@@ -379,28 +370,28 @@ class SyncStatusIndicator extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          ...summary.entries.map((MapEntry<String, dynamic> entry) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 1),
-                child: Row(
-                  children: <Widget>[
-                    Text(
-                      '${entry.key}: ',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    Text(
-                      '${entry.value}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey[800],
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              )),
+          // ...summary.entries.map((MapEntry<String, dynamic> entry) => Padding(
+          //       padding: const EdgeInsets.symmetric(vertical: 1),
+          //       child: Row(
+          //         children: <Widget>[
+          //           Text(
+          //             '${entry.key}: ',
+          //             style: TextStyle(
+          //               fontSize: 10,
+          //               color: Colors.grey[600],
+          //             ),
+          //           ),
+          //           Text(
+          //             '${entry.value}',
+          //             style: TextStyle(
+          //               fontSize: 10,
+          //               color: Colors.grey[800],
+          //               fontWeight: FontWeight.w500,
+          //             ),
+          //           ),
+          //         ],
+          //       ),
+          //     )),
         ],
       ),
     );
@@ -426,66 +417,65 @@ class FullSyncIndicator extends StatelessWidget {
 }
 
 /// مؤشر المزامنة مع إجراءات
-class InteractiveSyncIndicator extends StatelessWidget {
+class InteractiveSyncIndicator extends ConsumerWidget {
   const InteractiveSyncIndicator({super.key});
 
   @override
-  Widget build(BuildContext context) => Consumer<AppStateManager>(
-        builder: (context, stateManager, child) {
-          return PopupMenuButton<String>(
-            child: const SyncStatusIndicator(compact: true),
-            onSelected: (value) {
-              switch (value) {
-                case 'refresh':
-                  _handleRefresh(context, stateManager);
-                  break;
-                case 'details':
-                  _showDetailsDialog(context, stateManager);
-                  break;
-                case 'clear':
-                  _handleClear(context, stateManager);
-                  break;
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'refresh',
-                child: Row(
-                  children: [
-                    Icon(Icons.refresh),
-                    SizedBox(width: 8),
-                    Text('تحديث'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'details',
-                child: Row(
-                  children: [
-                    Icon(Icons.info),
-                    SizedBox(width: 8),
-                    Text('التفاصيل'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'clear',
-                child: Row(
-                  children: [
-                    Icon(Icons.clear),
-                    SizedBox(width: 8),
-                    Text('مسح'),
-                  ],
-                ),
-              ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AppState state = ref.watch(appStateNotifierProvider);
+    return PopupMenuButton<String>(
+      child: const SyncStatusIndicator(compact: true),
+      onSelected: (String value) {
+        switch (value) {
+          case 'refresh':
+            _handleRefresh(context, state);
+            break;
+          case 'details':
+            _showDetailsDialog(context, state);
+            break;
+          case 'clear':
+            _handleClear(context, state);
+            break;
+        }
+      },
+      itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+        const PopupMenuItem(
+          value: 'refresh',
+          child: Row(
+            children: <Widget>[
+              Icon(Icons.refresh),
+              SizedBox(width: 8),
+              Text('تحديث'),
             ],
-          );
-        },
-      );
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'details',
+          child: Row(
+            children: <Widget>[
+              Icon(Icons.info),
+              SizedBox(width: 8),
+              Text('التفاصيل'),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'clear',
+          child: Row(
+            children: <Widget>[
+              Icon(Icons.clear),
+              SizedBox(width: 8),
+              Text('مسح'),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
-  void _handleRefresh(BuildContext context, AppStateManager stateManager) {
+  void _handleRefresh(BuildContext context, AppState state) {
     // إعادة تعيين الحالة
-    stateManager.resetState();
+    // ref.read(appStateNotifierProvider.notifier).resetState();
 
     // إظهار رسالة
     ScaffoldMessenger.of(context).showSnackBar(
@@ -496,67 +486,70 @@ class InteractiveSyncIndicator extends StatelessWidget {
     );
   }
 
-  void _showDetailsDialog(BuildContext context, AppStateManager stateManager) {
+  void _showDetailsDialog(BuildContext context, AppState state) {
     showDialog<void>(
       context: context,
-      builder: (BuildContext context) => AlertDialog(
-        title: const Text('تفاصيل المزامنة'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              const FullSyncIndicator(),
-              const SizedBox(height: 16),
-              Text(
-                'ملخص الحالة:',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[700],
+      builder: (BuildContext context) => Consumer(
+        builder: (BuildContext context, WidgetRef ref, Widget? child) =>
+            AlertDialog(
+          title: const Text('تفاصيل المزامنة'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                const FullSyncIndicator(),
+                const SizedBox(height: 16),
+                Text(
+                  'ملخص الحالة:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[700],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              ...stateManager
-                  .getStateSummary()
-                  .entries
-                  .map((MapEntry<String, dynamic> entry) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: Row(
-                          children: <Widget>[
-                            Text(
-                              '${entry.key}: ',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            Text(
-                              '${entry.value}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[800],
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )),
-            ],
+                const SizedBox(height: 8),
+                // ...ref.read(appStateNotifierProvider.notifier)
+                //     .getStateSummary()
+                //     .entries
+                //     .map((MapEntry<String, dynamic> entry) => Padding(
+                //           padding: const EdgeInsets.symmetric(vertical: 2),
+                //           child: Row(
+                //             children: <Widget>[
+                //               Text(
+                //                 '${entry.key}: ',
+                //                 style: TextStyle(
+                //                   fontSize: 12,
+                //                   color: Colors.grey[600],
+                //                 ),
+                //               ),
+                //               Text(
+                //                 '${entry.value}',
+                //                 style: TextStyle(
+                //                   fontSize: 12,
+                //                   color: Colors.grey[800],
+                //                   fontWeight: FontWeight.w500,
+                //                 ),
+                //               ),
+                //             ],
+                //           ),
+                //         )),
+              ],
+            ),
           ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إغلاق'),
+            ),
+          ],
         ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إغلاق'),
-          ),
-        ],
       ),
     );
   }
 
-  void _handleClear(BuildContext context, AppStateManager stateManager) {
+  void _handleClear(BuildContext context, AppState state) {
     // مسح البيانات المشتركة
-    stateManager.clearSharedData();
+    // ref.read(appStateNotifierProvider.notifier).clearSharedData();
 
     // إظهار رسالة
     ScaffoldMessenger.of(context).showSnackBar(

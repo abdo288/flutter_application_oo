@@ -1,21 +1,25 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/dashboard_stats.dart';
 import '../providers/dashboard_riverpod_providers.dart';
+import '../providers/realtime_update_manager.dart';
+import '../services/dashboard_service.dart';
+import '../services/error_handler_service.dart';
 import '../utils/constants.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/responsive_breakpoints.dart';
 import '../widgets/custom_refresh_indicator.dart';
 import '../widgets/error_state_widget.dart';
-import '../widgets/shimmer_loading.dart';
-import '../widgets/success_feedback_widget.dart';
 import '../widgets/modern_dashboard_stat_card.dart';
 import '../widgets/modern_product_profit_card.dart';
-import '../widgets/modern_quick_action_button.dart';
 import '../widgets/modern_profit_chart.dart';
+import '../widgets/modern_quick_action_button.dart';
+import '../widgets/shimmer_loading.dart';
+import '../widgets/success_feedback_widget.dart';
 
 /// A completely redesigned, modern, and interactive dashboard using Riverpod.
 class DashboardTabRiverpod extends ConsumerStatefulWidget {
@@ -35,6 +39,14 @@ class _DashboardTabRiverpodState extends ConsumerState<DashboardTabRiverpod>
   late AnimationController _slideController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+  
+  // متغيرات الاتجاهات
+  Map<String, double> _trends = <String, double>{
+    'totalProfitTrend': 0.0,
+    'productsValueTrend': 0.0,
+    'todayTrend': 0.0,
+    'monthlyTrend': 0.0,
+  };
 
   @override
   void didChangeDependencies() {
@@ -70,6 +82,7 @@ class _DashboardTabRiverpodState extends ConsumerState<DashboardTabRiverpod>
     // تأجيل تحميل البيانات إلى ما بعد اكتمال أول عملية بناء
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
+        _loadDashboardData();
         _fadeController.forward();
         _slideController.forward();
       }
@@ -84,6 +97,71 @@ class _DashboardTabRiverpodState extends ConsumerState<DashboardTabRiverpod>
     super.dispose();
   }
 
+  Future<void> _loadDashboardData() async {
+    try {
+      // استخدام Riverpod refresh
+      final DashboardRefreshNotifier refreshNotifier =
+          ref.read(dashboardRefreshNotifierProvider);
+      await refreshNotifier.refreshDashboard();
+      
+      // حساب الاتجاهات بعد تحميل البيانات
+      await _calculateTrends();
+    } catch (e) {
+      if (mounted) {
+        await ErrorHelper.safeExecute(
+          () async {
+            // إعادة المحاولة في حالة الفشل
+            final DashboardRefreshNotifier refreshNotifier =
+                ref.read(dashboardRefreshNotifierProvider);
+            await refreshNotifier.refreshDashboard();
+            await _calculateTrends();
+          },
+          userAction: 'تحميل بيانات لوحة التحكم',
+          showUserMessage: (String message) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(message),
+                  backgroundColor: AppConstants.errorColor,
+                ),
+              );
+            }
+          },
+        );
+      }
+    }
+  }
+
+  /// حساب الاتجاهات من البيانات التاريخية
+  Future<void> _calculateTrends() async {
+    try {
+      final AsyncValue<DashboardStats> dashboardStatsAsync =
+          ref.read(dashboardStatsProvider);
+      
+      await dashboardStatsAsync.when(
+        data: (DashboardStats stats) async {
+          final Map<String, double> trends =
+              await DashboardService.calculateTrends(
+            currentTotalProfit: stats.totalProfit,
+            currentProductsValue: stats.totalProductsValue,
+            currentTodaySales: stats.todaySales,
+            currentMonthlySales: stats.monthlySales,
+          );
+          
+          if (mounted) {
+            setState(() {
+              _trends = trends;
+            });
+          }
+        },
+        loading: () async {},
+        error: (Object error, StackTrace? stackTrace) async {},
+      );
+    } catch (e) {
+      debugPrint('⚠️ خطأ في حساب الاتجاهات: $e');
+    }
+  }
+
   /// Pull-to-refresh مع animation
   Future<void> _onRefresh() async {
     try {
@@ -91,9 +169,8 @@ class _DashboardTabRiverpodState extends ConsumerState<DashboardTabRiverpod>
       _fadeController.reset();
       _slideController.reset();
 
-      // استخدام Riverpod refresh
-      final DashboardRefreshNotifier refreshNotifier = ref.read(dashboardRefreshNotifierProvider);
-      await refreshNotifier.refreshDashboard();
+      // إعادة تحميل بيانات Dashboard
+      await _loadDashboardData();
 
       // إعادة تشغيل الـ animations
       _fadeController.forward();
@@ -133,14 +210,31 @@ class _DashboardTabRiverpodState extends ConsumerState<DashboardTabRiverpod>
   @override
   Widget build(BuildContext context) {
     // Watch dashboard stats
-    final AsyncValue<DashboardStats> dashboardStatsAsync = ref.watch(dashboardStatsProvider);
-    final AsyncValue<List<Map<String, dynamic>>> topProductsAsync = ref.watch(topProductsProvider);
+    final AsyncValue<DashboardStats> dashboardStatsAsync =
+        ref.watch(dashboardStatsProvider);
+    final AsyncValue<List<Map<String, dynamic>>> topProductsAsync =
+        ref.watch(topProductsProvider);
     final bool isLoading = ref.watch(dashboardLoadingProvider);
     final String? error = ref.watch(dashboardErrorProvider);
 
+    // Watch realtime updates status
+    final bool isConnected = ref.watch(isConnectedProvider);
+    final DateTime? lastUpdateTime = ref.watch(lastUpdateTimeProvider);
+
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
-      body: _buildBody(dashboardStatsAsync, topProductsAsync, isLoading, error),
+      body: Stack(
+        children: <Widget>[
+          _buildBody(dashboardStatsAsync, topProductsAsync, isLoading, error),
+          // مؤشر التحديثات الفورية
+          if (isConnected && lastUpdateTime != null)
+            Positioned(
+              top: 60,
+              right: 16,
+              child: _buildRealtimeIndicator(lastUpdateTime),
+            ),
+        ],
+      ),
     );
   }
 
@@ -166,25 +260,25 @@ class _DashboardTabRiverpodState extends ConsumerState<DashboardTabRiverpod>
 
     return dashboardStatsAsync.when(
       data: (DashboardStats stats) => AdvancedRefreshIndicator(
-          onRefresh: _onRefresh,
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: SlideTransition(
-              position: _slideAnimation,
-              child: CustomScrollView(
-                physics: context.responsiveScrollPhysics,
-                slivers: <Widget>[
-                  _buildSliverAppBar(context),
-                  _buildQuickActions(context),
-                  _buildStatsGrid(context, stats),
-                  _buildProfitChart(context, stats),
-                  _buildTopProducts(context, topProductsAsync),
-                  const SliverToBoxAdapter(child: SizedBox(height: 40)),
-                ],
-              ),
+        onRefresh: _onRefresh,
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: SlideTransition(
+            position: _slideAnimation,
+            child: CustomScrollView(
+              physics: context.responsiveScrollPhysics,
+              slivers: <Widget>[
+                _buildSliverAppBar(context),
+                _buildQuickActions(context),
+                _buildStatsGrid(context, stats),
+                _buildProfitChart(context, stats),
+                _buildTopProducts(context, topProductsAsync),
+                const SliverToBoxAdapter(child: SizedBox(height: 40)),
+              ],
             ),
           ),
         ),
+      ),
       loading: () => _buildShimmerLoading(context),
       error: (Object error, StackTrace? stackTrace) => ErrorStateWidget(
         message: error.toString(),
@@ -196,54 +290,99 @@ class _DashboardTabRiverpodState extends ConsumerState<DashboardTabRiverpod>
     );
   }
 
+  /// بناء مؤشر التحديثات الفورية
+  Widget _buildRealtimeIndicator(DateTime lastUpdateTime) {
+    final Duration timeSinceUpdate = DateTime.now().difference(lastUpdateTime);
+    final String timeText = timeSinceUpdate.inSeconds < 60
+        ? 'منذ ${timeSinceUpdate.inSeconds} ثانية'
+        : 'منذ ${timeSinceUpdate.inMinutes} دقيقة';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.green.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Container(
+            width: 8,
+            height: 8,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            'محدث $timeText',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // Shimmer loading for dashboard
   Widget _buildShimmerLoading(BuildContext context) => CustomScrollView(
-      physics: const NeverScrollableScrollPhysics(),
-      slivers: <Widget>[
-        _buildSliverAppBar(context),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: context.responsivePadding,
-            child: Column(
-              children: [
-                // Quick actions shimmer
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: List.generate(
-                    3,
-                    (index) => Expanded(
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        child: const ShimmerCard(
-                          height: 80,
+        physics: const NeverScrollableScrollPhysics(),
+        slivers: <Widget>[
+          _buildSliverAppBar(context),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: context.responsivePadding,
+              child: Column(
+                children: <Widget>[
+                  // Quick actions shimmer
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: List.generate(
+                      3,
+                      (int index) => Expanded(
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          child: const ShimmerCard(
+                            height: 80,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                SizedBox(height: context.responsiveSpacing),
-                // Stats grid shimmer
-                GridView.count(
-                  crossAxisCount: context.isSmallScreen ? 2 : 4,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: context.responsiveSpacing * 0.8,
-                  crossAxisSpacing: context.responsiveSpacing * 0.8,
-                  childAspectRatio: context.isSmallScreen ? 1.2 : 1.4,
-                  children: List.generate(
-                    4,
-                    (index) => const ShimmerCard(),
+                  SizedBox(height: context.responsiveSpacing),
+                  // Stats grid shimmer
+                  GridView.count(
+                    crossAxisCount: context.isSmallScreen ? 2 : 4,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: context.responsiveSpacing * 0.8,
+                    crossAxisSpacing: context.responsiveSpacing * 0.8,
+                    childAspectRatio: context.isSmallScreen ? 1.2 : 1.4,
+                    children: List.generate(
+                      4,
+                      (int index) => const ShimmerCard(),
+                    ),
                   ),
-                ),
-                SizedBox(height: context.responsiveSpacing),
-                // Chart shimmer
-                const ShimmerCard(height: 300),
-              ],
+                  SizedBox(height: context.responsiveSpacing),
+                  // Chart shimmer
+                  const ShimmerCard(height: 300),
+                ],
+              ),
             ),
           ),
-        ),
-      ],
-    );
+        ],
+      );
 
   SliverAppBar _buildSliverAppBar(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
@@ -314,7 +453,7 @@ class _DashboardTabRiverpodState extends ConsumerState<DashboardTabRiverpod>
                   SizedBox(height: context.responsiveSpacing),
                   ModernQuickActionButton(
                     icon: Icons.inventory,
-                    label: 'إدارة المخزون',
+                    label: 'نموذج المنتج',
                     gradient: const LinearGradient(
                       colors: <Color>[Color(0xFF22C55E), Color(0xFF16A34A)],
                     ),
@@ -325,12 +464,12 @@ class _DashboardTabRiverpodState extends ConsumerState<DashboardTabRiverpod>
                   SizedBox(height: context.responsiveSpacing),
                   ModernQuickActionButton(
                     icon: Icons.add,
-                    label: 'إضافة منتج',
+                    label: 'البيع السريع',
                     gradient: const LinearGradient(
                       colors: <Color>[Color(0xFF8B5CF6), Color(0xFF7C3AED)],
                     ),
                     onTap: () {
-                      widget.onNavigateToTab(3);
+                      widget.onNavigateToTab(1);
                     },
                   ),
                 ],
@@ -360,7 +499,7 @@ class _DashboardTabRiverpodState extends ConsumerState<DashboardTabRiverpod>
                   ),
                   ModernQuickActionButton(
                     icon: Icons.inventory,
-                    label: 'إضافة للمخزون',
+                    label: 'نموذج المنتج',
                     gradient: const LinearGradient(
                       colors: <Color>[Color(0xFF8B5CF6), Color(0xFF7C3AED)],
                     ),
@@ -377,11 +516,11 @@ class _DashboardTabRiverpodState extends ConsumerState<DashboardTabRiverpod>
   Widget _buildStatsGrid(BuildContext context, DashboardStats stats) {
     final AppLocalizations l10n = AppLocalizations.of(context);
 
-    // Calculate trend values (placeholder - would come from historical data)
-    final double totalProfitTrend = stats.totalProfit > 0 ? 12.5 : 0;
-    final double productsValueTrend = stats.totalProductsValue > 0 ? 8.3 : 0;
-    final double todayTrend = stats.todaySales > 0 ? 5.2 : 0;
-    final double monthlyTrend = stats.monthlySales > 0 ? 15.7 : 0;
+    // استخدام الاتجاهات المحسوبة من البيانات التاريخية
+    final double totalProfitTrend = _trends['totalProfitTrend'] ?? 0.0;
+    final double productsValueTrend = _trends['productsValueTrend'] ?? 0.0;
+    final double todayTrend = _trends['todayTrend'] ?? 0.0;
+    final double monthlyTrend = _trends['monthlyTrend'] ?? 0.0;
 
     return SliverPadding(
       padding: context.responsivePadding,
@@ -493,12 +632,21 @@ class _DashboardTabRiverpodState extends ConsumerState<DashboardTabRiverpod>
                       .map((MapEntry<int, Map<String, dynamic>> entry) {
                     final int idx = entry.key;
                     final Map<String, dynamic> product = entry.value;
+
+                    // معالجة آمنة للبيانات
+                    final String productName =
+                        product['name']?.toString() ?? 'منتج غير معروف';
+                    final double profit =
+                        (product['profit'] as num?)?.toDouble() ?? 0.0;
+                    final double profitPercentage =
+                        (product['profitPercentage'] as num?)?.toDouble() ??
+                            0.0;
+
                     return ModernProductProfitCard(
                       rank: idx + 1,
-                      productName: product['name'] as String,
-                      profit: (product['profit'] as num).toDouble(),
-                      profitPercentage:
-                          (product['profitPercentage'] as num).toDouble(),
+                      productName: productName,
+                      profit: profit,
+                      profitPercentage: profitPercentage,
                     );
                   }).toList(),
                 );

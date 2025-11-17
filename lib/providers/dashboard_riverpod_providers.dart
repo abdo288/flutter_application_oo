@@ -1,38 +1,43 @@
 import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:profit_calculator/providers/stream_app_provider.dart';
+
 import '../models/dashboard_stats.dart';
 import '../services/dashboard_service.dart';
-import 'riverpod_provider_wrapper.dart';
+import 'riverpod/stream_inventory_riverpod_provider.dart';
+import 'riverpod/stream_product_riverpod_provider.dart';
 
 /// Riverpod provider for dashboard statistics
 final FutureProvider<DashboardStats> dashboardStatsProvider =
     FutureProvider<DashboardStats>(
   (FutureProviderRef<DashboardStats> ref) async {
-    // Get the existing Provider services through Riverpod
-    final StreamAppProvider appProvider = ref.watch(streamAppProvider);
+    // Get the state directly from providers
+    final ProductsState productsState = ref.watch(productsControllerProvider);
+    final InventoryState inventoryState = ref.watch(inventoryControllerProvider);
 
-    return await DashboardService.calculateDashboardStatsStatic(
-      productProvider: appProvider.productProvider,
-      inventoryProvider: appProvider.inventoryProvider,
+    return await DashboardService.calculateDashboardStatsForStates(
+      productsState: productsState,
+      inventoryState: inventoryState,
     );
   },
-  dependencies: [streamAppProvider],
+  dependencies: <ProviderOrFamily>[productsControllerProvider, inventoryControllerProvider],
 );
 
 /// Riverpod provider for top profitable products
 final FutureProvider<List<Map<String, dynamic>>> topProductsProvider =
     FutureProvider<List<Map<String, dynamic>>>(
   (FutureProviderRef<List<Map<String, dynamic>>> ref) async {
-    final StreamAppProvider appProvider = ref.watch(streamAppProvider);
+    // Get the state directly from providers
+    final ProductsState productsState = ref.watch(productsControllerProvider);
+    final InventoryState inventoryState = ref.watch(inventoryControllerProvider);
 
-    return await DashboardService.getTopProfitableProductsStatic(
-      productProvider: appProvider.productProvider,
-      inventoryProvider: appProvider.inventoryProvider,
+    return await DashboardService.getTopProfitableProductsForStates(
+      productsState: productsState,
+      inventoryState: inventoryState,
       limit: 3,
     );
   },
-  dependencies: [streamAppProvider],
+  dependencies: <ProviderOrFamily>[productsControllerProvider, inventoryControllerProvider],
 );
 
 /// Riverpod provider for dashboard refresh functionality
@@ -50,8 +55,7 @@ final StateProvider<String?> dashboardErrorProvider =
 /// Riverpod provider for dashboard refresh action
 final Provider<DashboardRefreshNotifier> dashboardRefreshNotifierProvider =
     Provider<DashboardRefreshNotifier>(
-        (ProviderRef<DashboardRefreshNotifier> ref) =>
-            DashboardRefreshNotifier(ref));
+        DashboardRefreshNotifier.new);
 
 /// Notifier class for dashboard refresh operations
 class DashboardRefreshNotifier {

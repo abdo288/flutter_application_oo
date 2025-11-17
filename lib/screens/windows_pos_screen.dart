@@ -4,18 +4,24 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:profit_calculator/models/page_result.dart';
 
 import '../dialogs/delete_confirmation_dialog.dart';
 import '../models/cart_item.dart';
+import '../models/eod_report.dart';
 import '../models/product.dart';
-import '../providers/stream_app_provider.dart';
-import '../services/pos_service.dart';
-import '../services/unified_sales_service.dart';
+import '../models/sale.dart';
+import '../providers/pos_riverpod_providers.dart';
+import '../providers/riverpod/stream_app_riverpod_provider.dart';
+// ✅ استخدام النظام المحسن
 import '../services/app_event_bus.dart';
+import '../services/eod_service.dart';
+import '../services/pos_service.dart';
 import '../utils/constants.dart';
 import '../utils/responsive_breakpoints.dart';
 import '../utils/snackbar_utils.dart';
+import '../utils/windows_platform_utils.dart';
 import '../widgets/barcode_scanner_view.dart';
 import '../widgets/pos_product_search_widget.dart';
 import '../widgets/windows_pos_card.dart';
@@ -24,21 +30,20 @@ import '../widgets/windows_pos_card.dart';
 String formatCurrency(int amount) => '${amount.toString()} DZ';
 
 /// شاشة نقطة البيع المحسنة لمنصة Windows
-class WindowsPOSScreen extends StatefulWidget {
+class WindowsPOSScreen extends ConsumerStatefulWidget {
   const WindowsPOSScreen({super.key});
 
   @override
-  State<WindowsPOSScreen> createState() => _WindowsPOSScreenState();
+  ConsumerState<WindowsPOSScreen> createState() => _WindowsPOSScreenState();
 }
 
-class _WindowsPOSScreenState extends State<WindowsPOSScreen>
+class _WindowsPOSScreenState extends ConsumerState<WindowsPOSScreen>
     with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   final TextEditingController _barcodeController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
   final Map<String, TextEditingController> _discountControllers =
       <String, TextEditingController>{};
 
-  bool _isLoading = false;
   bool _showDiscountedOnly = false;
   bool _hasInitialized = false;
 
@@ -55,6 +60,10 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
   late AnimationController _slideController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+
+  // متغيرات إدارة إنهاء اليوم
+  String _currentStep = '';
+  bool _isProcessingEOD = false;
 
   @override
   void initState() {
@@ -123,15 +132,17 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
 
   /// إدارة حالة التوسيع للبطاقات (أكورديون)
   void _handleCardExpansion(String itemId, bool isExpanded) {
-    setState(() {
-      if (isExpanded) {
-        // إذا تم فتح بطاقة، أغلق الباقي
-        _expandedItemId = itemId;
-      } else {
-        // إذا تم إغلاق بطاقة، لا توجد بطاقة مفتوحة
-        _expandedItemId = null;
-      }
-    });
+    if (mounted) {
+      setState(() {
+        if (isExpanded) {
+          // إذا تم فتح بطاقة، أغلق الباقي
+          _expandedItemId = itemId;
+        } else {
+          // إذا تم إغلاق بطاقة، لا توجد بطاقة مفتوحة
+          _expandedItemId = null;
+        }
+      });
+    }
   }
 
   /// ✅ تهيئة البيانات عند فتح الشاشة
@@ -139,24 +150,34 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
     if (!mounted || _hasInitialized) return;
 
     try {
-      final StreamAppProvider appProvider = context.read<StreamAppProvider>();
+      final AppController appController =
+          ref.read(appControllerProvider.notifier);
 
-      // ✅ انتظار تهيئة التطبيق بالكامل
-      if (!appProvider.isInitialized) {
+      // ✅ تبسيط منطق التهيئة - إزالة الحجب الكامل للمحتوى
+      final AppState appState = ref.read(appControllerProvider);
+      if (!appState.isInitialized) {
         debugPrint('🪟 Windows POS: انتظار تهيئة التطبيق...');
-        await appProvider.initializationComplete;
+        try {
+          await appController
+              .waitForInitialization()
+              .timeout(WindowsPlatformUtils.windowsTimeout);
+        } on TimeoutException {
+          WindowsPlatformUtils.handleWindowsError(
+              'Windows POS AppController initialization', 'timeout');
+          // المتابعة حتى لو انتهت المهلة - لا نحجب الواجهة
+        }
       }
 
       // تحسين خاص بـ Windows - إعادة تحميل البيانات
       if (Platform.isWindows) {
         debugPrint('🪟 Windows POS: إعادة تحميل البيانات...');
-        await appProvider.refreshAll();
+        await appController.refreshAll();
         await Future<void>.delayed(const Duration(milliseconds: 500));
       }
 
       // ✅ التأكد من تهيئة CartProvider
       debugPrint('🪟 Windows POS: تهيئة CartProvider...');
-      await appProvider.cartProvider.initialize();
+      // CartNotifier initializes automatically in build()
 
       // ✅ إنشاء جلسة POS مشتركة لجميع المنصات
       _currentSessionId =
@@ -179,21 +200,28 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
 
       // ✅ التأكد من حفظ السلة الحالية في SharedPreferences
       debugPrint('🪟 Windows POS: التأكد من حفظ السلة الحالية...');
-      final List<CartItem> currentCart = appProvider.cartProvider.cart;
-      if (currentCart.isNotEmpty) {
-        debugPrint(
-            '🪟 Windows POS: تم العثور على ${currentCart.length} عنصر في السلة المحلية');
-        // إعادة حفظ السلة للتأكد
-        await appProvider.cartProvider.saveCartManually();
+      if (mounted) {
+        try {
+          final CartState cartState = ref.read(cartStateProvider);
+          final List<CartItem> currentCart = cartState.cart;
+          if (currentCart.isNotEmpty) {
+            debugPrint(
+                '🪟 Windows POS: تم العثور على ${currentCart.length} عنصر في السلة المحلية');
+            // إعادة حفظ السلة للتأكد
+            // CartNotifier saves automatically when items are modified
+          }
+        } catch (e) {
+          debugPrint('❌ خطأ في جلب بيانات السلة: $e');
+        }
       }
 
-      if (appProvider.isInitialized) {
+      if (appState.isInitialized) {
         debugPrint('🔄 تم جلب بيانات POS في Windows POS Screen');
       }
 
       _hasInitialized = true;
     } catch (e) {
-      debugPrint('❌ خطأ في جلب بيانات POS: $e');
+      WindowsPlatformUtils.handleWindowsError('Windows POS data loading', e);
     }
   }
 
@@ -236,7 +264,9 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
 
     // تحديث الواجهة
     if (mounted) {
-      setState(() {});
+      if (mounted) {
+        setState(() {});
+      }
     }
 
     // إظهار إشعار
@@ -255,7 +285,9 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
 
     // تحديث الواجهة
     if (mounted) {
-      setState(() {});
+      if (mounted) {
+        setState(() {});
+      }
     }
 
     // إظهار إشعار
@@ -274,7 +306,9 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
 
     // تحديث الواجهة
     if (mounted) {
-      setState(() {});
+      if (mounted) {
+        setState(() {});
+      }
     }
 
     // إظهار إشعار
@@ -293,7 +327,9 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
 
     // تحديث الواجهة
     if (mounted) {
-      setState(() {});
+      if (mounted) {
+        setState(() {});
+      }
     }
   }
 
@@ -303,7 +339,9 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
 
     // تحديث الواجهة
     if (mounted) {
-      setState(() {});
+      if (mounted) {
+        setState(() {});
+      }
     }
   }
 
@@ -326,7 +364,9 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
 
     // تحديث الواجهة
     if (mounted) {
-      setState(() {});
+      if (mounted) {
+        setState(() {});
+      }
     }
   }
 
@@ -335,15 +375,16 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
     try {
       debugPrint('🔄 بدء تحديث بيانات POS...');
 
-      final StreamAppProvider appProvider = context.read<StreamAppProvider>();
-
       // التأكد من أن التطبيق مهيأ
-      if (!appProvider.isInitialized) {
+      final AppController appController =
+          ref.read(appControllerProvider.notifier);
+      final AppState appState = ref.read(appControllerProvider);
+      if (!appState.isInitialized) {
         debugPrint('⚠️ التطبيق لم يتم تهيئته بعد');
         return;
       }
 
-      await appProvider.refreshAll();
+      await appController.refreshAll();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -401,7 +442,8 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
           in snapshot.docs) {
         final Map<String, dynamic> data = doc.data();
         final String sessionId = doc.id;
-        final List<dynamic> items = data['items'] as List<dynamic>? ?? <dynamic>[];
+        final List<dynamic> items =
+            data['items'] as List<dynamic>? ?? <dynamic>[];
         final String platform = data['platform'] as String? ?? 'Unknown';
         final String lastUpdated = data['lastUpdated']?.toString() ?? 'Unknown';
 
@@ -415,28 +457,25 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
 
   /// ✅ استعادة السلة من Firebase
   Future<void> _loadCartFromFirebase() async {
-    if (_currentSessionId == null) return;
+    if (_currentSessionId == null || !mounted) return;
 
     try {
       final List<CartItem> firebaseCart = await POSService.loadCartFromFirebase(
         sessionId: _currentSessionId!,
       );
 
-      if (firebaseCart.isNotEmpty) {
-        final StreamAppProvider appProvider = context.read<StreamAppProvider>();
-
+      if (firebaseCart.isNotEmpty && mounted) {
         debugPrint('🔄 Firebase: تم العثور على ${firebaseCart.length} عنصر');
-        debugPrint('🔄 المحلي: ${appProvider.cartProvider.cart.length} عنصر');
+        final CartNotifier cartNotifier = ref.read(cartStateProvider.notifier);
+        final CartState cartState = ref.read(cartStateProvider);
+        final List<CartItem> currentCart = cartState.cart;
+        debugPrint('🔄 المحلي: ${currentCart.length} عنصر');
 
-        // ✅ تحسين: فقط إذا كانت السلة المحلية فارغة أو مختلفة
-        final List<CartItem> currentCart = appProvider.cartProvider.cart;
-        if (currentCart.isEmpty || !_areCartsEqual(firebaseCart, currentCart)) {
-          // مسح السلة الحالية
-          appProvider.cartProvider.clearCart();
-
-          // إضافة العناصر من Firebase
+        // ✅ تحسين: فقط إذا كانت السلة المحلية فارغة وكان Firebase يحتوي على عناصر
+        if (currentCart.isEmpty && firebaseCart.isNotEmpty) {
+          // إضافة العناصر من Firebase فقط إذا كانت السلة المحلية فارغة
           for (final CartItem item in firebaseCart) {
-            appProvider.cartProvider.addItem(item);
+            cartNotifier.addItem(item);
           }
 
           if (mounted) {
@@ -444,6 +483,10 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
           }
 
           debugPrint('✅ تم استعادة ${firebaseCart.length} عنصر من Firebase');
+        } else if (currentCart.isNotEmpty &&
+            !_areCartsEqual(firebaseCart, currentCart)) {
+          // إذا كانت السلة المحلية تحتوي على عناصر مختلفة عن Firebase
+          debugPrint('🔄 السلة المحلية مختلفة عن Firebase - تجاهل التحديث');
         } else {
           debugPrint('🔄 السلة المحلية متطابقة مع Firebase - تجاهل التحديث');
         }
@@ -461,12 +504,13 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
 
     _cartFirebaseSubscription = POSService.watchCartFromFirebase(
       sessionId: _currentSessionId!,
-    ).listen((List<CartItem> firebaseCart) {
+    ).listen((List<CartItem> firebaseCart) async {
       if (!mounted) return;
 
       try {
-        final StreamAppProvider appProvider = context.read<StreamAppProvider>();
-        final List<CartItem> currentCart = appProvider.cartProvider.cart;
+        final CartNotifier cartNotifier = ref.read(cartStateProvider.notifier);
+        final CartState cartState = ref.read(cartStateProvider);
+        final List<CartItem> currentCart = cartState.cart;
 
         // ✅ تحسين: تجاهل التحديثات الفارغة أو المتطابقة
         if (firebaseCart.isEmpty && currentCart.isEmpty) {
@@ -481,16 +525,19 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
           debugPrint('🔄 Firebase: ${firebaseCart.length} عنصر');
           debugPrint('🔄 المحلي: ${currentCart.length} عنصر');
 
-          // ✅ تحسين: فقط إذا كان Firebase يحتوي على عناصر
-          if (firebaseCart.isNotEmpty) {
-            // مسح السلة الحالية
-            appProvider.cartProvider.clearCart();
-
-            // إضافة العناصر من Firebase
+          // ✅ تحسين: فقط إذا كان Firebase يحتوي على عناصر والسلة المحلية فارغة
+          if (firebaseCart.isNotEmpty && currentCart.isEmpty) {
+            // إضافة العناصر من Firebase فقط إذا كانت السلة المحلية فارغة
             for (final CartItem item in firebaseCart) {
-              appProvider.cartProvider.addItem(item);
+              cartNotifier.addItem(item);
             }
 
+            if (mounted) {
+              setState(() {});
+            }
+          } else if (firebaseCart.isEmpty && currentCart.isNotEmpty) {
+            // إذا كان Firebase فارغ والسلة المحلية تحتوي على عناصر، مسح السلة المحلية
+            cartNotifier.clearCart();
             if (mounted) {
               setState(() {});
             }
@@ -525,8 +572,8 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
     if (_currentSessionId == null) return;
 
     try {
-      final StreamAppProvider appProvider = context.read<StreamAppProvider>();
-      final List<CartItem> cart = appProvider.cartProvider.cart;
+      final CartState cartState = ref.read(cartStateProvider);
+      final List<CartItem> cart = cartState.cart;
 
       // ✅ حفظ السلة مع معلومات إضافية
       await POSService.saveCartToFirebase(
@@ -545,15 +592,11 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
 
   /// إعداد اختصارات لوحة المفاتيح
   void _setupKeyboardShortcuts() {
-    // Ctrl + Enter لإتمام البيع
     RawKeyboardListener(
       focusNode: FocusNode(),
       onKey: (RawKeyEvent event) {
         if (event is RawKeyDownEvent) {
-          if (event.logicalKey == LogicalKeyboardKey.enter &&
-              HardwareKeyboard.instance.isControlPressed) {
-            _completeSale();
-          } else if (event.logicalKey == LogicalKeyboardKey.escape) {
+          if (event.logicalKey == LogicalKeyboardKey.escape) {
             _clearCart();
           } else if (event.logicalKey == LogicalKeyboardKey.f1) {
             _scanBarcode();
@@ -587,13 +630,11 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
     try {
       debugPrint('🪟 Windows: بدء إضافة منتج للسلة بالاسم: $name');
 
-      final StreamAppProvider appProvider = context.read<StreamAppProvider>();
-      debugPrint('🪟 Windows: تم الحصول على StreamAppProvider');
+      debugPrint('🪟 Windows: تم الحصول على Controllers');
 
       // البحث عن المنتج في المخزون
       final Product? product = await POSService.findProductByName(
-        appProvider.productProvider,
-        appProvider.inventoryProvider,
+        ref,
         name,
       );
 
@@ -608,7 +649,7 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
 
       // التحقق من توفر الكمية
       final int availableQuantity = await POSService.getAvailableQuantityByName(
-        appProvider.inventoryProvider,
+        ref,
         name,
       );
 
@@ -634,7 +675,7 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
 
       // خصم كمية واحدة من المخزون
       await POSService.decreaseInventoryQuantityByName(
-        appProvider.inventoryProvider,
+        ref,
         name,
         1,
       );
@@ -642,7 +683,8 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
       debugPrint('🪟 Windows: تم خصم الكمية من المخزون');
 
       // إضافة العنصر إلى CartProvider (سيتعامل مع المنتجات المكررة تلقائياً)
-      appProvider.cartProvider.addItem(newItem);
+      final CartNotifier cartNotifier = ref.read(cartStateProvider.notifier);
+      cartNotifier.addItem(newItem);
 
       debugPrint('🪟 Windows: تم إضافة المنتج للسلة');
 
@@ -651,7 +693,9 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
 
       // تحديث الواجهة فوراً
       if (mounted) {
-        setState(() {});
+        if (mounted) {
+          setState(() {});
+        }
         debugPrint('🪟 Windows: تم استدعاء setState');
       } else {
         debugPrint('🪟 Windows: تحذير - Widget غير mounted');
@@ -678,15 +722,16 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
     try {
       debugPrint('🪟 Windows: بدء إضافة منتج للسلة: $barcode');
 
-      final StreamAppProvider appProvider = context.read<StreamAppProvider>();
-      debugPrint('🪟 Windows: تم الحصول على StreamAppProvider');
+      debugPrint('🪟 Windows: تم الحصول على Controllers');
 
+      final CartNotifier cartNotifier = ref.read(cartStateProvider.notifier);
+      final CartState cartState = ref.read(cartStateProvider);
+      final List<CartItem> currentCart = cartState.cart;
       final CartItem? cartItem =
           await POSService.addProductToCartWithValidation(
-        productProvider: appProvider.productProvider,
-        inventoryProvider: appProvider.inventoryProvider,
+        ref: ref,
         barcode: barcode,
-        currentCart: List<CartItem>.from(appProvider.cartProvider.cart),
+        currentCart: List<CartItem>.from(currentCart),
       );
 
       debugPrint(
@@ -701,28 +746,32 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
 
         // تحديث المخزون فوراً عند الإضافة - نخصم 1 فقط (الكمية المضافة)
         await POSService.decreaseInventoryQuantity(
-          appProvider.inventoryProvider,
+          ref,
           barcode,
           1, // ✓ دائماً نخصم 1 فقط عند الإضافة
         );
 
         debugPrint('🪟 Windows: تم تحديث المخزون، بدء إضافة للسلة');
-        debugPrint(
-            '🪟 Windows: حجم السلة قبل الإضافة: ${appProvider.cartProvider.cart.length}');
+        final CartState cartState = ref.read(cartStateProvider);
+        final int currentCartLength = cartState.itemCount;
+        debugPrint('🪟 Windows: حجم السلة قبل الإضافة: $currentCartLength');
 
         // إضافة العنصر إلى CartProvider
-        appProvider.cartProvider.addItem(cartItem);
+        cartNotifier.addItem(cartItem);
 
         debugPrint('🪟 Windows: تم إضافة العنصر إلى CartProvider');
-        debugPrint(
-            '🪟 Windows: حجم السلة بعد الإضافة: ${appProvider.cartProvider.cart.length}');
+        final CartState newCartState = ref.read(cartStateProvider);
+        final int newCartLength = newCartState.itemCount;
+        debugPrint('🪟 Windows: حجم السلة بعد الإضافة: $newCartLength');
 
         // ✅ حفظ السلة في Firebase
         await _saveCartToFirebase();
 
         // تحديث الواجهة فوراً (مثل Android)
         if (mounted) {
-          setState(() {});
+          if (mounted) {
+            setState(() {});
+          }
           debugPrint('🪟 Windows: تم استدعاء setState');
         } else {
           debugPrint('🪟 Windows: تحذير - Widget غير mounted');
@@ -754,8 +803,6 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
   /// تحديث كمية منتج في السلة
   Future<void> _updateQuantity(CartItem item, int newQuantity) async {
     try {
-      final StreamAppProvider appProvider = context.read<StreamAppProvider>();
-
       // الحصول على الكمية الحالية في السلة
       final int currentQuantity = item.quantity;
       final int quantityDifference = newQuantity - currentQuantity;
@@ -766,7 +813,7 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
       // التحقق من توفر الكمية في المخزون (فقط إذا كانت الزيادة)
       if (quantityDifference > 0) {
         final int availableQuantity = await POSService.getAvailableQuantity(
-          appProvider.inventoryProvider,
+          ref,
           item.barcode,
         );
 
@@ -783,27 +830,31 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
       if (quantityDifference > 0) {
         // زيادة الكمية - نخصم من المخزون
         await POSService.decreaseInventoryQuantity(
-          appProvider.inventoryProvider,
+          ref,
           item.barcode,
           quantityDifference,
         );
       } else {
         // تقليل الكمية - نضيف للمخزون
         await POSService.increaseInventoryQuantity(
-          appProvider.inventoryProvider,
+          ref,
           item.barcode,
           -quantityDifference, // نضيف القيمة المطلقة
         );
       }
 
       // تحديث الكمية في السلة
-      appProvider.cartProvider.updateQuantityForItem(item, newQuantity);
+      final CartNotifier cartNotifier = ref.read(cartStateProvider.notifier);
+      cartNotifier.updateQuantity(item.productId, newQuantity,
+          discount: item.discount);
 
       // ✅ حفظ السلة في Firebase
       await _saveCartToFirebase();
 
       // إعادة بناء الواجهة فوراً
-      setState(() {});
+      if (mounted) {
+        setState(() {});
+      }
 
       SnackbarUtils.showSuccess(
         context,
@@ -817,11 +868,9 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
   /// زيادة كمية منتج في السلة
   Future<void> _increaseQuantity(CartItem item) async {
     try {
-      final StreamAppProvider appProvider = context.read<StreamAppProvider>();
-
       // التحقق من توفر الكمية في المخزون
       final int availableQuantity = await POSService.getAvailableQuantity(
-        appProvider.inventoryProvider,
+        ref,
         item.barcode,
       );
 
@@ -832,20 +881,24 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
 
       // خصم كمية من المخزون
       await POSService.decreaseInventoryQuantity(
-        appProvider.inventoryProvider,
+        ref,
         item.barcode,
         1,
       );
 
       // زيادة الكمية في السلة - استخدام الطريقة الجديدة
-      appProvider.cartProvider.updateQuantityForItem(item, item.quantity + 1);
+      final CartNotifier cartNotifier = ref.read(cartStateProvider.notifier);
+      cartNotifier.updateQuantity(item.productId, item.quantity + 1,
+          discount: item.discount);
 
       // ✅ حفظ السلة في Firebase
       await _saveCartToFirebase();
 
       // تحديث الواجهة
       if (mounted) {
-        setState(() {});
+        if (mounted) {
+          setState(() {});
+        }
       }
 
       SnackbarUtils.showSuccess(context, 'تم زيادة كمية ${item.name}');
@@ -857,25 +910,27 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
   /// تقليل كمية منتج في السلة
   Future<void> _decreaseQuantity(CartItem item) async {
     try {
-      final StreamAppProvider appProvider = context.read<StreamAppProvider>();
-
       if (item.quantity > 1) {
         // إرجاع كمية واحدة إلى المخزون
         await POSService.increaseInventoryQuantity(
-          appProvider.inventoryProvider,
+          ref,
           item.barcode,
           1,
         );
 
         // تقليل الكمية في السلة - استخدام الطريقة الجديدة
-        appProvider.cartProvider.updateQuantityForItem(item, item.quantity - 1);
+        final CartNotifier cartNotifier = ref.read(cartStateProvider.notifier);
+        cartNotifier.updateQuantity(item.productId, item.quantity - 1,
+            discount: item.discount);
 
         // ✅ حفظ السلة في Firebase
         await _saveCartToFirebase();
 
         // تحديث الواجهة
         if (mounted) {
-          setState(() {});
+          if (mounted) {
+            setState(() {});
+          }
         }
 
         SnackbarUtils.showSuccess(context, 'تم تقليل كمية ${item.name}');
@@ -890,12 +945,10 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
 
   /// حذف منتج من السلة
   Future<void> _removeItem(CartItem item) async {
-    final StreamAppProvider appProvider = context.read<StreamAppProvider>();
-
     try {
       // إرجاع الكمية إلى المخزون فوراً
       await POSService.increaseInventoryQuantity(
-        appProvider.inventoryProvider,
+        ref,
         item.barcode,
         item.quantity,
       );
@@ -903,7 +956,8 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
       SnackbarUtils.showError(context, 'خطأ في إرجاع الكمية للمخزون: $e');
     }
 
-    appProvider.cartProvider.removeItemByObject(item);
+    final CartNotifier cartNotifier = ref.read(cartStateProvider.notifier);
+    cartNotifier.removeItem(item.productId, discount: item.discount);
 
     // ✅ حفظ السلة في Firebase
     await _saveCartToFirebase();
@@ -932,8 +986,8 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
 
   /// مسح السلة
   Future<void> _clearCart() async {
-    final StreamAppProvider appProvider = context.read<StreamAppProvider>();
-    appProvider.cartProvider.clearCart();
+    final CartNotifier cartNotifier = ref.read(cartStateProvider.notifier);
+    cartNotifier.clearCart();
 
     // ✅ حفظ السلة في Firebase
     await _saveCartToFirebase();
@@ -942,106 +996,64 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
     SnackbarUtils.showInfo(context, 'تم مسح السلة');
   }
 
-  /// إتمام عملية البيع
-  Future<void> _completeSale() async {
-    final StreamAppProvider appProvider = context.read<StreamAppProvider>();
-    if (appProvider.cartProvider.isEmpty) {
-      SnackbarUtils.showError(context, 'السلة فارغة');
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final List<CartItem> snapshotCart =
-          List<CartItem>.from(appProvider.cartProvider.cart);
-      SnackbarUtils.showSuccess(context, 'جارٍ حفظ عملية البيع...');
-      _clearCart();
-      final String saleId = await UnifiedSalesService.completeCartSaleStatic(
-        productProvider: appProvider.productProvider,
-        inventoryProvider: appProvider.inventoryProvider,
-        cart: snapshotCart,
-      );
-
-      _showSaleDetails(saleId);
-    } catch (e) {
-      SnackbarUtils.showError(context, 'تعذر حفظ عملية البيع، تمت إعادة السلة');
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  /// عرض تفاصيل البيع
-  void _showSaleDetails(String saleId) {
-    showDialog<void>(
-      context: context,
-      builder: (BuildContext context) => AlertDialog(
-        title: const Text('تم إتمام البيع'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text('رقم العملية: $saleId'),
-            const SizedBox(height: 8),
-            Text('المبلغ الإجمالي: ${formatCurrency(_getTotalAmount())}'),
-            Text('الربح: ${formatCurrency(_getTotalProfit())}'),
-            const Text('طريقة الدفع: نقدي'),
-          ],
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () {
-              if (Navigator.of(context).canPop()) {
-                Navigator.of(context).pop();
-              }
-            },
-            child: const Text('موافق'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// حساب المبلغ الإجمالي
-  int _getTotalAmount() {
-    final StreamAppProvider appProvider = context.read<StreamAppProvider>();
-    return appProvider.cartProvider.getTotalAmount();
-  }
-
-  /// حساب الربح الإجمالي
-  int _getTotalProfit() {
-    final StreamAppProvider appProvider = context.read<StreamAppProvider>();
-    return appProvider.cartProvider.getTotalProfit();
-  }
-
   /// تطبيق الخصم على منتج
   Future<void> _applyDiscount(CartItem item, String value) async {
+    debugPrint('🏪 WindowsPOSScreen - تطبيق خصم');
+    debugPrint('🏪 المنتج: ${item.name}');
+    debugPrint('🏪 معرف المنتج: ${item.productId}');
+    debugPrint('🏪 قيمة الخصم المدخلة: $value');
+
     final int? discount = int.tryParse(value);
     if (discount != null && discount >= 0) {
-      final StreamAppProvider appProvider = context.read<StreamAppProvider>();
-      appProvider.cartProvider.applyDiscountToItem(item, discount);
+      debugPrint('🏪 تم تحويل الخصم إلى رقم: $discount');
+
+      final CartNotifier cartNotifier = ref.read(cartStateProvider.notifier);
+      // استخدام applyDiscountToItem بدلاً من updateQuantity
+      cartNotifier.applyDiscountToItem(item, discount);
 
       // ✅ حفظ السلة في Firebase
       await _saveCartToFirebase();
 
       // إعادة بناء الواجهة فوراً
-      setState(() {});
+      if (mounted) {
+        setState(() {});
+      }
 
       SnackbarUtils.showSuccess(context, 'تم تطبيق الخصم: $discount دينار');
     } else {
+      debugPrint('❌ قيمة الخصم غير صحيحة: $value');
       SnackbarUtils.showError(context, 'قيمة الخصم غير صحيحة');
     }
   }
 
+  /// إلغاء الخصم على منتج
+  Future<void> _removeDiscount(CartItem item) async {
+    debugPrint('🏪 WindowsPOSScreen - إلغاء خصم');
+    debugPrint('🏪 المنتج: ${item.name}');
+    debugPrint('🏪 معرف المنتج: ${item.productId}');
+    debugPrint('🏪 الخصم الحالي: ${item.discount}');
+    debugPrint('🏪 الكمية: ${item.quantity}');
+
+    final CartNotifier cartNotifier = ref.read(cartStateProvider.notifier);
+    cartNotifier.removeDiscountFromItem(item);
+
+    // ✅ حفظ السلة في Firebase
+    await _saveCartToFirebase();
+
+    // إعادة بناء الواجهة فوراً
+    if (mounted) {
+      setState(() {});
+    }
+
+    SnackbarUtils.showSuccess(context, 'تم إلغاء الخصم');
+  }
+
   /// تنظيف controllers غير المستخدمة
   void _cleanupUnusedControllers() {
-    final StreamAppProvider appProvider = context.read<StreamAppProvider>();
-    final List<String> currentKeys = appProvider.cartProvider.cart
-        .map((CartItem item) => '${item.productId}_${item.discount}_${item.quantity}')
+    final CartState cartState = ref.read(cartStateProvider);
+    final List<String> currentKeys = cartState.cart
+        .map((CartItem item) =>
+            '${item.productId}_${item.discount}_${item.quantity}')
         .toList();
 
     final List<String> keysToRemove = <String>[];
@@ -1145,14 +1157,16 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
         ),
         actions: <Widget>[
           // زر فلترة المنتجات المخصومة
-          if (context.watch<StreamAppProvider>().cartProvider.isNotEmpty)
+          if (ref.read(cartStateProvider).cart.isNotEmpty)
             Container(
               margin: const EdgeInsets.only(right: 8),
               child: IconButton(
                 onPressed: () {
-                  setState(() {
-                    _showDiscountedOnly = !_showDiscountedOnly;
-                  });
+                  if (mounted) {
+                    setState(() {
+                      _showDiscountedOnly = !_showDiscountedOnly;
+                    });
+                  }
                 },
                 icon: Icon(
                   _showDiscountedOnly
@@ -1169,7 +1183,7 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
                 ),
               ),
             ),
-          if (context.watch<StreamAppProvider>().cartProvider.isNotEmpty)
+          if (ref.read(cartStateProvider).cart.isNotEmpty)
             Container(
               margin: const EdgeInsets.only(right: 8),
               child: IconButton(
@@ -1195,50 +1209,83 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
               ),
             ),
           ),
+          // زر إنهاء اليوم
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            child: ElevatedButton.icon(
+              onPressed: _isProcessingEOD ? null : _showEndOfDayConfirmation,
+              icon: _isProcessingEOD
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Icon(Icons.event_available, color: Colors.white),
+              label: Text(
+                _isProcessingEOD ? 'جاري المعالجة...' : 'إنهاء اليوم',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepOrange,
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 2,
+              ),
+            ),
+          ),
         ],
       );
 
   /// بناء الإحصائيات السريعة
-  Widget _buildQuickStats() => Consumer<StreamAppProvider>(
-      builder: (context, appProvider, child) {
-        return context.shouldUseVerticalLayout
-            ? Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  _buildStatChip(
-                    icon: Icons.shopping_cart,
-                    value: '${appProvider.cartProvider.itemCount}',
-                    label: 'منتج',
-                    color: Colors.blue,
+  Widget _buildQuickStats() => Consumer(
+        builder: (BuildContext context, WidgetRef ref, Widget? child) =>
+            context.shouldUseVerticalLayout
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      _buildStatChip(
+                        icon: Icons.shopping_cart,
+                        value: '${ref.read(cartStateProvider).cart.length}',
+                        label: 'منتج',
+                        color: Colors.blue,
+                      ),
+                      SizedBox(height: context.responsiveSpacing * 0.5),
+                      _buildStatChip(
+                        icon: Icons.attach_money,
+                        value: formatCurrency(ref.read(totalAmountProvider)),
+                        label: 'المجموع',
+                        color: Colors.green,
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: <Widget>[
+                      _buildStatChip(
+                        icon: Icons.shopping_cart,
+                        value: '${ref.read(cartStateProvider).cart.length}',
+                        label: 'منتج',
+                        color: Colors.blue,
+                      ),
+                      SizedBox(width: context.responsiveSpacing * 0.8),
+                      _buildStatChip(
+                        icon: Icons.attach_money,
+                        value: formatCurrency(ref.read(totalAmountProvider)),
+                        label: 'المجموع',
+                        color: Colors.green,
+                      ),
+                    ],
                   ),
-                  SizedBox(height: context.responsiveSpacing * 0.5),
-                  _buildStatChip(
-                    icon: Icons.attach_money,
-                    value: formatCurrency(_getTotalAmount()),
-                    label: 'المجموع',
-                    color: Colors.green,
-                  ),
-                ],
-              )
-            : Row(
-                children: <Widget>[
-                  _buildStatChip(
-                    icon: Icons.shopping_cart,
-                    value: '${appProvider.cartProvider.itemCount}',
-                    label: 'منتج',
-                    color: Colors.blue,
-                  ),
-                  SizedBox(width: context.responsiveSpacing * 0.8),
-                  _buildStatChip(
-                    icon: Icons.attach_money,
-                    value: formatCurrency(_getTotalAmount()),
-                    label: 'المجموع',
-                    color: Colors.green,
-                  ),
-                ],
-              );
-      },
-    );
+      );
 
   /// بناء شريط إحصائية
   Widget _buildStatChip({
@@ -1291,14 +1338,14 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
 
             // المحتوى الرئيسي
             Expanded(
-              child: Consumer<StreamAppProvider>(
-                builder: (BuildContext context, StreamAppProvider appProvider, Widget? child) => appProvider.cartProvider.isEmpty
-                      ? _buildEmptyState()
-                      : _buildCartGrid(),
+              child: Consumer(
+                builder: (BuildContext context, WidgetRef ref, Widget? child) =>
+                    (ref.read(cartStateProvider).isEmpty)
+                        ? _buildEmptyState()
+                        : _buildCartGrid(),
               ),
             ),
 
-            // شريط إتمام البيع المحسن
             _buildEnhancedCheckoutSection(),
           ],
         )
@@ -1316,14 +1363,15 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
 
                   // المحتوى الرئيسي
                   Expanded(
-                    child: Consumer<StreamAppProvider>(
-                      builder: (BuildContext context, StreamAppProvider appProvider, Widget? child) => appProvider.cartProvider.isEmpty
-                            ? _buildEmptyState()
-                            : _buildCartGrid(),
+                    child: Consumer(
+                      builder: (BuildContext context, WidgetRef ref,
+                              Widget? child) =>
+                          (ref.read(cartStateProvider).isEmpty)
+                              ? _buildEmptyState()
+                              : _buildCartGrid(),
                     ),
                   ),
 
-                  // شريط إتمام البيع المحسن
                   _buildEnhancedCheckoutSection(),
                 ],
               ),
@@ -1467,22 +1515,23 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
               ),
             ),
             const SizedBox(height: 12),
-            Consumer<StreamAppProvider>(
-              builder: (BuildContext context, StreamAppProvider appProvider, Widget? child) => Column(
-                  children: [
-                    _buildSummaryRow(
-                        'المنتجات:', '${appProvider.cartProvider.itemCount}'),
-                    _buildSummaryRow('الكمية الإجمالية:',
-                        '${appProvider.cartProvider.getTotalQuantity()}'),
-                    _buildSummaryRow(
-                        'الربح:', formatCurrency(_getTotalProfit())),
-                  ],
-                ),
+            Consumer(
+              builder: (BuildContext context, WidgetRef ref, Widget? child) =>
+                  Column(
+                children: <Widget>[
+                  _buildSummaryRow('المنتجات:',
+                      '${ref.read(cartStateProvider).cart.length}'),
+                  _buildSummaryRow('الكمية الإجمالية:',
+                      '${ref.read(cartStateProvider).cart.fold<int>(0, (int sum, CartItem item) => sum + item.quantity)}'),
+                  _buildSummaryRow(
+                      'الربح:', formatCurrency(ref.read(totalProfitProvider))),
+                ],
+              ),
             ),
             const Divider(),
             _buildSummaryRow(
               'المجموع النهائي:',
-              formatCurrency(_getTotalAmount()),
+              formatCurrency(ref.read(totalAmountProvider)),
               isTotal: true,
             ),
           ],
@@ -1645,52 +1694,54 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
       );
 
   /// بناء شبكة المنتجات في السلة
-  Widget _buildCartGrid() => Consumer<StreamAppProvider>(
-      builder: (context, appProvider, child) {
-        // فلترة المنتجات حسب الخصم
-        final List<CartItem> filteredCart = _showDiscountedOnly
-            ? appProvider.cartProvider.cart
-                .where((item) => item.discount > 0)
-                .toList()
-            : appProvider.cartProvider.cart;
+  Widget _buildCartGrid() => Consumer(
+        builder: (BuildContext context, WidgetRef ref, Widget? child) {
+          final CartState cartState = ref.watch(cartStateProvider);
+          // فلترة المنتجات حسب الخصم
+          final List<CartItem> filteredCart = _showDiscountedOnly
+              ? cartState.cart
+                  .where((CartItem item) => item.discount > 0)
+                  .toList()
+              : (cartState.cart);
 
-        if (filteredCart.isEmpty && _showDiscountedOnly) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                Icon(
-                  Icons.discount_outlined,
-                  size: 64,
-                  color: Colors.grey[400],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'لا توجد منتجات مخصومة',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.grey[600],
+          if (filteredCart.isEmpty && _showDiscountedOnly) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  Icon(
+                    Icons.discount_outlined,
+                    size: 64,
+                    color: Colors.grey[400],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  Text(
+                    'لا توجد منتجات مخصومة',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: ListView.separated(
+              physics: const BouncingScrollPhysics(),
+              itemCount: filteredCart.length,
+              separatorBuilder: (BuildContext context, int index) =>
+                  const SizedBox(height: 8),
+              itemBuilder: (BuildContext context, int index) {
+                final CartItem item = filteredCart[index];
+                return _buildEnhancedCartItemCard(item, index);
+              },
             ),
           );
-        }
-
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: ListView.separated(
-            physics: const BouncingScrollPhysics(),
-            itemCount: filteredCart.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 8),
-            itemBuilder: (BuildContext context, int index) {
-              final CartItem item = filteredCart[index];
-              return _buildEnhancedCartItemCard(item, index);
-            },
-          ),
-        );
-      },
-    );
+        },
+      );
 
   /// بناء بطاقة منتج محسنة في السلة
   Widget _buildEnhancedCartItemCard(CartItem item, int index) => WindowsPOSCard(
@@ -1707,6 +1758,7 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
         onRemove: () => _confirmRemoveItem(item),
         onDiscountChanged: (double discount) =>
             _applyDiscount(item, discount.toInt().toString()),
+        onRemoveDiscount: () => _removeDiscount(item),
         isExpanded: _expandedItemId == 'cart_item_$index',
         onExpansionChanged: (bool isExpanded) =>
             _handleCardExpansion('cart_item_$index', isExpanded),
@@ -1714,7 +1766,6 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
         onDecreaseQuantity: () => _decreaseQuantity(item),
       );
 
-  /// بناء قسم إتمام البيع المحسن
   Widget _buildEnhancedCheckoutSection() => Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
@@ -1746,14 +1797,16 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Consumer<StreamAppProvider>(
-                    builder: (BuildContext context, StreamAppProvider appProvider, Widget? child) => Text(
-                        '${appProvider.cartProvider.itemCount} منتج • ${appProvider.cartProvider.getTotalQuantity()} كمية',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
+                  Consumer(
+                    builder:
+                        (BuildContext context, WidgetRef ref, Widget? child) =>
+                            Text(
+                      '${ref.read(cartStateProvider).cart.length} منتج • ${ref.read(cartStateProvider).cart.fold<int>(0, (int sum, CartItem item) => sum + item.quantity)} كمية',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
                       ),
+                    ),
                   ),
                 ],
               ),
@@ -1780,7 +1833,7 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
                     ),
                   ),
                   Text(
-                    formatCurrency(_getTotalAmount()),
+                    formatCurrency(ref.read(totalAmountProvider)),
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -1790,51 +1843,878 @@ class _WindowsPOSScreenState extends State<WindowsPOSScreen>
                 ],
               ),
             ),
+          ],
+        ),
+      );
 
-            const SizedBox(width: 20),
+  /// عرض شاشة تأكيد إنهاء اليوم
+  Future<void> _showEndOfDayConfirmation() async {
+    final List<CartItem> cartItems = ref.read(cartStateProvider).cart;
+    final bool hasUnsavedItems = cartItems.isNotEmpty;
 
-            // زر إتمام البيع
-            SizedBox(
-              width: 200,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _completeSale,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppConstants.primaryColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+    // جلب الإحصائيات السريعة
+    final Map<String, dynamic> todayStats = await _getTodayQuickStats();
+
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Row(
+          children: <Widget>[
+            Icon(Icons.warning_amber, color: Colors.orange, size: 32),
+            SizedBox(width: 12),
+            Text('إنهاء اليوم'),
+          ],
+        ),
+        content: SizedBox(
+          width: 450,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Text(
+                'أنت على وشك إنهاء يوم العمل وإغلاق دفتر المبيعات.',
+                style: TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+
+              // تحذيرات
+              if (hasUnsavedItems)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade200),
                   ),
-                  elevation: 4,
+                  child: Row(
+                    children: <Widget>[
+                      const Icon(Icons.error, color: Colors.red),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'تحذير: لديك ${cartItems.length} منتج في السلة لم يتم حفظه!',
+                          style: TextStyle(color: Colors.red.shade900),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              const SizedBox(height: 16),
+
+              // معاينة سريعة لليوم
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  children: <Widget>[
+                    _buildQuickStat(
+                      'إجمالي المبيعات اليوم',
+                      '${todayStats['totalSales'] as int} DZ',
+                      Icons.attach_money,
+                    ),
+                    const Divider(height: 16),
+                    _buildQuickStat(
+                      'عدد المنتجات المباعة',
+                      '${todayStats['totalItems'] as int}',
+                      Icons.shopping_cart,
+                    ),
+                    const Divider(height: 16),
+                    _buildQuickStat(
+                      'آخر عملية بيع',
+                      (todayStats['lastSaleTime'] as String?) ?? 'لا توجد',
+                      Icons.access_time,
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // ملاحظة مهمة
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: <Widget>[
-                    if (_isLoading)
-                      const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    else
-                      const Icon(Icons.check_circle),
-                    const SizedBox(width: 8),
-                    Text(
-                      _isLoading ? 'جاري المعالجة...' : 'إتمام البيع',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                    Icon(Icons.info_outline, color: Colors.orange.shade700),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'سيتم إنشاء تقرير نهاية اليوم وإعادة تصفير العدادات',
+                        style: TextStyle(fontSize: 13),
                       ),
                     ),
                   ],
                 ),
               ),
+            ],
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء', style: TextStyle(fontSize: 16)),
+          ),
+          if (hasUnsavedItems)
+            ElevatedButton.icon(
+              onPressed: () async {
+                Navigator.pop(context, false);
+                // حفظ السلة أولاً
+                await _quickSave();
+                // ثم إعادة فتح الحوار
+                _showEndOfDayConfirmation();
+              },
+              icon: const Icon(Icons.save),
+              label: const Text('حفظ السلة أولاً'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+              ),
+            ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.check_circle),
+            label: const Text('إنهاء اليوم', style: TextStyle(fontSize: 16)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.deepOrange,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _performEndOfDay();
+    }
+  }
+
+  /// بناء إحصائية سريعة
+  Widget _buildQuickStat(String label, String value, IconData icon) => Row(
+        children: <Widget>[
+          Icon(icon, color: Colors.blue.shade700, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(label, style: const TextStyle(fontSize: 14)),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue.shade900,
+            ),
+          ),
+        ],
+      );
+
+  /// جلب الإحصائيات السريعة لليوم
+  Future<Map<String, dynamic>> _getTodayQuickStats() async {
+    try {
+      final DateTime now = DateTime.now();
+      final DateTime startOfDay = DateTime(now.year, now.month, now.day);
+      final DateTime endOfDay = startOfDay.add(const Duration(days: 1));
+
+      final List<Sale> todaySales = await POSService.getCombinedSalesPage(
+        startDate: startOfDay,
+        endDate: endOfDay,
+      ).then((PageResult<Sale> page) => page.items);
+
+      final double totalSales = todaySales.fold(
+          0.0, (double sum, Sale sale) => sum + sale.totalAmount);
+      final int totalItems =
+          todaySales.fold(0, (int sum, Sale sale) => sum + sale.totalQuantity);
+
+      String lastSaleTime = 'لا توجد';
+      if (todaySales.isNotEmpty) {
+        final DateTime lastSale = todaySales.first.saleDate;
+        lastSaleTime =
+            '${lastSale.hour.toString().padLeft(2, '0')}:${lastSale.minute.toString().padLeft(2, '0')}';
+      }
+
+      return <String, dynamic>{
+        'totalSales': totalSales.toInt(),
+        'totalItems': totalItems,
+        'lastSaleTime': lastSaleTime,
+      };
+    } catch (e) {
+      debugPrint('❌ خطأ في جلب الإحصائيات السريعة: $e');
+      return <String, dynamic>{
+        'totalSales': 0,
+        'totalItems': 0,
+        'lastSaleTime': 'لا توجد',
+      };
+    }
+  }
+
+  /// حفظ سريع للسلة
+  Future<void> _quickSave() async {
+    try {
+      final List<CartItem> cartItems = ref.read(cartStateProvider).cart;
+      if (cartItems.isNotEmpty) {
+        // حفظ السلة في Firebase
+        await POSService.saveCartToFirebase(
+          cart: cartItems,
+          sessionId: _currentSessionId ?? 'default_session',
+        );
+        SnackbarUtils.showSuccess(context, 'تم حفظ السلة بنجاح');
+      }
+    } catch (e) {
+      debugPrint('❌ خطأ في حفظ السلة: $e');
+      SnackbarUtils.showError(context, 'فشل في حفظ السلة');
+    }
+  }
+
+  /// تنفيذ عملية إنهاء اليوم
+  Future<void> _performEndOfDay() async {
+    setState(() {
+      _isProcessingEOD = true;
+    });
+
+    // عرض مؤشر التحميل
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) => WillPopScope(
+        onWillPop: () async => false,
+        child: Center(
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'جارٍ إنهاء اليوم...',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _currentStep,
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      // الخطوة 1: التحقق من السلة
+      setState(() => _currentStep = 'التحقق من السلة...');
+      final List<CartItem> cartItems = ref.read(cartStateProvider).cart;
+      if (cartItems.isNotEmpty) {
+        await _quickSave();
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+
+      // الخطوة 2: إنشاء تقرير نهاية اليوم
+      setState(() => _currentStep = 'إنشاء تقرير نهاية اليوم...');
+      final List<CartItem> currentCartItems = ref.read(cartStateProvider).cart;
+      final EODReport report = await EODService.generateEODReport(
+        employeeId: 'windows_user',
+        employeeName: 'مستخدم Windows',
+        currentCartItems: currentCartItems, // تمرير السلة الحالية
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+
+      // الخطوة 3: حفظ التقرير محلياً
+      setState(() => _currentStep = 'حفظ التقرير...');
+      await EODService.saveEODReportLocally(report);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+
+      // الخطوة 4: المزامنة مع الخادم
+      setState(() => _currentStep = 'المزامنة مع الخادم...');
+      await EODService.syncEODReport(report);
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+
+      // الخطوة 5: إنشاء نسخة احتياطية
+      setState(() => _currentStep = 'إنشاء نسخة احتياطية...');
+      await EODService.createBackup(report);
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+
+      // إغلاق مؤشر التحميل
+      Navigator.pop(context);
+
+      // عرض تقرير نهاية اليوم
+      await _showEODReport(report);
+    } catch (e) {
+      // إغلاق مؤشر التحميل
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      // عرض رسالة خطأ مع خيارات إضافية
+      showDialog<void>(
+        context: context,
+        builder: (BuildContext context) => AlertDialog(
+          title: const Row(
+            children: <Widget>[
+              Icon(Icons.error, color: Colors.red),
+              SizedBox(width: 12),
+              Text('فشل إنهاء اليوم'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Text('حدث خطأ أثناء إنهاء اليوم:'),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Text(
+                  e.toString(),
+                  style: TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 12,
+                    color: Colors.red.shade800,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text('البيانات محفوظة محلياً وسيتم إعادة المحاولة لاحقاً.'),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                // إعادة تعيين الحالة
+                setState(() {
+                  _isProcessingEOD = false;
+                });
+              },
+              child: const Text('حسناً'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                // إعادة تعيين الحالة
+                setState(() {
+                  _isProcessingEOD = false;
+                });
+                // إعادة المحاولة
+                _performEndOfDay();
+              },
+              child: const Text('إعادة المحاولة'),
             ),
           ],
         ),
       );
+    } finally {
+      // التأكد من إعادة تعيين الحالة حتى لو حدث خطأ في العرض
+      if (mounted) {
+        setState(() {
+          _isProcessingEOD = false;
+        });
+      }
+    }
+  }
+
+  /// عرض تقرير نهاية اليوم
+  Future<void> _showEODReport(EODReport report) async {
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext context) => Dialog(
+        child: Container(
+          width: 800,
+          constraints: const BoxConstraints(maxHeight: 700),
+          child: Column(
+            children: <Widget>[
+              // رأس التقرير
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: <Color>[Colors.deepOrange, Colors.orange.shade600],
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(4),
+                    topRight: Radius.circular(4),
+                  ),
+                ),
+                child: Row(
+                  children: <Widget>[
+                    const Icon(Icons.assignment_turned_in,
+                        color: Colors.white, size: 48),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          const Text(
+                            'تقرير نهاية اليوم',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            _formatDate(report.date),
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        'تقرير #${report.reportNumber}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // محتوى التقرير
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      // الإحصائيات الرئيسية
+                      Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: _buildStatCard(
+                              'إجمالي المبيعات',
+                              '${report.totalSales.toStringAsFixed(2)} DZ',
+                              Icons.attach_money,
+                              Colors.green,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildStatCard(
+                              'المنتجات المباعة',
+                              '${report.totalItemsSold}',
+                              Icons.shopping_cart,
+                              Colors.blue,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildStatCard(
+                              'الربح الإجمالي',
+                              '${report.totalProfit.toStringAsFixed(2)} DZ',
+                              Icons.trending_up,
+                              Colors.orange,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // معلومات إضافية
+                      Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: _buildInfoCard(
+                              'عدد المنتجات المختلفة',
+                              '${report.uniqueProducts}',
+                              Icons.inventory_2,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildInfoCard(
+                              'متوسط سعر المنتج',
+                              '${(report.totalSales / report.totalItemsSold).toStringAsFixed(2)} DZ',
+                              Icons.calculate,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 24),
+                      const Divider(),
+                      const SizedBox(height: 16),
+
+                      // أكثر 10 منتجات مبيعاً
+                      const Text(
+                        'أكثر المنتجات مبيعاً اليوم',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      ...report.topProducts
+                          .take(10)
+                          .toList()
+                          .asMap()
+                          .entries
+                          .map((MapEntry<int, TopProduct> entry) {
+                        final int index = entry.key;
+                        final TopProduct product = entry.value;
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: index < 3
+                                ? Colors.amber.shade50
+                                : Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: index < 3
+                                  ? Colors.amber.shade200
+                                  : Colors.grey.shade200,
+                            ),
+                          ),
+                          child: Row(
+                            children: <Widget>[
+                              // الترتيب
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: index < 3
+                                      ? Colors.amber
+                                      : Colors.grey.shade300,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    '${index + 1}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: index < 3
+                                          ? Colors.white
+                                          : Colors.black87,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+
+                              // اسم المنتج
+                              Expanded(
+                                flex: 2,
+                                child: Text(
+                                  product.name,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w500),
+                                ),
+                              ),
+
+                              // الكمية
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.shade100,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '${product.quantity} وحدة',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue.shade900,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+
+                              // القيمة
+                              Expanded(
+                                child: Text(
+                                  '${product.totalValue.toStringAsFixed(2)} DZ',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.green.shade700,
+                                  ),
+                                  textAlign: TextAlign.end,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+
+                      const SizedBox(height: 24),
+                      const Divider(),
+                      const SizedBox(height: 16),
+
+                      // ملخص المخزون
+                      const Text(
+                        'تنبيهات المخزون',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      if (report.lowStockProducts.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Row(
+                            children: <Widget>[
+                              Icon(Icons.check_circle, color: Colors.green),
+                              SizedBox(width: 12),
+                              Text('لا توجد منتجات بمخزون منخفض'),
+                            ],
+                          ),
+                        )
+                      else
+                        ...report.lowStockProducts.map(
+                          (LowStockProduct product) => Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.red.shade200),
+                            ),
+                            child: Row(
+                              children: <Widget>[
+                                const Icon(Icons.warning, color: Colors.red),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    product.name,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w500),
+                                  ),
+                                ),
+                                Text(
+                                  'المخزون: ${product.currentStock}',
+                                  style: TextStyle(
+                                    color: Colors.red.shade900,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // أزرار التحكم
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(4),
+                    bottomRight: Radius.circular(4),
+                  ),
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _printEODReport(report),
+                        icon: const Icon(Icons.print),
+                        label: const Text('طباعة التقرير'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _exportEODToExcel(report),
+                        icon: const Icon(Icons.file_download),
+                        label: const Text('تصدير Excel'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _showDayEndedSuccess();
+                        },
+                        icon: const Icon(Icons.check_circle),
+                        label:
+                            const Text('إتمام', style: TextStyle(fontSize: 16)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// بناء بطاقة إحصائية
+  Widget _buildStatCard(
+          String label, String value, IconData icon, Color color) =>
+      Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: <Widget>[
+            Icon(icon, color: color, size: 32),
+            const SizedBox(height: 12),
+            Text(
+              label,
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      );
+
+  /// بناء بطاقة معلومات
+  Widget _buildInfoCard(String label, String value, IconData icon) => Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Row(
+          children: <Widget>[
+            Icon(icon, color: Colors.grey.shade600, size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(fontSize: 14),
+              ),
+            ),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      );
+
+  /// تنسيق التاريخ
+  String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
+
+  /// طباعة تقرير نهاية اليوم
+  void _printEODReport(EODReport report) {
+    // TODO: تطبيق وظيفة الطباعة
+    SnackbarUtils.showInfo(context, 'وظيفة الطباعة قيد التطوير');
+  }
+
+  /// تصدير تقرير نهاية اليوم إلى Excel
+  void _exportEODToExcel(EODReport report) {
+    // TODO: تطبيق وظيفة التصدير إلى Excel
+    SnackbarUtils.showInfo(context, 'وظيفة التصدير إلى Excel قيد التطوير');
+  }
+
+  /// عرض رسالة نجاح إنهاء اليوم
+  void _showDayEndedSuccess() {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) => AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const Icon(Icons.check_circle, color: Colors.green, size: 80),
+            const SizedBox(height: 16),
+            const Text(
+              'تم إنهاء اليوم بنجاح!',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'التقرير محفوظ ومتزامن مع الخادم',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+          ],
+        ),
+        actions: <Widget>[
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _resetForNewDay();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              minimumSize: const Size(double.infinity, 50),
+            ),
+            child: const Text('بدء يوم جديد'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// إعادة تعيين ليوم جديد
+  void _resetForNewDay() {
+    // مسح السلة
+    ref.read(cartStateProvider.notifier).clearCart();
+
+    // إعادة تحميل البيانات
+    _initializeData();
+
+    SnackbarUtils.showSuccess(context, 'تم بدء يوم جديد بنجاح');
+  }
 }

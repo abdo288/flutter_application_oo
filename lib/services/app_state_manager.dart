@@ -1,62 +1,73 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app_event_bus.dart';
+import 'data_consistency_service.dart';
+
+/// حالة التطبيق
+@immutable
+class AppState {
+  const AppState({
+    this.isSyncing = false,
+    this.pendingOperations = 0,
+    this.isOnline = true,
+    this.connectionType,
+    this.lastError,
+    this.localStats = const <String, dynamic>{},
+    this.activeFilters = const <String, dynamic>{},
+    this.backupHistory = const <BackupEvent>[],
+    this.restoreHistory = const <RestoreEvent>[],
+  });
+
+  final bool isSyncing;
+  final int pendingOperations;
+  final bool isOnline;
+  final String? connectionType;
+  final String? lastError;
+  final Map<String, dynamic> localStats;
+  final Map<String, dynamic> activeFilters;
+  final List<BackupEvent> backupHistory;
+  final List<RestoreEvent> restoreHistory;
+
+  AppState copyWith({
+    bool? isSyncing,
+    int? pendingOperations,
+    bool? isOnline,
+    String? connectionType,
+    String? lastError,
+    Map<String, dynamic>? localStats,
+    Map<String, dynamic>? activeFilters,
+    List<BackupEvent>? backupHistory,
+    List<RestoreEvent>? restoreHistory,
+  }) =>
+      AppState(
+        isSyncing: isSyncing ?? this.isSyncing,
+        pendingOperations: pendingOperations ?? this.pendingOperations,
+        isOnline: isOnline ?? this.isOnline,
+        connectionType: connectionType ?? this.connectionType,
+        lastError: lastError ?? this.lastError,
+        localStats: localStats ?? this.localStats,
+        activeFilters: activeFilters ?? this.activeFilters,
+        backupHistory: backupHistory ?? this.backupHistory,
+        restoreHistory: restoreHistory ?? this.restoreHistory,
+      );
+}
 
 /// مدير الحالة المشتركة للتطبيق
-class AppStateManager extends ChangeNotifier {
-  // ========== متغيرات الحالة ==========
-
-  /// حالة المزامنة
-  bool _isSyncing = false;
-
-  /// عدد العمليات المعلقة
-  int _pendingOperations = 0;
-
-  /// البيانات المشتركة
-  final Map<String, dynamic> _sharedData = <String, dynamic>{};
-
-  /// حالة الاتصال
-  bool _isOnline = true;
-
-  /// نوع الاتصال
-  String? _connectionType;
-
-  /// آخر خطأ
-  String? _lastError;
-
-  /// الإحصائيات المحلية
-  final Map<String, dynamic> _localStats = <String, dynamic>{};
-
-  /// الفلاتر النشطة
-  final Map<String, dynamic> _activeFilters = <String, dynamic>{};
-
-  /// عمليات النسخ الاحتياطي
-  final List<BackupEvent> _backupHistory = <BackupEvent>[];
-
-  /// عمليات الاستعادة
-  final List<RestoreEvent> _restoreHistory = <RestoreEvent>[];
+class AppStateNotifier extends StateNotifier<AppState> {
+  AppStateNotifier() : super(const AppState()) {
+    _initialize();
+  }
 
   /// Stream subscriptions
   StreamSubscription<AppEvent>? _eventSubscription;
 
-  // ========== Getters ==========
-
-  bool get isSyncing => _isSyncing;
-  int get pendingOperations => _pendingOperations;
-  bool get isOnline => _isOnline;
-  String? get connectionType => _connectionType;
-  String? get lastError => _lastError;
-  Map<String, dynamic> get localStats => Map.unmodifiable(_localStats);
-  Map<String, dynamic> get activeFilters => Map.unmodifiable(_activeFilters);
-  List<BackupEvent> get backupHistory => List.unmodifiable(_backupHistory);
-  List<RestoreEvent> get restoreHistory => List.unmodifiable(_restoreHistory);
-
   // ========== تهيئة وإغلاق ==========
 
-  /// تهيئة AppStateManager
-  void initialize() {
-    debugPrint('🚀 تهيئة AppStateManager...');
+  /// تهيئة AppStateNotifier
+  void _initialize() {
+    debugPrint('🚀 تهيئة AppStateNotifier...');
 
     // الاستماع للأحداث
     _eventSubscription = AppEventBus.stream.listen(_handleEvent);
@@ -64,10 +75,10 @@ class AppStateManager extends ChangeNotifier {
     // تهيئة الإحصائيات
     _initializeStats();
 
-    debugPrint('✅ تم تهيئة AppStateManager بنجاح');
+    debugPrint('✅ تم تهيئة AppStateNotifier بنجاح');
   }
 
-  /// إغلاق AppStateManager
+  /// إغلاق AppStateNotifier
   @override
   void dispose() {
     _eventSubscription?.cancel();
@@ -78,9 +89,10 @@ class AppStateManager extends ChangeNotifier {
 
   /// بدء المزامنة
   void startSync(String syncType, int totalItems) {
-    _isSyncing = true;
-    _pendingOperations = totalItems;
-    notifyListeners();
+    state = state.copyWith(
+      isSyncing: true,
+      pendingOperations: totalItems,
+    );
 
     // إطلاق حدث
     AppEventBus.fire(SyncStartedEvent(syncType, totalItems));
@@ -90,9 +102,10 @@ class AppStateManager extends ChangeNotifier {
 
   /// تحديث تقدم المزامنة
   void updateSyncProgress(int completedItems) {
-    _pendingOperations = _pendingOperations - completedItems;
-    if (_pendingOperations < 0) _pendingOperations = 0;
-    notifyListeners();
+    final int newPendingOperations = state.pendingOperations - completedItems;
+    state = state.copyWith(
+      pendingOperations: newPendingOperations < 0 ? 0 : newPendingOperations,
+    );
 
     debugPrint('📊 تقدم المزامنة: $completedItems عنصر مكتمل');
   }
@@ -100,14 +113,11 @@ class AppStateManager extends ChangeNotifier {
   /// انتهاء المزامنة
   void endSync(String syncType, int syncedItems,
       {bool success = true, String? error}) {
-    _isSyncing = false;
-    _pendingOperations = 0;
-
-    if (!success && error != null) {
-      _lastError = error;
-    }
-
-    notifyListeners();
+    state = state.copyWith(
+      isSyncing: false,
+      pendingOperations: 0,
+      lastError: (!success && error != null) ? error : state.lastError,
+    );
 
     // إطلاق حدث
     AppEventBus.fire(SyncCompletedEvent(syncType, syncedItems,
@@ -119,16 +129,18 @@ class AppStateManager extends ChangeNotifier {
   // ========== إدارة البيانات المشتركة ==========
 
   /// حفظ بيانات مشتركة
-  void setSharedData(String key, dynamic value) {
-    _sharedData[key] = value;
-    notifyListeners();
+  void setSharedData(String key, value) {
+    final Map<String, dynamic> newLocalStats =
+        Map<String, dynamic>.from(state.localStats);
+    newLocalStats[key] = value;
+    state = state.copyWith(localStats: newLocalStats);
 
     debugPrint('💾 حفظ بيانات مشتركة: $key = $value');
   }
 
   /// قراءة بيانات مشتركة
   T? getSharedData<T>(String key) {
-    final value = _sharedData[key];
+    final value = state.localStats[key];
     if (value is T) {
       return value;
     }
@@ -137,16 +149,17 @@ class AppStateManager extends ChangeNotifier {
 
   /// حذف بيانات مشتركة
   void removeSharedData(String key) {
-    _sharedData.remove(key);
-    notifyListeners();
+    final Map<String, dynamic> newLocalStats =
+        Map<String, dynamic>.from(state.localStats);
+    newLocalStats.remove(key);
+    state = state.copyWith(localStats: newLocalStats);
 
     debugPrint('🗑️ حذف بيانات مشتركة: $key');
   }
 
   /// مسح جميع البيانات المشتركة
   void clearSharedData() {
-    _sharedData.clear();
-    notifyListeners();
+    state = state.copyWith(localStats: <String, dynamic>{});
 
     debugPrint('🧹 مسح جميع البيانات المشتركة');
   }
@@ -155,9 +168,10 @@ class AppStateManager extends ChangeNotifier {
 
   /// تحديث حالة الاتصال
   void updateConnectivity(bool isOnline, {String? connectionType}) {
-    _isOnline = isOnline;
-    _connectionType = connectionType;
-    notifyListeners();
+    state = state.copyWith(
+      isOnline: isOnline,
+      connectionType: connectionType,
+    );
 
     // إطلاق حدث
     AppEventBus.fire(
@@ -170,8 +184,10 @@ class AppStateManager extends ChangeNotifier {
 
   /// تحديث الإحصائيات المحلية
   void updateStats(Map<String, dynamic> stats) {
-    _localStats.addAll(stats);
-    notifyListeners();
+    final Map<String, dynamic> newLocalStats =
+        Map<String, dynamic>.from(state.localStats);
+    newLocalStats.addAll(stats);
+    state = state.copyWith(localStats: newLocalStats);
 
     // إطلاق حدث
     AppEventBus.fire(StatsUpdatedEvent(stats));
@@ -181,7 +197,7 @@ class AppStateManager extends ChangeNotifier {
 
   /// الحصول على إحصائية محددة
   T? getStat<T>(String key) {
-    final value = _localStats[key];
+    final value = state.localStats[key];
     if (value is T) {
       return value;
     }
@@ -190,8 +206,7 @@ class AppStateManager extends ChangeNotifier {
 
   /// مسح الإحصائيات
   void clearStats() {
-    _localStats.clear();
-    notifyListeners();
+    state = state.copyWith(localStats: <String, dynamic>{});
 
     debugPrint('🧹 مسح الإحصائيات');
   }
@@ -200,8 +215,10 @@ class AppStateManager extends ChangeNotifier {
 
   /// تعيين فلتر نشط
   void setActiveFilter(String tabName, Map<String, dynamic> filters) {
-    _activeFilters[tabName] = filters;
-    notifyListeners();
+    final Map<String, dynamic> newActiveFilters =
+        Map<String, dynamic>.from(state.activeFilters);
+    newActiveFilters[tabName] = filters;
+    state = state.copyWith(activeFilters: newActiveFilters);
 
     // إطلاق حدث
     AppEventBus.fire(FilterChangedEvent(tabName, filters));
@@ -211,7 +228,7 @@ class AppStateManager extends ChangeNotifier {
 
   /// الحصول على فلتر نشط
   Map<String, dynamic>? getActiveFilter(String tabName) {
-    final filter = _activeFilters[tabName];
+    final filter = state.activeFilters[tabName];
     if (filter is Map<String, dynamic>) {
       return filter;
     }
@@ -220,16 +237,17 @@ class AppStateManager extends ChangeNotifier {
 
   /// مسح فلتر نشط
   void clearActiveFilter(String tabName) {
-    _activeFilters.remove(tabName);
-    notifyListeners();
+    final Map<String, dynamic> newActiveFilters =
+        Map<String, dynamic>.from(state.activeFilters);
+    newActiveFilters.remove(tabName);
+    state = state.copyWith(activeFilters: newActiveFilters);
 
     debugPrint('🧹 مسح فلتر نشط: $tabName');
   }
 
   /// مسح جميع الفلاتر
   void clearAllFilters() {
-    _activeFilters.clear();
-    notifyListeners();
+    state = state.copyWith(activeFilters: <String, dynamic>{});
 
     debugPrint('🧹 مسح جميع الفلاتر');
   }
@@ -238,22 +256,26 @@ class AppStateManager extends ChangeNotifier {
 
   /// إضافة عملية نسخ احتياطي
   void addBackupEvent(BackupEvent event) {
-    _backupHistory.add(event);
-    if (_backupHistory.length > 50) {
-      _backupHistory.removeAt(0); // إزالة أقدم عملية
+    final List<BackupEvent> newBackupHistory =
+        List<BackupEvent>.from(state.backupHistory);
+    newBackupHistory.add(event);
+    if (newBackupHistory.length > 50) {
+      newBackupHistory.removeAt(0); // إزالة أقدم عملية
     }
-    notifyListeners();
+    state = state.copyWith(backupHistory: newBackupHistory);
 
     debugPrint('💾 إضافة عملية نسخ احتياطي: ${event.backupType}');
   }
 
   /// إضافة عملية استعادة
   void addRestoreEvent(RestoreEvent event) {
-    _restoreHistory.add(event);
-    if (_restoreHistory.length > 50) {
-      _restoreHistory.removeAt(0); // إزالة أقدم عملية
+    final List<RestoreEvent> newRestoreHistory =
+        List<RestoreEvent>.from(state.restoreHistory);
+    newRestoreHistory.add(event);
+    if (newRestoreHistory.length > 50) {
+      newRestoreHistory.removeAt(0); // إزالة أقدم عملية
     }
-    notifyListeners();
+    state = state.copyWith(restoreHistory: newRestoreHistory);
 
     debugPrint('🔄 إضافة عملية استعادة: ${event.restoreType}');
   }
@@ -262,8 +284,7 @@ class AppStateManager extends ChangeNotifier {
 
   /// تعيين خطأ
   void setError(String error) {
-    _lastError = error;
-    notifyListeners();
+    state = state.copyWith(lastError: error);
 
     // إطلاق حدث
     AppEventBus.fire(AppErrorEvent(error));
@@ -273,8 +294,7 @@ class AppStateManager extends ChangeNotifier {
 
   /// مسح الخطأ
   void clearError() {
-    _lastError = null;
-    notifyListeners();
+    state = state.copyWith();
 
     debugPrint('🧹 مسح الخطأ');
   }
@@ -313,8 +333,11 @@ class AppStateManager extends ChangeNotifier {
   /// معالجة إضافة منتج
   void _handleProductAdded(ProductAddedEvent event) {
     // تحديث الإحصائيات
-    final int currentCount = _localStats['productCount'] as int? ?? 0;
-    _localStats['productCount'] = currentCount + 1;
+    final int currentCount = state.localStats['productCount'] as int? ?? 0;
+    final Map<String, dynamic> newLocalStats =
+        Map<String, dynamic>.from(state.localStats);
+    newLocalStats['productCount'] = currentCount + 1;
+    state = state.copyWith(localStats: newLocalStats);
 
     // حفظ المنتج الأخير
     setSharedData('lastAddedProduct', event.product);
@@ -333,9 +356,12 @@ class AppStateManager extends ChangeNotifier {
   /// معالجة حذف منتج
   void _handleProductDeleted(ProductDeletedEvent event) {
     // تحديث الإحصائيات
-    final int currentCount = _localStats['productCount'] as int? ?? 0;
+    final int currentCount = state.localStats['productCount'] as int? ?? 0;
     if (currentCount > 0) {
-      _localStats['productCount'] = currentCount - 1;
+      final Map<String, dynamic> newLocalStats =
+          Map<String, dynamic>.from(state.localStats);
+      newLocalStats['productCount'] = currentCount - 1;
+      state = state.copyWith(localStats: newLocalStats);
     }
 
     debugPrint('🗑️ معالجة حذف منتج: ${event.productName}');
@@ -357,12 +383,16 @@ class AppStateManager extends ChangeNotifier {
   /// معالجة إتمام بيع
   void _handleSaleCompleted(SaleCompletedEvent event) {
     // تحديث الإحصائيات
-    final int currentSales = _localStats['totalSales'] as int? ?? 0;
-    final double currentRevenue = _localStats['totalRevenue'] as double? ?? 0.0;
+    final int currentSales = state.localStats['totalSales'] as int? ?? 0;
+    final double currentRevenue =
+        state.localStats['totalRevenue'] as double? ?? 0.0;
 
-    _localStats['totalSales'] = currentSales + 1;
-    _localStats['totalRevenue'] =
+    final Map<String, dynamic> newLocalStats =
+        Map<String, dynamic>.from(state.localStats);
+    newLocalStats['totalSales'] = currentSales + 1;
+    newLocalStats['totalRevenue'] =
         currentRevenue + (event.sale.totalAmount / 100.0);
+    state = state.copyWith(localStats: newLocalStats);
 
     // حفظ البيع الأخير
     setSharedData('lastSale', event.sale);
@@ -386,8 +416,10 @@ class AppStateManager extends ChangeNotifier {
   /// معالجة تحديث الإحصائيات
   void _handleStatsUpdated(StatsUpdatedEvent event) {
     // دمج الإحصائيات الجديدة
-    _localStats.addAll(event.stats);
-    notifyListeners();
+    final Map<String, dynamic> newLocalStats =
+        Map<String, dynamic>.from(state.localStats);
+    newLocalStats.addAll(event.stats);
+    state = state.copyWith(localStats: newLocalStats);
 
     debugPrint('📊 معالجة تحديث الإحصائيات');
   }
@@ -396,7 +428,7 @@ class AppStateManager extends ChangeNotifier {
 
   /// تهيئة الإحصائيات
   void _initializeStats() {
-    _localStats.addAll(<String, dynamic>{
+    state = state.copyWith(localStats: <String, dynamic>{
       'productCount': 0,
       'inventoryCount': 0,
       'totalSales': 0,
@@ -408,33 +440,75 @@ class AppStateManager extends ChangeNotifier {
   }
 
   /// الحصول على ملخص الحالة
-  Map<String, dynamic> getStateSummary() => {
-        'isSyncing': _isSyncing,
-        'pendingOperations': _pendingOperations,
-        'isOnline': _isOnline,
-        'connectionType': _connectionType,
-        'lastError': _lastError,
-        'sharedDataKeys': _sharedData.keys.toList(),
-        'activeFiltersKeys': _activeFilters.keys.toList(),
-        'localStatsKeys': _localStats.keys.toList(),
-        'backupHistoryCount': _backupHistory.length,
-        'restoreHistoryCount': _restoreHistory.length,
+  Map<String, dynamic> getStateSummary() => <String, dynamic>{
+        'isSyncing': state.isSyncing,
+        'pendingOperations': state.pendingOperations,
+        'isOnline': state.isOnline,
+        'connectionType': state.connectionType,
+        'lastError': state.lastError,
+        'sharedDataKeys': state.localStats.keys.toList(),
+        'activeFiltersKeys': state.activeFilters.keys.toList(),
+        'localStatsKeys': state.localStats.keys.toList(),
+        'backupHistoryCount': state.backupHistory.length,
+        'restoreHistoryCount': state.restoreHistory.length,
       };
 
   /// إعادة تعيين الحالة
   void resetState() {
-    _isSyncing = false;
-    _pendingOperations = 0;
-    _sharedData.clear();
-    _activeFilters.clear();
-    _localStats.clear();
-    _backupHistory.clear();
-    _restoreHistory.clear();
-    _lastError = null;
-
+    state = const AppState();
     _initializeStats();
-    notifyListeners();
 
     debugPrint('🔄 إعادة تعيين الحالة');
   }
+
+  /// بدء مراقبة تناسق البيانات
+  /// ✅ إصلاح: ضمان التناسق بين التبويبين
+  void startDataConsistencyMonitoring() {
+    debugPrint('🔄 بدء مراقبة تناسق البيانات بين التبويبين');
+    DataConsistencyService().startConsistencyMonitoring();
+  }
+
+  /// إيقاف مراقبة تناسق البيانات
+  void stopDataConsistencyMonitoring() {
+    debugPrint('⏹️ إيقاف مراقبة تناسق البيانات');
+    DataConsistencyService().stopConsistencyMonitoring();
+  }
+
+  /// إجبار إعادة تحميل البيانات
+  Future<void> forceDataRefresh() async {
+    debugPrint('🔄 إجبار إعادة تحميل البيانات من AppStateManager');
+    await DataConsistencyService().forceDataRefresh();
+  }
 }
+
+// ========== Riverpod Providers ==========
+
+/// Provider للـ AppStateNotifier
+final StateNotifierProvider<AppStateNotifier, AppState>
+    appStateNotifierProvider =
+    StateNotifierProvider<AppStateNotifier, AppState>(
+        (StateNotifierProviderRef<AppStateNotifier, AppState> ref) =>
+            AppStateNotifier());
+
+/// Provider لحالة المزامنة
+final Provider<bool> isSyncingProvider = Provider<bool>(
+    (ProviderRef<bool> ref) => ref.watch(appStateNotifierProvider).isSyncing);
+
+/// Provider لحالة الاتصال
+final Provider<bool> isOnlineProvider = Provider<bool>(
+    (ProviderRef<bool> ref) => ref.watch(appStateNotifierProvider).isOnline);
+
+/// Provider للعمليات المعلقة
+final Provider<int> pendingOperationsProvider = Provider<int>(
+    (ProviderRef<int> ref) =>
+        ref.watch(appStateNotifierProvider).pendingOperations);
+
+/// Provider لنوع الاتصال
+final Provider<String?> connectionTypeProvider = Provider<String?>(
+    (ProviderRef<String?> ref) =>
+        ref.watch(appStateNotifierProvider).connectionType);
+
+/// Provider لملخص الحالة
+final Provider<Map<String, dynamic>> stateSummaryProvider =
+    Provider<Map<String, dynamic>>((ProviderRef<Map<String, dynamic>> ref) =>
+        ref.watch(appStateNotifierProvider.notifier).getStateSummary());

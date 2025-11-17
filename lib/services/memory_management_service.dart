@@ -24,8 +24,8 @@ class MemoryManagementService {
   /// تحديد حجم الذاكرة المؤقتة للصور
   static void limitImageCache() {
     try {
-      ImageCache().maximumSize = 30; // تقليل عدد الصور أكثر
-      ImageCache().maximumSizeBytes = 15 * 1024 * 1024; // 15 ميجابايت
+      ImageCache().maximumSize = 20; // تقليل عدد الصور أكثر
+      ImageCache().maximumSizeBytes = 10 * 1024 * 1024; // 10 ميجابايت
       _logger.fine('تم تحديد حدود ذاكرة الصور');
     } catch (e) {
       _logger.warning('خطأ في تحديد حدود ذاكرة الصور: $e');
@@ -54,14 +54,14 @@ class MemoryManagementService {
       final int currentMemory = _getCurrentMemoryUsage();
       debugPrint('💾 استهلاك الذاكرة الحالي: ${currentMemory}MB');
 
-      if (currentMemory > 250) {
-        // أكثر من 250MB - تقليل الحد
+      if (currentMemory > 300) {
+        // أكثر من 300MB - تنظيف حرج
         debugPrint(
             '🚨 تحذير حرج: استهلاك الذاكرة عالي جداً (${currentMemory}MB)');
         debugPrint('🚨 بدء تنظيف الذاكرة الحرجة...');
         performCriticalMemoryCleanup();
-      } else if (currentMemory > 150) {
-        // أكثر من 150MB - تنظيف عادي
+      } else if (currentMemory > 200) {
+        // أكثر من 200MB - تنظيف عادي
         _logger.warning('استخدام ذاكرة عالي: ${currentMemory}MB');
         performMemoryCleanup();
       }
@@ -110,7 +110,7 @@ class MemoryManagementService {
       _cleanupCount++;
       debugPrint('🧹 بدء تنظيف الذاكرة الحرجة #$_cleanupCount');
 
-      // تنظيف ذاكرة الصور
+      // تنظيف ذاكرة الصور بشكل أكثر عدوانية
       clearImageCache();
       debugPrint('✅ تم تنظيف ذاكرة الصور');
 
@@ -126,11 +126,38 @@ class MemoryManagementService {
       }
       debugPrint('📝 تم تنظيف ذاكرة النصوص');
 
+      // تنظيف إضافي للذاكرة
+      _performAdditionalMemoryCleanup();
+
       debugPrint(
           '⚠️ تحذير: استهلاك الذاكرة عالي جداً. يرجى إغلاق التطبيقات الأخرى.');
       debugPrint('✅ تم تنظيف الذاكرة الحرجة بنجاح');
     } catch (e) {
       debugPrint('❌ خطأ في تنظيف الذاكرة الحرجة: $e');
+    }
+  }
+
+  /// تنظيف إضافي للذاكرة
+  static void _performAdditionalMemoryCleanup() {
+    try {
+      // تنظيف ذاكرة النظام
+      if (!kIsWeb) {
+        // إجبار garbage collection
+        // هذا مفيد في حالات الذاكرة الحرجة
+        // Note: System.gc() is not available in Dart, but we can force cleanup
+      }
+
+      // تنظيف ذاكرة التطبيق بشكل أكثر عدوانية
+      ImageCache().clear();
+      ImageCache().clearLiveImages();
+
+      // إعادة تعيين حدود الذاكرة
+      ImageCache().maximumSize = 10;
+      ImageCache().maximumSizeBytes = 5 * 1024 * 1024; // 5 ميجابايت
+
+      debugPrint('🧹 تم تنظيف الذاكرة الإضافية');
+    } catch (e) {
+      debugPrint('❌ خطأ في تنظيف الذاكرة الإضافية: $e');
     }
   }
 

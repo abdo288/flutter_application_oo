@@ -278,11 +278,11 @@ class _SafeBottomNavigationBarState extends State<SafeBottomNavigationBar> {
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.inventory_2),
-          label: 'المخزون',
+          label: 'نموذج المنتج',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.list),
-          label: 'قائمة المنتجات',
+          label: 'سجل المبيعات',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.analytics),
@@ -521,11 +521,11 @@ class _SafeSideNavigationBarState extends State<SafeSideNavigationBar> {
         ),
         SafeNavigationItem(
           icon: Icons.inventory_2,
-          label: 'المخزون',
+          label: 'نموذج المنتج',
         ),
         SafeNavigationItem(
           icon: Icons.list,
-          label: 'قائمة المنتجات',
+          label: 'سجل المبيعات',
         ),
         SafeNavigationItem(
           icon: Icons.analytics,

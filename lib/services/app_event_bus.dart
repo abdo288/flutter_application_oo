@@ -1,13 +1,16 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
-import '../models/product.dart';
-import '../models/inventory_item.dart';
-import '../models/sale.dart';
+
 import '../models/cart_item.dart';
+import '../models/inventory_item.dart';
+import '../models/product.dart';
+import '../models/sale.dart';
 
 /// Event Bus للتواصل بين التبويبات
 class AppEventBus {
-  static final StreamController<AppEvent> _controller = StreamController<AppEvent>.broadcast();
+  static final StreamController<AppEvent> _controller =
+      StreamController<AppEvent>.broadcast();
   static Stream<AppEvent> get stream => _controller.stream;
 
   /// إطلاق حدث جديد
@@ -32,7 +35,6 @@ abstract class AppEvent {
 
 /// حدث إضافة منتج جديد
 class ProductAddedEvent extends AppEvent {
-
   ProductAddedEvent(this.product, {this.sourceTab});
   final Product product;
   final String? sourceTab;
@@ -43,7 +45,6 @@ class ProductAddedEvent extends AppEvent {
 
 /// حدث تحديث منتج
 class ProductUpdatedEvent extends AppEvent {
-
   ProductUpdatedEvent(this.product, {this.sourceTab});
   final Product product;
   final String? sourceTab;
@@ -54,7 +55,6 @@ class ProductUpdatedEvent extends AppEvent {
 
 /// حدث حذف منتج
 class ProductDeletedEvent extends AppEvent {
-
   ProductDeletedEvent(this.productId, this.productName, {this.sourceTab});
   final String productId;
   final String productName;
@@ -64,9 +64,19 @@ class ProductDeletedEvent extends AppEvent {
   String toString() => 'ProductDeletedEvent: $productName';
 }
 
+/// حدث حذف عنصر مخزون
+class InventoryItemDeletedEvent extends AppEvent {
+  InventoryItemDeletedEvent(this.itemId, this.itemName, {this.sourceTab});
+  final String itemId;
+  final String itemName;
+  final String? sourceTab;
+
+  @override
+  String toString() => 'InventoryItemDeletedEvent: $itemName';
+}
+
 /// حدث تحديث المخزون
 class InventoryUpdatedEvent extends AppEvent {
-
   InventoryUpdatedEvent(
     this.itemId,
     this.itemName,
@@ -87,7 +97,6 @@ class InventoryUpdatedEvent extends AppEvent {
 
 /// حدث إضافة عنصر مخزون جديد
 class InventoryItemAddedEvent extends AppEvent {
-
   InventoryItemAddedEvent(this.item, {this.sourceTab});
   final InventoryItem item;
   final String? sourceTab;
@@ -98,19 +107,20 @@ class InventoryItemAddedEvent extends AppEvent {
 
 /// حدث إتمام بيع
 class SaleCompletedEvent extends AppEvent {
-
-  SaleCompletedEvent(this.sale, this.items, {this.sourceTab});
+  SaleCompletedEvent(this.sale, this.items,
+      {this.sourceTab, this.triggerReportsUpdate = true});
   final Sale sale;
   final List<CartItem> items;
   final String? sourceTab;
+  final bool triggerReportsUpdate; // إضافة معامل للتحكم في تحديث التقارير
 
   @override
-  String toString() => 'SaleCompletedEvent: ${sale.totalAmount}';
+  String toString() =>
+      'SaleCompletedEvent: ${sale.totalAmount} (Reports: $triggerReportsUpdate)';
 }
 
 /// حدث بدء المزامنة
 class SyncStartedEvent extends AppEvent {
-
   SyncStartedEvent(this.syncType, this.totalItems);
   final String syncType;
   final int totalItems;
@@ -121,7 +131,6 @@ class SyncStartedEvent extends AppEvent {
 
 /// حدث انتهاء المزامنة
 class SyncCompletedEvent extends AppEvent {
-
   SyncCompletedEvent(
     this.syncType,
     this.syncedItems, {
@@ -139,7 +148,6 @@ class SyncCompletedEvent extends AppEvent {
 
 /// حدث تنبيه مخزون منخفض
 class LowStockAlertEvent extends AppEvent {
-
   LowStockAlertEvent(
     this.itemId,
     this.itemName,
@@ -158,7 +166,6 @@ class LowStockAlertEvent extends AppEvent {
 
 /// حدث تغيير التبويب
 class TabChangedEvent extends AppEvent {
-
   TabChangedEvent(this.fromTab, this.toTab, {this.data});
   final int fromTab;
   final int toTab;
@@ -170,7 +177,6 @@ class TabChangedEvent extends AppEvent {
 
 /// حدث تحديث الإحصائيات
 class StatsUpdatedEvent extends AppEvent {
-
   StatsUpdatedEvent(this.stats, {this.sourceTab});
   final Map<String, dynamic> stats;
   final String? sourceTab;
@@ -179,9 +185,19 @@ class StatsUpdatedEvent extends AppEvent {
   String toString() => 'StatsUpdatedEvent: ${stats.keys.join(', ')}';
 }
 
+/// حدث تحديث التقارير
+class ReportsUpdateEvent extends AppEvent {
+  ReportsUpdateEvent(this.updateType, {this.sourceTab, this.data});
+  final String updateType; // 'sale', 'eod', 'inventory', 'product'
+  final String? sourceTab;
+  final Map<String, dynamic>? data;
+
+  @override
+  String toString() => 'ReportsUpdateEvent: $updateType';
+}
+
 /// حدث خطأ عام
 class AppErrorEvent extends AppEvent {
-
   AppErrorEvent(this.error, {this.sourceTab, this.stackTrace});
   final String error;
   final String? sourceTab;
@@ -193,7 +209,6 @@ class AppErrorEvent extends AppEvent {
 
 /// حدث إشعار المستخدم
 class UserNotificationEvent extends AppEvent {
-
   UserNotificationEvent(
     this.title,
     this.message,
@@ -219,7 +234,6 @@ enum NotificationType {
 
 /// حدث تحديث البيانات المحلية
 class LocalDataUpdatedEvent extends AppEvent {
-
   LocalDataUpdatedEvent(this.dataType, this.itemCount, {this.sourceTab});
   final String dataType;
   final int itemCount;
@@ -231,7 +245,6 @@ class LocalDataUpdatedEvent extends AppEvent {
 
 /// حدث اتصال/انقطاع الشبكة
 class ConnectivityChangedEvent extends AppEvent {
-
   ConnectivityChangedEvent(this.isOnline, {this.connectionType});
   final bool isOnline;
   final String? connectionType;
@@ -243,7 +256,6 @@ class ConnectivityChangedEvent extends AppEvent {
 
 /// حدث تحديث الفلاتر
 class FilterChangedEvent extends AppEvent {
-
   FilterChangedEvent(this.tabName, this.filters, {this.sourceTab});
   final String tabName;
   final Map<String, dynamic> filters;
@@ -255,7 +267,6 @@ class FilterChangedEvent extends AppEvent {
 
 /// حدث البحث
 class SearchPerformedEvent extends AppEvent {
-
   SearchPerformedEvent(
     this.tabName,
     this.query,
@@ -273,7 +284,6 @@ class SearchPerformedEvent extends AppEvent {
 
 /// حدث إعادة تعيين البيانات
 class DataResetEvent extends AppEvent {
-
   DataResetEvent(this.dataType, {this.sourceTab});
   final String dataType;
   final String? sourceTab;
@@ -284,7 +294,6 @@ class DataResetEvent extends AppEvent {
 
 /// حدث تحديث الإعدادات
 class SettingsUpdatedEvent extends AppEvent {
-
   SettingsUpdatedEvent(
     this.settingKey,
     this.oldValue,
@@ -302,7 +311,6 @@ class SettingsUpdatedEvent extends AppEvent {
 
 /// حدث النسخ الاحتياطي
 class BackupEvent extends AppEvent {
-
   BackupEvent(
     this.backupType,
     this.success, {
@@ -321,7 +329,6 @@ class BackupEvent extends AppEvent {
 
 /// حدث استعادة البيانات
 class RestoreEvent extends AppEvent {
-
   RestoreEvent(
     this.restoreType,
     this.success, {

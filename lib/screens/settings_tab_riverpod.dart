@@ -10,7 +10,6 @@ import '../services/appearance_service.dart';
 import '../services/auth_service.dart';
 import '../services/locale_service.dart';
 import '../utils/constants.dart';
-import 'backup_restore_screen.dart';
 import 'data_cleanup_screen.dart';
 import 'user_management_screen.dart';
 
@@ -116,9 +115,10 @@ class _SettingsTabRiverpodState extends ConsumerState<SettingsTabRiverpod> {
 
   @override
   Widget build(BuildContext context) {
-    final settingsState = ref.watch(settingsNotifierProvider);
-    final settingsNotifier = ref.read(settingsNotifierProvider.notifier);
-    final isAdmin = ref.watch(isAdminProvider);
+    final SettingsState settingsState = ref.watch(settingsNotifierProvider);
+    final SettingsNotifier settingsNotifier =
+        ref.read(settingsNotifierProvider.notifier);
+    final bool isAdmin = ref.watch(isAdminProvider);
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -150,17 +150,18 @@ class _SettingsTabRiverpodState extends ConsumerState<SettingsTabRiverpod> {
                 const SizedBox(height: 24),
 
                 // إدارة المستخدمين (للمدير فقط)
-                isAdmin
-                    ? _buildModernSectionCard(
-                        title: 'إدارة المستخدمين',
-                        icon: Icons.supervised_user_circle,
-                        color: Colors.brown,
-                        child: _buildUserManagementCard(),
-                        isExpanded: settingsState.isUserMgmtExpanded,
-                        onToggle: () =>
-                            settingsNotifier.toggleExpansion('userMgmt'),
-                      )
-                    : const SizedBox.shrink(),
+                if (isAdmin)
+                  _buildModernSectionCard(
+                    title: 'إدارة المستخدمين',
+                    icon: Icons.supervised_user_circle,
+                    color: Colors.brown,
+                    child: _buildUserManagementCard(),
+                    isExpanded: settingsState.isUserMgmtExpanded,
+                    onToggle: () =>
+                        settingsNotifier.toggleExpansion('userMgmt'),
+                  )
+                else
+                  const SizedBox.shrink(),
                 const SizedBox(height: 20),
 
                 // قسم حالة الاتصال
@@ -454,7 +455,8 @@ class _SettingsTabRiverpodState extends ConsumerState<SettingsTabRiverpod> {
               fillColor: Colors.grey[50],
             ),
             initialValue: _currentLocaleForDropdown(),
-            items: LocaleService.supportedLocales
+            items: ref
+                .watch(supportedLocalesProvider)
                 .map((Locale l) => DropdownMenuItem<Locale>(
                       value: l,
                       child: Row(
@@ -471,7 +473,7 @@ class _SettingsTabRiverpodState extends ConsumerState<SettingsTabRiverpod> {
                     ))
                 .toList(),
             onChanged: (Locale? l) async {
-              await LocaleService.instance.setLocale(l);
+              await ref.read(localeNotifierProvider.notifier).setLocale(l);
               if (mounted) setState(() {});
             },
           ),
@@ -605,7 +607,7 @@ class _SettingsTabRiverpodState extends ConsumerState<SettingsTabRiverpod> {
       );
 
   Locale? _currentLocaleForDropdown() =>
-      LocaleService.instance.locale ?? const Locale('ar');
+      ref.watch(currentLocaleProvider) ?? const Locale('ar');
 
   String _labelForLocale(String code) => switch (code) {
         'ar' => 'العربية',
@@ -922,6 +924,14 @@ class _SettingsTabRiverpodState extends ConsumerState<SettingsTabRiverpod> {
             color: Colors.red,
             onTap: () => _showResetSettingsDialog(settingsNotifier),
           ),
+          const SizedBox(height: 12),
+          _buildActionTile(
+            title: 'تسجيل الخروج',
+            subtitle: 'الخروج من الحساب والعودة لشاشة تسجيل الدخول',
+            icon: Icons.logout,
+            color: Colors.red.shade700,
+            onTap: _showLogoutDialog,
+          ),
         ],
       );
 
@@ -1114,9 +1124,11 @@ class _SettingsTabRiverpodState extends ConsumerState<SettingsTabRiverpod> {
 
   /// فتح شاشة النسخ الاحتياطي والاستعادة
   void _openBackupRestoreScreen() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (BuildContext context) => const BackupRestoreScreen(),
+    // TODO: Implement backup restore screen
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('شاشة النسخ الاحتياطي قيد التطوير'),
+        backgroundColor: Colors.orange,
       ),
     );
   }
@@ -1143,19 +1155,25 @@ class _SettingsTabRiverpodState extends ConsumerState<SettingsTabRiverpod> {
           ),
           ElevatedButton(
             onPressed: () async {
+              // حفظ reference للـ ScaffoldMessenger قبل إغلاق الحوار
+              final ScaffoldMessengerState scaffoldMessenger =
+                  ScaffoldMessenger.of(context);
+              final String successMessage =
+                  AppLocalizations.of(context).cleanupSuccessMessage;
+
               if (Navigator.of(context).canPop()) {
                 Navigator.of(context).pop();
               }
+
               await settingsNotifier.performCleanup();
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                        AppLocalizations.of(context).cleanupSuccessMessage),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              }
+
+              // استخدام المرجع المحفوظ لعرض الرسالة
+              scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: Text(successMessage),
+                  backgroundColor: Colors.green,
+                ),
+              );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange,
@@ -1181,25 +1199,70 @@ class _SettingsTabRiverpodState extends ConsumerState<SettingsTabRiverpod> {
           ),
           ElevatedButton(
             onPressed: () async {
+              // حفظ reference للـ ScaffoldMessenger قبل إغلاق الحوار
+              final ScaffoldMessengerState scaffoldMessenger =
+                  ScaffoldMessenger.of(context);
+              final String successMessage =
+                  AppLocalizations.of(context).resetSuccessMessage;
+
               if (Navigator.of(context).canPop()) {
                 Navigator.of(context).pop();
               }
+
               await settingsNotifier.resetSettings();
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content:
-                        Text(AppLocalizations.of(context).resetSuccessMessage),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              }
+
+              // استخدام المرجع المحفوظ لعرض الرسالة
+              scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: Text(successMessage),
+                  backgroundColor: Colors.green,
+                ),
+              );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
             ),
             child: Text(AppLocalizations.of(context).reset),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// حوار تسجيل الخروج
+  void _showLogoutDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) => AlertDialog(
+        title: const Text('تسجيل الخروج'),
+        content: const Text('هل أنت متأكد من رغبتك في تسجيل الخروج؟'),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              // حفظ المرجع قبل إغلاق الحوار
+              final WidgetRef currentRef = ref;
+
+              // إغلاق الحوار أولاً
+              Navigator.of(dialogContext).pop();
+
+              // تسجيل الخروج (سيتم توجيه المستخدم تلقائياً لشاشة تسجيل الدخول)
+              try {
+                await currentRef.read(authStateProvider.notifier).signOut();
+              } catch (e) {
+                debugPrint('⚠️ خطأ في تسجيل الخروج: $e');
+                // لا نحاول إغلاق شاشة الإعدادات يدوياً - AuthWrapper سيفعل ذلك تلقائياً
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('تسجيل الخروج'),
           ),
         ],
       ),

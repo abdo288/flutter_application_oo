@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 
-import '../services/realtime_update_service.dart';
 import '../models/update_log.dart';
+import '../services/realtime_update_service.dart';
 
 /// widget لعرض حالة التحديثات الفورية
 class RealtimeStatusWidget extends StatefulWidget {
@@ -584,7 +585,6 @@ class _RealtimeStatusWidgetState extends State<RealtimeStatusWidget>
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: _isListening ? Colors.green : Colors.orange,
-          width: 1,
         ),
       ),
       child: Row(

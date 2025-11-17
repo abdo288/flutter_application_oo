@@ -123,7 +123,7 @@ class _ErrorStateWidgetState extends State<ErrorStateWidget>
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [
+                          colors: <Color>[
                             AppConstants.errorColor.withValues(alpha: 0.1),
                             AppConstants.errorLightColor
                                 .withValues(alpha: 0.05),
@@ -176,7 +176,6 @@ class _ErrorStateWidgetState extends State<ErrorStateWidget>
                             BorderRadius.circular(AppConstants.borderRadius),
                         border: Border.all(
                           color: AppConstants.errorColor.withValues(alpha: 0.2),
-                          width: 1,
                         ),
                       ),
                       child: Text(
@@ -193,17 +192,17 @@ class _ErrorStateWidgetState extends State<ErrorStateWidget>
                   ),
 
                   // Retry button
-                  if (widget.showRetryButton) ...[
+                  if (widget.showRetryButton) ...<Widget>[
                     const SizedBox(height: AppConstants.spacing32),
                     SlideTransition(
                       position: _slideAnimation,
                       child: ElevatedButton.icon(
                         onPressed: _isRetrying ? null : _handleRetry,
                         icon: _isRetrying
-                            ? SizedBox(
+                            ? const SizedBox(
                                 width: AppConstants.iconSizeMedium,
                                 height: AppConstants.iconSizeMedium,
-                                child: const CircularProgressIndicator(
+                                child: CircularProgressIndicator(
                                   strokeWidth: 2,
                                   valueColor: AlwaysStoppedAnimation<Color>(
                                       Colors.white),

@@ -1,23 +1,23 @@
 import 'dart:async';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:flutter/material.dart';
-import 'package:profit_calculator/providers/stream_app_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../models/product.dart';
-import '../providers/stream_product_provider.dart';
-import '../providers/riverpod_provider_wrapper.dart';
 import '../services/app_event_bus.dart';
 import '../widgets/product_filters.dart';
+import 'riverpod/shared_types.dart';
+import 'riverpod/stream_product_riverpod_provider.dart';
 
 // Constant for undefined values in copyWith
-const _undefined = Object();
+const Object _undefined = Object();
 
 /// Riverpod provider for product list state
 final StateNotifierProvider<ProductListNotifier, ProductListState>
     productListStateProvider =
     StateNotifierProvider<ProductListNotifier, ProductListState>(
-  (StateNotifierProviderRef<ProductListNotifier, ProductListState> ref) =>
-      ProductListNotifier(ref),
-  dependencies: [streamAppProvider],
+  ProductListNotifier.new,
+  dependencies: <ProviderOrFamily>[productsControllerProvider],
 );
 
 /// Riverpod provider for filtered products
@@ -28,7 +28,7 @@ final Provider<List<Product>> filteredProductsProvider =
         ref.watch(productListStateProvider);
     return productListState.filteredProducts;
   },
-  dependencies: [productListStateProvider],
+  dependencies: <ProviderOrFamily>[productListStateProvider],
 );
 
 /// Riverpod provider for product loading state
@@ -38,7 +38,7 @@ final Provider<bool> productLoadingProvider = Provider<bool>(
         ref.watch(productListStateProvider);
     return productListState.isLoading;
   },
-  dependencies: [productListStateProvider],
+  dependencies: <ProviderOrFamily>[productListStateProvider],
 );
 
 /// Riverpod provider for product deletion state
@@ -48,7 +48,7 @@ final Provider<bool> productDeletingProvider = Provider<bool>(
         ref.watch(productListStateProvider);
     return productListState.isDeleting;
   },
-  dependencies: [productListStateProvider],
+  dependencies: <ProviderOrFamily>[productListStateProvider],
 );
 
 /// Riverpod provider for search query
@@ -91,8 +91,8 @@ class ProductListState {
     this.isLoading = false,
     this.isDeleting = false,
     this.errorMessage,
-    this.products = const [],
-    this.filteredProducts = const [],
+    this.products = const <Product>[],
+    this.filteredProducts = const <Product>[],
     this.searchQuery = '',
     this.showAdvancedFilters = false,
     this.expandedProductId,
@@ -151,19 +151,25 @@ class ProductListNotifier extends StateNotifier<ProductListState> {
 
   void _initialize() {
     _startEventListening();
-    _loadProducts();
 
-    // Listen to StreamAppProvider changes for automatic updates
-    _ref.listen<StreamAppProvider>(
-      streamAppProvider,
-      (previous, next) {
-        if (mounted) {
+    // Listen to ProductsController changes for automatic updates
+    _ref.listen<ProductsState>(
+      productsControllerProvider,
+      (ProductsState? previous, ProductsState next) {
+        if (mounted && previous != next) {
           debugPrint(
-              '🔄 ProductListNotifier: StreamAppProvider changed, reloading...');
-          _loadProducts();
+              '🔄 ProductListNotifier: ProductsController changed, updating state...');
+          _updateFromController(next);
         }
       },
     );
+
+    // Initialize data after the listener is set up
+    Future.microtask(() {
+      if (mounted) {
+        _loadProducts();
+      }
+    });
   }
 
   void _startEventListening() {
@@ -228,15 +234,16 @@ class ProductListNotifier extends StateNotifier<ProductListState> {
     try {
       state = state.copyWith(isLoading: true);
 
-      final StreamAppProvider appProvider = _ref.read(streamAppProvider);
-      await appProvider.refreshAll();
+      final ProductsController productsController =
+          _ref.read(productsControllerProvider.notifier);
+      await productsController.refresh();
 
       if (!mounted) return;
 
-      // الحصول على جميع المنتجات بدلاً من المنتجات المفلترة فقط
-      final List<Product> allProducts = appProvider.productProvider.products;
-      final List<Product> filteredProducts =
-          appProvider.productProvider.filteredProducts;
+      // الحصول على جميع المنتجات من ProductsController
+      final ProductsState productsState = _ref.read(productsControllerProvider);
+      final List<Product> allProducts = productsState.products;
+      final List<Product> filteredProducts = productsState.filteredProducts;
 
       debugPrint('🔄 ProductListNotifier: تم تحميل ${allProducts.length} منتج');
       debugPrint(
@@ -259,6 +266,26 @@ class ProductListNotifier extends StateNotifier<ProductListState> {
     }
   }
 
+  /// Update state from ProductsController without triggering refresh
+  void _updateFromController(ProductsState productsState) {
+    if (!mounted) return;
+
+    final List<Product> allProducts = productsState.products;
+    final List<Product> filteredProducts = productsState.filteredProducts;
+
+    debugPrint(
+        '🔄 ProductListNotifier: تحديث من ProductsController - ${allProducts.length} منتج');
+
+    state = state.copyWith(
+      products: allProducts,
+      filteredProducts:
+          filteredProducts.isNotEmpty ? filteredProducts : allProducts,
+      isInitialized: true,
+      isLoading: productsState.isLoading,
+      errorMessage: productsState.errorMessage,
+    );
+  }
+
   void updateSearchQuery(String query) {
     if (!mounted) return;
     state = state.copyWith(searchQuery: query);
@@ -268,15 +295,16 @@ class ProductListNotifier extends StateNotifier<ProductListState> {
   void _applySearch(String query) {
     if (!mounted) return;
 
-    final StreamAppProvider appProvider = _ref.read(streamAppProvider);
-    appProvider.productProvider.filterProducts(query);
+    final ProductsController productsController =
+        _ref.read(productsControllerProvider.notifier);
+    productsController.filterProducts(query);
 
     if (!mounted) return;
 
-    // الحصول على المنتجات المفلترة أو جميع المنتجات إذا كانت فارغة
-    final List<Product> filteredProducts =
-        appProvider.productProvider.filteredProducts;
-    final List<Product> allProducts = appProvider.productProvider.products;
+    // الحصول على المنتجات المفلترة من ProductsController
+    final ProductsState productsState = _ref.read(productsControllerProvider);
+    final List<Product> filteredProducts = productsState.filteredProducts;
+    final List<Product> allProducts = productsState.products;
 
     state = state.copyWith(
       filteredProducts:
@@ -300,11 +328,10 @@ class ProductListNotifier extends StateNotifier<ProductListState> {
   void _applyFilters(ProductFilters filters) {
     if (!mounted) return;
 
-    final StreamAppProvider appProvider = _ref.read(streamAppProvider);
     // Apply filters logic here
-    final List<Product> filteredProducts =
-        appProvider.productProvider.filteredProducts;
-    final List<Product> allProducts = appProvider.productProvider.products;
+    final ProductsState productsState = _ref.read(productsControllerProvider);
+    final List<Product> filteredProducts = productsState.filteredProducts;
+    final List<Product> allProducts = productsState.products;
 
     if (!mounted) return;
 
@@ -322,12 +349,14 @@ class ProductListNotifier extends StateNotifier<ProductListState> {
       searchQuery: '',
     );
 
-    final StreamAppProvider appProvider = _ref.read(streamAppProvider);
-    appProvider.productProvider.resetFilter();
+    final ProductsController productsController =
+        _ref.read(productsControllerProvider.notifier);
+    productsController.resetFilter();
 
     if (!mounted) return;
 
-    final List<Product> allProducts = appProvider.productProvider.products;
+    final ProductsState productsState = _ref.read(productsControllerProvider);
+    final List<Product> allProducts = productsState.products;
     state = state.copyWith(filteredProducts: allProducts);
   }
 
@@ -356,14 +385,15 @@ class ProductListNotifier extends StateNotifier<ProductListState> {
   void applySorting(SortOption option) {
     if (!mounted) return;
 
-    final StreamAppProvider appProvider = _ref.read(streamAppProvider);
-    appProvider.productProvider.applySorting(option);
+    final ProductsController productsController =
+        _ref.read(productsControllerProvider.notifier);
+    productsController.applySorting(option);
 
     if (!mounted) return;
 
-    final List<Product> filteredProducts =
-        appProvider.productProvider.filteredProducts;
-    final List<Product> allProducts = appProvider.productProvider.products;
+    final ProductsState productsState = _ref.read(productsControllerProvider);
+    final List<Product> filteredProducts = productsState.filteredProducts;
+    final List<Product> allProducts = productsState.products;
 
     state = state.copyWith(
       filteredProducts:
@@ -377,9 +407,9 @@ class ProductListNotifier extends StateNotifier<ProductListState> {
     try {
       state = state.copyWith(isDeleting: true);
 
-      final StreamAppProvider appProvider = _ref.read(streamAppProvider);
-      final bool success =
-          await appProvider.productProvider.deleteProduct(productId);
+      final ProductsController productsController =
+          _ref.read(productsControllerProvider.notifier);
+      final bool success = await productsController.deleteProduct(productId);
 
       if (success && mounted) {
         await _loadProducts();

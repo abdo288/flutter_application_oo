@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -10,17 +11,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/inventory_item.dart';
 import '../models/product.dart';
-import '../providers/stream_inventory_provider.dart';
-import '../providers/stream_product_provider.dart';
+import '../providers/riverpod/stream_inventory_riverpod_provider.dart';
+import '../providers/riverpod/stream_product_riverpod_provider.dart';
 import '../repositories/unified_repository.dart';
 
 /// خدمة النسخ الاحتياطي الشاملة للبيانات
 class BackupService {
   BackupService({
-    required StreamProductProvider productProvider,
-    required StreamInventoryProvider inventoryProvider,
-  })  : _productProvider = productProvider,
-        _inventoryProvider = inventoryProvider;
+    required WidgetRef ref,
+  }) : _ref = ref;
+  final WidgetRef _ref;
   static const String _lastBackupKey = 'last_backup_time';
   static const String _autoBackupKey = 'auto_backup_enabled';
   static const String _backupFrequencyKey = 'backup_frequency';
@@ -31,9 +31,6 @@ class BackupService {
   static int _backupFrequency = 7; // أيام
   static bool _cloudBackupEnabled = false;
   static DateTime? _lastBackupTime;
-
-  final StreamProductProvider _productProvider;
-  final StreamInventoryProvider _inventoryProvider;
 
   /// تهيئة خدمة النسخ الاحتياطي
   static Future<void> initialize() async {
@@ -135,7 +132,8 @@ class BackupService {
   /// إنشاء نسخة احتياطية للمخزون فقط
   Future<BackupResult> createInventoryBackup() async {
     try {
-      final List<InventoryItem> inventory = _inventoryProvider.inventoryItems;
+      final List<InventoryItem> inventory =
+          _ref.read(inventoryControllerProvider).inventoryItems;
       final Map<String, dynamic> backupData = <String, dynamic>{
         'type': 'inventory_only',
         'version': '1.0',
@@ -264,7 +262,7 @@ class BackupService {
       }
 
       // التحقق من نوع البيانات
-      final String type = data['type'] as String;
+      final String type = (data['type'] as String?) ?? 'unknown';
       final Map<String, dynamic> backupData =
           Map<String, dynamic>.from(data['data'] as Map);
 
@@ -288,7 +286,7 @@ class BackupService {
         type: type,
         dataCount: dataCount,
         timestamp: data['timestamp'] != null
-            ? DateTime.parse(data['timestamp'] as String)
+            ? DateTime.parse((data['timestamp'] as String?) ?? '')
             : null,
         version: data['version'] as String?,
       );
@@ -423,8 +421,10 @@ class BackupService {
   /// جمع جميع البيانات
   Future<Map<String, dynamic>> _collectAllData() async {
     try {
-      final List<Product> products = _productProvider.products;
-      final List<InventoryItem> inventory = _inventoryProvider.inventoryItems;
+      final List<Product> products =
+          _ref.read(productsControllerProvider).products;
+      final List<InventoryItem> inventory =
+          _ref.read(inventoryControllerProvider).inventoryItems;
 
       // جمع إعدادات التنبيهات (إذا كانت متاحة)
       final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -540,24 +540,20 @@ class BackupService {
 
   /// إنشاء مثيل من الخدمة مع المزودات المطلوبة
   static BackupService create({
-    required StreamProductProvider productProvider,
-    required StreamInventoryProvider inventoryProvider,
+    required WidgetRef ref,
   }) =>
       BackupService(
-        productProvider: productProvider,
-        inventoryProvider: inventoryProvider,
+        ref: ref,
       );
 
   /// إنشاء نسخة احتياطية شاملة (دالة ثابتة للتوافق)
   static Future<BackupResult> createFullBackupStatic({
-    required StreamProductProvider productProvider,
-    required StreamInventoryProvider inventoryProvider,
+    required WidgetRef ref,
     bool includeCloud = false,
     String? customFileName,
   }) async {
     final BackupService service = BackupService(
-      productProvider: productProvider,
-      inventoryProvider: inventoryProvider,
+      ref: ref,
     );
     return await service.createFullBackup(
       includeCloud: includeCloud,
@@ -567,24 +563,20 @@ class BackupService {
 
   /// إنشاء نسخة احتياطية للمخزون فقط (دالة ثابتة للتوافق)
   static Future<BackupResult> createInventoryBackupStatic({
-    required StreamProductProvider productProvider,
-    required StreamInventoryProvider inventoryProvider,
+    required WidgetRef ref,
   }) async {
     final BackupService service = BackupService(
-      productProvider: productProvider,
-      inventoryProvider: inventoryProvider,
+      ref: ref,
     );
     return await service.createInventoryBackup();
   }
 
   /// إنشاء نسخة احتياطية تلقائية (دالة ثابتة للتوافق)
   static Future<void> createAutoBackupStatic({
-    required StreamProductProvider productProvider,
-    required StreamInventoryProvider inventoryProvider,
+    required WidgetRef ref,
   }) async {
     final BackupService service = BackupService(
-      productProvider: productProvider,
-      inventoryProvider: inventoryProvider,
+      ref: ref,
     );
     await service.createAutoBackup();
   }

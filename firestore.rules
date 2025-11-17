@@ -2,14 +2,20 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // --- Helper Functions ---
+    function isAdmin() {
+      return request.auth != null && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
     // Enhanced rules for real-time sync with security
     match /products/{productId} {
-      // Allow read/write for authenticated users only
-      allow read, write: if request.auth != null && request.auth.uid != null;
+      // Allow read for authenticated users
+      allow read: if request.auth != null;
       
       // Data validation - support both formats (legacy and current)
-      allow create: if request.auth != null 
-        && request.auth.uid != null
+      allow create: if request.auth != null
         && (
           // Current format (snake_case)
           (
@@ -28,8 +34,7 @@ service cloud.firestore {
           )
         );
         
-      allow update: if request.auth != null 
-        && request.auth.uid != null
+      allow update: if request.auth != null
         && (
           // Current format (snake_case)
           (
@@ -49,59 +54,62 @@ service cloud.firestore {
             && (request.resource.data.keys().hasAny(['updatedAt']))
           )
         );
+        
+      allow delete: if request.auth != null;
     }
     
     match /quantities/{quantityId} {
-      // Allow read/write for authenticated users only
-      allow read, write: if request.auth != null && request.auth.uid != null;
+      // Allow read for authenticated users
+      allow read: if request.auth != null;
       
       // Data validation - more flexible for updates
-      allow create: if request.auth != null 
-        && request.auth.uid != null
+      allow create: if request.auth != null
         && request.resource.data.quantity is number
         && request.resource.data.quantity >= 0;
         
-      allow update: if request.auth != null 
-        && request.auth.uid != null
+      allow update: if request.auth != null
         && request.resource.data.quantity is number
         && request.resource.data.quantity >= 0
         && (request.resource.data.keys().hasAny(['last_modified', 'updatedAt']));
+        
+      allow delete: if request.auth != null;
     }
     
     match /audit_logs/{auditId} {
-      // Allow read/write for authenticated users only
-      allow read, write: if request.auth != null && request.auth.uid != null;
+      // Allow read for authenticated users
+      allow read: if request.auth != null;
       
       // Data validation
-      allow create: if request.auth != null 
-        && request.auth.uid != null
+      allow create: if request.auth != null
         && request.resource.data.keys().hasAll(['action', 'timestamp', 'userId'])
         && request.resource.data.action is string
         && request.resource.data.timestamp is timestamp
         && request.resource.data.userId is string;
+        
+      allow delete: if request.auth != null;
     }
     
     match /inventory_alerts/{alertId} {
-      // Allow read/write for authenticated users only
-      allow read, write: if request.auth != null && request.auth.uid != null;
+      // Allow read for authenticated users
+      allow read: if request.auth != null;
       
       // Data validation for alerts
-      allow create: if request.auth != null 
-        && request.auth.uid != null
+      allow create: if request.auth != null
         && request.resource.data.keys().hasAll(['productName', 'alertType', 'alertDate', 'isRead'])
         && request.resource.data.productName is string
         && request.resource.data.alertType is string
         && request.resource.data.alertDate is timestamp
         && request.resource.data.isRead is bool;
         
-      allow update: if request.auth != null 
-        && request.auth.uid != null
+      allow update: if request.auth != null
         && (request.resource.data.keys().hasAny(['isRead', 'lastModified']));
+        
+      allow delete: if request.auth != null;
     }
     
     match /alert_settings/{settingId} {
-      // Allow read/write for authenticated users only
-      allow read, write: if request.auth != null && request.auth.uid != null;
+      // Allow read for authenticated users
+      allow read: if request.auth != null;
       
       // Data validation for settings
       allow create, update: if request.auth != null 
@@ -110,72 +118,93 @@ service cloud.firestore {
         && request.resource.data.enableOutOfStockAlert is bool
         && request.resource.data.enableLowStockAlert is bool
         && request.resource.data.enableExpiringAlert is bool;
+        
+      allow delete: if request.auth != null;
     }
     
     // Sales collection rules
     match /sales/{saleId} {
-      // Allow read/write for authenticated users only
-      allow read, write: if request.auth != null && request.auth.uid != null;
+      // Allow read for authenticated users
+      allow read: if request.auth != null;
       
-      // Data validation for sales
-      allow create: if request.auth != null 
-        && request.auth.uid != null
-        && request.resource.data.keys().hasAll(['productId', 'quantity', 'totalPrice', 'timestamp'])
-        && request.resource.data.productId is string
-        && request.resource.data.quantity is number
-        && request.resource.data.quantity > 0
-        && request.resource.data.totalPrice is number
-        && request.resource.data.totalPrice >= 0
-        && request.resource.data.timestamp is timestamp;
+      // Data validation for sales - updated to match actual data structure
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasAll(['id', 'items', 'totalAmount', 'totalProfit', 'saleDate'])
+        && request.resource.data.id is string
+        && request.resource.data.items is list
+        && request.resource.data.totalAmount is number
+        && request.resource.data.totalAmount >= 0
+        && request.resource.data.totalProfit is number
+        && request.resource.data.saleDate is string;
         
-      allow update: if request.auth != null 
-        && request.auth.uid != null
-        && request.resource.data.keys().hasAny(['last_modified', 'updatedAt']);
+      allow update: if request.auth != null
+        && request.resource.data.keys().hasAny(['lastModified', 'isSynced']);
+        
+      allow delete: if request.auth != null;
     }
     
     // Reports collection rules
     match /reports/{reportId} {
-      // Allow read/write for authenticated users only
-      allow read, write: if request.auth != null && request.auth.uid != null;
+      // Allow read for authenticated users
+      allow read: if request.auth != null;
       
       // Data validation for reports
-      allow create: if request.auth != null 
-        && request.auth.uid != null
+      allow create: if request.auth != null
         && request.resource.data.keys().hasAll(['reportType', 'generatedAt', 'data'])
         && request.resource.data.reportType is string
         && request.resource.data.generatedAt is timestamp
         && request.resource.data.data is map;
+        
+      allow delete: if request.auth != null;
     }
     
     // Analytics collection rules
     match /analytics/{analyticsId} {
-      // Allow read/write for authenticated users only
-      allow read, write: if request.auth != null && request.auth.uid != null;
+      // Allow read for authenticated users
+      allow read: if request.auth != null;
       
       // Data validation for analytics
-      allow create: if request.auth != null 
-        && request.auth.uid != null
+      allow create: if request.auth != null
         && request.resource.data.keys().hasAll(['metric', 'value', 'timestamp'])
         && request.resource.data.metric is string
         && request.resource.data.value is number
         && request.resource.data.timestamp is timestamp;
+        
+      allow delete: if request.auth != null;
     }
     
     // Users collection rules
     match /users/{userId} {
-      // Allow read/write for authenticated users only
-      allow read, write: if request.auth != null && request.auth.uid != null;
+      // Allow users to read their own data
+      allow read: if request.auth != null 
+        && request.auth.uid != null
+        && request.auth.uid == userId;
       
-      // Users can only access their own data
-      allow read, write: if request.auth != null 
+      // Allow users to create their own document during sign-in
+      allow create: if request.auth != null 
+        && request.auth.uid != null
+        && request.auth.uid == userId;
+        
+      // Allow users to update their own data
+      allow update: if request.auth != null 
+        && request.auth.uid != null
+        && request.auth.uid == userId;
+        
+      // Allow users to delete their own data
+      allow delete: if request.auth != null 
         && request.auth.uid != null
         && request.auth.uid == userId;
     }
     
+    // Allow listing all users ONLY for admins (for admin usersStream)
+    match /users/{document=**} {
+      allow list: if isAdmin();
+    }
+    
     // Settings collection rules
     match /settings/{settingId} {
-      // Allow read/write for authenticated users only
-      allow read, write: if request.auth != null && request.auth.uid != null;
+      // Allow read for authenticated users
+      allow read: if request.auth != null;
       
       // Data validation for settings
       allow create, update: if request.auth != null 
@@ -185,27 +214,73 @@ service cloud.firestore {
         && request.resource.data.settingValue is string
         && request.resource.data.userId is string
         && request.resource.data.userId == request.auth.uid;
+        
+      allow delete: if request.auth != null;
     }
     
     // Sessions collection rules
     match /sessions/{sessionId} {
-      // Allow read/write for authenticated users only
-      allow read, write: if request.auth != null && request.auth.uid != null;
+      // Allow read for authenticated users
+      allow read: if request.auth != null;
       
       // Data validation for sessions
-      allow create: if request.auth != null 
-        && request.auth.uid != null
+      allow create: if request.auth != null
         && request.resource.data.keys().hasAll(['userId', 'startTime', 'isActive'])
         && request.resource.data.userId is string
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.startTime is timestamp
         && request.resource.data.isActive is bool;
+        
+      allow delete: if request.auth != null;
+    }
+    
+    // POS Sessions collection rules
+    match /pos_sessions/{sessionId} {
+      // Allow read for authenticated users
+      allow read: if request.auth != null;
+      
+      // Data validation for POS sessions
+      allow create: if request.auth != null
+        && request.resource.data.sessionId is string
+        && request.resource.data.isActive is bool;
+        
+      allow update: if request.auth != null
+        && (request.resource.data.keys().hasAny(['isActive', 'endedAt']));
+        
+      allow delete: if request.auth != null;
+    }
+    
+    // POS Carts collection rules
+    match /pos_carts/{cartId} {
+      // Allow read for authenticated users
+      allow read: if request.auth != null;
+      
+      // Data validation for POS carts
+      allow create, update: if request.auth != null
+        && request.resource.data.sessionId is string
+        && request.resource.data.items is list;
+        
+      allow delete: if request.auth != null;
     }
     
     // General rule for other documents with security
     match /{document=**} {
-      // Allow read/write for authenticated users only
-      allow read, write: if request.auth != null && request.auth.uid != null;
+      // Allow read for authenticated users
+      allow read: if request.auth != null;
+      // Allow write operations (create, update, delete) for authenticated users
+      allow write: if request.auth != null;
+    }
+    
+    // Sync state collection - allow for authenticated users
+    match /sync_state/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+    
+    // Sync operations collection - allow for authenticated users
+    match /sync_operations/{operationId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
     }
   }
 }

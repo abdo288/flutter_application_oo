@@ -1,0 +1,312 @@
+# إعدادات Patrol المتقدمة للاختبارات End-to-End
+
+# إعدادات التطبيق
+app:
+  # مسار التطبيق المبنى
+  android: build/app/outputs/flutter-apk/app-debug.apk
+  ios: build/ios/iphoneos/Runner.app
+  
+  # إعدادات البناء
+  build:
+    # نوع البناء
+    type: debug
+    
+    # إعدادات إضافية للبناء
+    flavor: development
+    
+    # إعدادات الأداء
+    performance:
+      # تفعيل تحسينات الأداء
+      enabled: true
+      
+      # إعدادات الذاكرة
+      memory:
+        max_heap_size: 512m
+        gc_threshold: 0.8
+
+# إعدادات الاختبارات
+test:
+  # المجلد الذي يحتوي على اختبارات E2E
+  directory: test/e2e
+  
+  # المهلة الزمنية للاختبارات (بالثواني)
+  timeout: 600
+  
+  # إعدادات الجهاز الافتراضي
+  device:
+    # استخدام محاكي Android
+    android:
+      device_id: emulator-5554
+      api_level: 30
+      architecture: x86_64
+      
+      # إعدادات المحاكي
+      emulator:
+        # تفعيل GPU
+        gpu: swiftshader_indirect
+        
+        # إعدادات الذاكرة
+        memory: 2048
+        
+        # إعدادات التخزين
+        storage: 4096
+        
+    # استخدام محاكي iOS
+    ios:
+      device_id: iPhone 14
+      os_version: 16.0
+      
+      # إعدادات المحاكي
+      simulator:
+        # نوع الجهاز
+        device_type: iPhone
+        
+        # إعدادات الذاكرة
+        memory: 2048
+
+# إعدادات السجلات
+logging:
+  # مستوى السجلات (debug, info, warning, error)
+  level: info
+  
+  # حفظ السجلات في ملف
+  file: test/e2e/logs/patrol.log
+  
+  # إضافة لقطات الشاشة عند الفشل
+  screenshots_on_failure: true
+  
+  # إضافة لقطات الشاشة عند النجاح
+  screenshots_on_success: false
+  
+  # إعدادات السجلات المتقدمة
+  advanced:
+    # تسجيل تفاصيل الشبكة
+    network_logging: true
+    
+    # تسجيل تفاصيل قاعدة البيانات
+    database_logging: true
+    
+    # تسجيل تفاصيل الأداء
+    performance_logging: true
+
+# إعدادات Firebase Emulators
+firebase:
+  # استخدام Emulators للاختبارات
+  use_emulators: true
+  
+  # منافذ Emulators
+  emulators:
+    firestore: 8080
+    auth: 9099
+    storage: 9199
+    ui: 4000
+    
+  # إعدادات Emulators المتقدمة
+  advanced:
+    # مهلة الاتصال
+    connection_timeout: 30000
+    
+    # إعدادات إعادة المحاولة
+    retry:
+      max_attempts: 3
+      delay: 1000
+      
+    # إعدادات البيانات التجريبية
+    test_data:
+      # مسح البيانات قبل كل اختبار
+      clear_before_test: true
+      
+      # مسح البيانات بعد كل اختبار
+      clear_after_test: true
+      
+      # استخدام بيانات تجريبية محددة
+      use_fixtures: true
+
+# إعدادات البيانات التجريبية
+test_data:
+  # بيانات المستخدمين التجريبية
+  users:
+    - email: "admin@test.com"
+      password: "admin123"
+      role: "admin"
+      permissions: ["all"]
+    - email: "user@test.com"
+      password: "user123"
+      role: "user"
+      permissions: ["read", "write"]
+    - email: "cashier@test.com"
+      password: "cashier123"
+      role: "cashier"
+      permissions: ["pos", "sales"]
+      
+  # بيانات المنتجات التجريبية
+  products:
+    - name: "منتج تجريبي 1"
+      wholesale_price: 10000
+      retail_price: 15000
+      barcode: "123456789"
+      category: "إلكترونيات"
+      description: "منتج إلكتروني تجريبي"
+      image_url: "https://example.com/product1.jpg"
+    - name: "منتج تجريبي 2"
+      wholesale_price: 20000
+      retail_price: 30000
+      barcode: "987654321"
+      category: "ملابس"
+      description: "منتج ملابس تجريبي"
+      image_url: "https://example.com/product2.jpg"
+      
+  # بيانات العملاء التجريبية
+  customers:
+    - name: "عميل تجريبي 1"
+      phone: "0123456789"
+      email: "customer1@test.com"
+      address: "عنوان تجريبي 1"
+      loyalty_points: 100
+    - name: "عميل تجريبي 2"
+      phone: "0987654321"
+      email: "customer2@test.com"
+      address: "عنوان تجريبي 2"
+      loyalty_points: 50
+
+# إعدادات الأداء
+performance:
+  # مهلة انتظار العناصر (بالثواني)
+  element_timeout: 15
+  
+  # مهلة انتظار الصفحات (بالثواني)
+  page_timeout: 30
+  
+  # مهلة انتظار الشبكة (بالثواني)
+  network_timeout: 60
+  
+  # إعدادات الأداء المتقدمة
+  advanced:
+    # قياس الأداء
+    profiling:
+      enabled: true
+      
+      # قياس استهلاك الذاكرة
+      memory_profiling: true
+      
+      # قياس استهلاك CPU
+      cpu_profiling: true
+      
+      # قياس استهلاك الشبكة
+      network_profiling: true
+    
+    # عتبات الأداء
+    thresholds:
+      screen_load_time: 3000
+      tab_switch_time: 500
+      text_input_time: 100
+      search_time: 1000
+      sync_time: 5000
+      export_time: 5000
+      bulk_operation_time: 30000
+
+# إعدادات الأمان
+security:
+  # استخدام بيانات آمنة
+  use_secure_data: true
+  
+  # تشفير البيانات الحساسة
+  encrypt_sensitive_data: true
+  
+  # إعدادات المصادقة
+  authentication:
+    # مهلة جلسة المستخدم
+    session_timeout: 3600
+    
+    # إعدادات كلمة المرور
+    password:
+      min_length: 8
+      require_special_chars: true
+      require_numbers: true
+
+# إعدادات التقارير
+reporting:
+  # إنشاء تقارير مفصلة
+  detailed_reports: true
+  
+  # حفظ التقارير في ملف
+  save_to_file: true
+  
+  # مسار حفظ التقارير
+  output_path: test/e2e/reports/
+  
+  # تنسيق التقارير
+  format: html
+  
+  # إعدادات التقارير المتقدمة
+  advanced:
+    # تضمين لقطات الشاشة
+    include_screenshots: true
+    
+    # تضمين سجلات الأداء
+    include_performance_logs: true
+    
+    # تضمين سجلات الشبكة
+    include_network_logs: true
+    
+    # تضمين سجلات قاعدة البيانات
+    include_database_logs: true
+
+# إعدادات التكامل مع CI/CD
+ci_cd:
+  # إعدادات GitHub Actions
+  github_actions:
+    enabled: true
+    
+    # رفع اللقطات عند الفشل
+    upload_screenshots_on_failure: true
+    
+    # رفع السجلات عند الفشل
+    upload_logs_on_failure: true
+    
+    # إعدادات التخزين المؤقت
+    cache:
+      enabled: true
+      key: patrol-e2e-tests
+      
+  # إعدادات GitLab CI
+  gitlab_ci:
+    enabled: true
+    
+    # إعدادات التخزين المؤقت
+    cache:
+      enabled: true
+      key: patrol-e2e-tests
+      
+  # إعدادات Jenkins
+  jenkins:
+    enabled: true
+    
+    # إعدادات التخزين المؤقت
+    cache:
+      enabled: true
+      key: patrol-e2e-tests
+
+# إعدادات التطوير
+development:
+  # وضع التطوير
+  debug_mode: true
+  
+  # إعدادات التطوير المتقدمة
+  advanced:
+    # تفعيل السجلات المفصلة
+    verbose_logging: true
+    
+    # تفعيل وضع التتبع
+    trace_mode: false
+    
+    # إعدادات التطوير المحلية
+    local:
+      # استخدام قاعدة بيانات محلية
+      use_local_database: true
+      
+      # استخدام ملفات محلية
+      use_local_files: true
+      
+      # إعدادات التطوير السريع
+      fast_development: true

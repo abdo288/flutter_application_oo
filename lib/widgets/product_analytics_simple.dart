@@ -268,7 +268,7 @@ class ProductAnalytics {
       averagePrice: 0,
       averageProfit: 0,
       highestProfit: 0,
-      categories: {},
+      categories: <String, int>{},
     );
   final int totalProducts;
   final double averagePrice;

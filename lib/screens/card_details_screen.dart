@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/dashboard_stats.dart';
-import '../providers/stream_app_provider.dart';
+import '../providers/riverpod/stream_inventory_riverpod_provider.dart';
+import '../providers/riverpod/stream_product_riverpod_provider.dart';
 import '../services/dashboard_service.dart';
 import '../utils/constants.dart';
 import '../utils/currency_formatter.dart';
-import '../utils/responsive_helpers.dart';
 import '../utils/responsive_breakpoints.dart';
+import '../utils/responsive_helpers.dart';
 
 /// شاشة تفاصيل البطاقة لعرض معلومات مفصلة عن كل إحصائية
-class CardDetailsScreen extends StatefulWidget {
+class CardDetailsScreen extends ConsumerStatefulWidget {
   const CardDetailsScreen({
     super.key,
     required this.cardType,
@@ -31,10 +32,10 @@ class CardDetailsScreen extends StatefulWidget {
   final String? subtitle;
 
   @override
-  State<CardDetailsScreen> createState() => _CardDetailsScreenState();
+  ConsumerState<CardDetailsScreen> createState() => _CardDetailsScreenState();
 }
 
-class _CardDetailsScreenState extends State<CardDetailsScreen> {
+class _CardDetailsScreenState extends ConsumerState<CardDetailsScreen> {
   DashboardStats _stats = DashboardStats.empty();
   bool _isLoading = true;
   String? _errorMessage;
@@ -52,11 +53,12 @@ class _CardDetailsScreenState extends State<CardDetailsScreen> {
     });
 
     try {
-      final StreamAppProvider appProvider = context.read<StreamAppProvider>();
+      final ProductsState productsState = ref.read(productsControllerProvider);
+      final InventoryState inventoryState = ref.read(inventoryControllerProvider);
       final DashboardStats stats =
-          await DashboardService.calculateDashboardStatsStatic(
-        productProvider: appProvider.productProvider,
-        inventoryProvider: appProvider.inventoryProvider,
+          await DashboardService.calculateDashboardStatsForStates(
+        productsState: productsState,
+        inventoryState: inventoryState,
       );
       if (mounted) {
         setState(() {

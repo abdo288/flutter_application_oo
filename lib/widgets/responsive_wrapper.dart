@@ -118,8 +118,8 @@ class ResponsiveDialogWrapper extends StatelessWidget {
         constraints: context.dialogConstraints,
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: [
-            if (title != null) ...[
+          children: <Widget>[
+            if (title != null) ...<Widget>[
               Container(
                 width: double.infinity,
                 padding: context.responsivePadding,
@@ -154,7 +154,7 @@ class ResponsiveDialogWrapper extends StatelessWidget {
                 padding: context.responsivePadding,
                 child: child,
               ),
-            if (actions != null) ...[
+            if (actions != null) ...<Widget>[
               const Divider(height: 1),
               Padding(
                 padding: context.responsivePadding,
@@ -373,8 +373,8 @@ class ResponsiveInputWrapper extends StatelessWidget {
   Widget build(BuildContext context) => Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
-      children: [
-        if (label != null) ...[
+      children: <Widget>[
+        if (label != null) ...<Widget>[
           Text(
             isRequired ? '$label *' : label!,
             style: TextStyle(
@@ -388,7 +388,7 @@ class ResponsiveInputWrapper extends StatelessWidget {
           constraints: context.inputConstraints,
           child: child,
         ),
-        if (helperText != null) ...[
+        if (helperText != null) ...<Widget>[
           SizedBox(height: context.responsiveSpacing * 0.5),
           Text(
             helperText!,
@@ -398,7 +398,7 @@ class ResponsiveInputWrapper extends StatelessWidget {
             ),
           ),
         ],
-        if (errorText != null) ...[
+        if (errorText != null) ...<Widget>[
           SizedBox(height: context.responsiveSpacing * 0.5),
           Text(
             errorText!,

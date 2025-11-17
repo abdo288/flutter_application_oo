@@ -313,31 +313,42 @@ class DataConversionService {
 
   /// تحليل السعر وتحويله إلى رقم صحيح
   static int _parsePrice(Object? value) {
+    if (value == null) return 0;
     if (value is int) return value;
     if (value is double) return value.toInt();
     if (value is String) {
+      if (value.isEmpty) return 0;
       final double? parsed = double.tryParse(value);
       if (parsed == null) {
-        throw FormatException('لا يمكن تحليل السعر: $value');
+        debugPrint('⚠️ لا يمكن تحليل السعر: $value - استخدام 0 كقيمة افتراضية');
+        return 0;
       }
       return parsed.toInt();
     }
-    throw FormatException('نوع بيانات غير صالح للسعر: ${value.runtimeType}');
+    debugPrint(
+        '⚠️ نوع بيانات غير صالح للسعر: ${value.runtimeType} - استخدام 0 كقيمة افتراضية');
+    return 0;
   }
 
   /// تحليل الكمية وتحويلها إلى رقم صحيح
   static int _parseQuantity(Object? value) {
+    if (value == null) return 0;
     if (value is int) return value;
     if (value is double) return value.toInt();
     if (value is String) {
+      if (value.isEmpty) return 0;
       if (value == 'نفذت الكمية') return 0;
       final int? parsed = int.tryParse(value);
       if (parsed == null) {
-        throw FormatException('لا يمكن تحليل الكمية: $value');
+        debugPrint(
+            '⚠️ لا يمكن تحليل الكمية: $value - استخدام 0 كقيمة افتراضية');
+        return 0;
       }
       return parsed;
     }
-    throw FormatException('نوع بيانات غير صالح للكمية: ${value.runtimeType}');
+    debugPrint(
+        '⚠️ نوع بيانات غير صالح للكمية: ${value.runtimeType} - استخدام 0 كقيمة افتراضية');
+    return 0;
   }
 
   /// تحويل Timestamp إلى DateTime
@@ -405,9 +416,13 @@ class DataConversionService {
 
   // Helper methods for parsing
   static int _parseInt(Object? value) {
+    if (value == null) return 0;
     if (value is int) return value;
     if (value is double) return value.round();
-    if (value is String) return int.tryParse(value) ?? 0;
+    if (value is String) {
+      if (value.isEmpty) return 0;
+      return int.tryParse(value) ?? 0;
+    }
     return 0;
   }
 

@@ -14,7 +14,9 @@ import '../utils/validators.dart';
 import '../widgets/barcode_scanner_view.dart';
 import '../widgets/styled_section.dart';
 
-/// تبويب إضافة المنتج المحسن بـ Riverpod
+/// تبويب البيع السريع المحسن بـ Riverpod (ملف قديم - غير مستخدم)
+/// ⚠️ يرجى استخدام lib/screens/add_product/quick_sell_tab_riverpod.dart بدلاً منه
+@Deprecated('Use QuickSellTabRiverpod instead')
 class AddProductTabRiverpod extends ConsumerStatefulWidget {
   const AddProductTabRiverpod({
     super.key,
@@ -57,7 +59,7 @@ class _AddProductTabRiverpodState extends ConsumerState<AddProductTabRiverpod> {
     // إعادة تهيئة البيانات إذا تغيرت قائمة المخزون
     if (widget.inventoryItems.length != oldWidget.inventoryItems.length) {
       // تأجيل التعديل لتجنب تعديل provider أثناء بناء widget tree
-      Future(() => _initializeData());
+      Future(_initializeData);
     }
   }
 
@@ -99,8 +101,7 @@ class _AddProductTabRiverpodState extends ConsumerState<AddProductTabRiverpod> {
   }
 
   /// بناء حالة التحميل
-  Widget _buildLoadingState() {
-    return const Center(
+  Widget _buildLoadingState() => const Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
@@ -119,11 +120,9 @@ class _AddProductTabRiverpodState extends ConsumerState<AddProductTabRiverpod> {
         ],
       ),
     );
-  }
 
   /// بناء حالة عدم وجود عناصر
-  Widget _buildNoItemsState() {
-    return Center(
+  Widget _buildNoItemsState() => Center(
       child: Padding(
         padding: context.responsivePadding,
         child: Column(
@@ -172,7 +171,6 @@ class _AddProductTabRiverpodState extends ConsumerState<AddProductTabRiverpod> {
         ),
       ),
     );
-  }
 
   /// بناء المحتوى الرئيسي
   Widget _buildContent() {
@@ -241,13 +239,13 @@ class _AddProductTabRiverpodState extends ConsumerState<AddProductTabRiverpod> {
                     ),
                     child: Row(
                       children: <Widget>[
-                        Icon(Icons.error_outline,
+                        const Icon(Icons.error_outline,
                             color: AppConstants.errorColor),
                         const SizedBox(width: AppConstants.smallPadding),
                         Expanded(
                           child: Text(
                             errorMessage,
-                            style: TextStyle(color: AppConstants.errorColor),
+                            style: const TextStyle(color: AppConstants.errorColor),
                           ),
                         ),
                         IconButton(

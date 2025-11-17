@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../services/inventory_alert_service.dart';
+import '../utils/platform_thread_safety.dart';
 
 /// شارة عرض عدد التنبيهات غير المقروءة
 class AlertBadge extends StatefulWidget {
@@ -32,11 +33,17 @@ class _AlertBadgeState extends State<AlertBadge> {
         .where('isRead', isEqualTo: false)
         .snapshots()
         .listen((QuerySnapshot<Object?> snapshot) {
-      if (mounted) {
-        setState(() {
-          _unreadCount = snapshot.docs.length;
-        });
-      }
+      // ✅ استخدام PlatformThreadSafety لضمان التنفيذ على platform thread
+      PlatformThreadSafety.executeStreamListenerCallback(
+        () {
+          if (mounted) {
+            setState(() {
+              _unreadCount = snapshot.docs.length;
+            });
+          }
+        },
+        operationName: 'alertBadgeListener',
+      );
     });
   }
 

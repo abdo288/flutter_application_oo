@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
@@ -6,6 +8,7 @@ import 'package:intl/intl.dart';
 
 import '../models/page_result.dart';
 import '../models/sale.dart';
+import '../services/app_event_bus.dart';
 import '../services/error_handler_service.dart';
 import '../services/pos_service.dart';
 
@@ -98,6 +101,58 @@ class POSReportsState {
 class POSReportsNotifier extends StateNotifier<POSReportsState> {
   POSReportsNotifier() : super(const POSReportsState()) {
     _initializeDefaultDates();
+    _setupEventListeners();
+  }
+
+  StreamSubscription<AppEvent>? _eventSubscription;
+
+  /// إعداد الاستماع للأحداث
+  void _setupEventListeners() {
+    _eventSubscription = AppEventBus.stream.listen((AppEvent event) {
+      switch (event.runtimeType) {
+        case SaleCompletedEvent:
+          _handleSaleCompleted(event as SaleCompletedEvent);
+          break;
+        case ReportsUpdateEvent:
+          _handleReportsUpdate(event as ReportsUpdateEvent);
+          break;
+      }
+    });
+  }
+
+  /// معالجة حدث إتمام البيع
+  void _handleSaleCompleted(SaleCompletedEvent event) {
+    debugPrint(
+        '📊 POSReports: استلام حدث إتمام بيع - ${event.sale.totalAmount}');
+
+    // إعادة تحميل البيانات تلقائياً فقط إذا كان مطلوباً
+    if (event.triggerReportsUpdate) {
+      loadData();
+    }
+  }
+
+  /// معالجة حدث تحديث التقارير
+  void _handleReportsUpdate(ReportsUpdateEvent event) {
+    debugPrint(
+        '📊 POSReports: استلام حدث تحديث التقارير - ${event.updateType}');
+
+    // إعادة تحميل البيانات حسب نوع التحديث
+    switch (event.updateType) {
+      case 'sale':
+        loadData();
+        break;
+      case 'eod':
+        loadData();
+        break;
+      case 'inventory':
+        // تحديث جزئي للتقارير المتعلقة بالمخزون
+        loadData();
+        break;
+      case 'product':
+        // تحديث جزئي للتقارير المتعلقة بالمنتجات
+        loadData();
+        break;
+    }
   }
 
   /// تهيئة التواريخ الافتراضية
@@ -113,7 +168,7 @@ class POSReportsNotifier extends StateNotifier<POSReportsState> {
   Future<void> loadData() async {
     if (state.startDate == null || state.endDate == null) return;
 
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    state = state.copyWith(isLoading: true);
 
     try {
       await Future.wait(<Future<void>>[
@@ -197,7 +252,6 @@ class POSReportsNotifier extends StateNotifier<POSReportsState> {
       sales: <Sale>[], // مسح البيانات القديمة
       hasMoreSales: true,
       hasMoreQuick: true,
-      lastQuickDoc: null,
     );
     await loadData();
   }
@@ -209,44 +263,58 @@ class POSReportsNotifier extends StateNotifier<POSReportsState> {
 
   /// مسح رسالة الخطأ
   void clearError() {
-    state = state.copyWith(errorMessage: null);
+    state = state.copyWith();
+  }
+
+  @override
+  void dispose() {
+    _eventSubscription?.cancel();
+    super.dispose();
   }
 }
 
 // ========== Providers ==========
 
 /// Provider للحالة الرئيسية
-final posReportsProvider =
-    StateNotifierProvider<POSReportsNotifier, POSReportsState>((ref) {
-  return POSReportsNotifier();
-});
+final StateNotifierProvider<POSReportsNotifier, POSReportsState>
+    posReportsProvider =
+    StateNotifierProvider<POSReportsNotifier, POSReportsState>(
+        (StateNotifierProviderRef<POSReportsNotifier, POSReportsState> ref) =>
+            POSReportsNotifier());
 
 /// Provider لبيانات رسم المبيعات
-final salesChartDataProvider = Provider<List<FlSpot>>((ref) {
+final Provider<List<FlSpot>> salesChartDataProvider =
+    Provider<List<FlSpot>>((ProviderRef<List<FlSpot>> ref) {
   final POSReportsState state = ref.watch(posReportsProvider);
   return _calculateSalesChartData(state.sales, state.startDate);
 });
 
 /// Provider لبيانات رسم الأرباح
-final profitChartDataProvider = Provider<List<FlSpot>>((ref) {
+final Provider<List<FlSpot>> profitChartDataProvider =
+    Provider<List<FlSpot>>((ProviderRef<List<FlSpot>> ref) {
   final POSReportsState state = ref.watch(posReportsProvider);
   return _calculateProfitChartData(state.sales, state.startDate);
 });
 
 /// Provider لبيانات طرق الدفع
-final paymentMethodDataProvider = Provider<List<PieChartSectionData>>((ref) {
+final Provider<List<PieChartSectionData>> paymentMethodDataProvider =
+    Provider<List<PieChartSectionData>>(
+        (ProviderRef<List<PieChartSectionData>> ref) {
   final POSReportsState state = ref.watch(posReportsProvider);
   return _calculatePaymentMethodData(state.sales);
 });
 
 /// Provider لبيانات المبيعات اليومية
-final dailySalesDataProvider = Provider<List<BarChartGroupData>>((ref) {
+final Provider<List<BarChartGroupData>> dailySalesDataProvider =
+    Provider<List<BarChartGroupData>>(
+        (ProviderRef<List<BarChartGroupData>> ref) {
   final POSReportsState state = ref.watch(posReportsProvider);
   return _calculateDailySalesData(state.sales);
 });
 
 /// Provider لعدد المبيعات غير المزامنة
-final unsyncedSalesCountProvider = Provider<int>((ref) {
+final Provider<int> unsyncedSalesCountProvider =
+    Provider<int>((ProviderRef<int> ref) {
   final POSReportsState state = ref.watch(posReportsProvider);
   return state.sales.where((Sale sale) => !sale.isSynced).length;
 });

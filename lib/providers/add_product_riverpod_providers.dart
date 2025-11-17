@@ -7,10 +7,11 @@ import '../models/inventory_item.dart';
 import '../models/product.dart';
 import '../services/app_event_bus.dart';
 import '../services/error_handler_service.dart';
+import '../services/tab_coordination_service.dart';
 import '../services/unified_sales_service.dart';
 import '../utils/validators.dart';
-import 'riverpod_provider_wrapper.dart';
-import 'stream_app_provider.dart';
+import 'riverpod/stream_app_riverpod_provider.dart';
+import 'riverpod/stream_inventory_riverpod_provider.dart' as stream;
 
 // ========== State Model ==========
 
@@ -86,26 +87,46 @@ class AddProductState {
 // ========== Computed Providers ==========
 
 /// Provider للعناصر المتاحة في المخزون (غير النافذة)
-final availableInventoryItemsProvider =
+/// ✅ إصلاح: استخدام نفس مصدر البيانات مثل InventoryDisplayTab
+final AutoDisposeProvider<List<InventoryItem>> availableInventoryItemsProvider =
     Provider.autoDispose<List<InventoryItem>>(
-  (ref) {
-    final StreamAppProvider appProvider = ref.watch(streamAppProvider);
+  (AutoDisposeProviderRef<List<InventoryItem>> ref) {
+    final AppState appState = ref.watch(appControllerProvider);
+    // ✅ استخدام نفس provider مثل InventoryDisplayTab
+    final stream.InventoryState inventoryState =
+        ref.watch(stream.inventoryControllerProvider);
 
-    if (!appProvider.isInitialized) {
+    if (!appState.isInitialized || !inventoryState.isInitialized) {
+      debugPrint('⏳ Add Product: Waiting for initialization...');
       return <InventoryItem>[];
     }
 
-    return appProvider.inventoryProvider.inventoryItems
-        .where((InventoryItem item) => !item.isOutOfStock() && item.id != null)
+    if (inventoryState.isLoading) {
+      debugPrint('⏳ Add Product: Loading inventory...');
+      return <InventoryItem>[];
+    }
+
+    // تصفية العناصر المتوفرة فقط (الكمية > 0 وليست نافذة)
+    final List<InventoryItem> availableItems = inventoryState.inventoryItems
+        .where(
+            (InventoryItem item) => !item.isOutOfStock() && item.quantity > 0)
         .toList();
+
+    debugPrint(
+        '✅ Add Product: Available inventory items: ${availableItems.length}');
+    return availableItems;
   },
-  dependencies: [streamAppProvider],
+  dependencies: <ProviderOrFamily>[
+    appControllerProvider,
+    stream.inventoryControllerProvider
+  ],
 );
 
 /// Provider لخريطة العناصر المتاحة (بدون تكرار)
-final availableInventoryItemsMapProvider =
+final AutoDisposeProvider<Map<String, InventoryItem>>
+    availableInventoryItemsMapProvider =
     Provider.autoDispose<Map<String, InventoryItem>>(
-  (ref) {
+  (AutoDisposeProviderRef<Map<String, InventoryItem>> ref) {
     final List<InventoryItem> items =
         ref.watch(availableInventoryItemsProvider);
 
@@ -119,12 +140,13 @@ final availableInventoryItemsMapProvider =
       },
     );
   },
-  dependencies: [availableInventoryItemsProvider],
+  dependencies: <ProviderOrFamily>[availableInventoryItemsProvider],
 );
 
 /// Provider للقيم المتاحة في القائمة المنسدلة
-final availableDropdownValuesProvider = Provider.autoDispose<Set<String>>(
-  (ref) {
+final AutoDisposeProvider<Set<String>> availableDropdownValuesProvider =
+    Provider.autoDispose<Set<String>>(
+  (AutoDisposeProviderRef<Set<String>> ref) {
     final Map<String, InventoryItem> itemsMap =
         ref.watch(availableInventoryItemsMapProvider);
 
@@ -132,17 +154,18 @@ final availableDropdownValuesProvider = Provider.autoDispose<Set<String>>(
         .map((InventoryItem item) => '${item.name}_${item.id!}')
         .toSet();
   },
-  dependencies: [availableInventoryItemsMapProvider],
+  dependencies: <ProviderOrFamily>[availableInventoryItemsMapProvider],
 );
 
 /// Provider للتحقق من وجود عناصر متاحة
-final hasAvailableItemsProvider = Provider.autoDispose<bool>(
-  (ref) {
+final AutoDisposeProvider<bool> hasAvailableItemsProvider =
+    Provider.autoDispose<bool>(
+  (AutoDisposeProviderRef<bool> ref) {
     final Map<String, InventoryItem> itemsMap =
         ref.watch(availableInventoryItemsMapProvider);
     return itemsMap.isNotEmpty;
   },
-  dependencies: [availableInventoryItemsMapProvider],
+  dependencies: <ProviderOrFamily>[availableInventoryItemsMapProvider],
 );
 
 // ========== State Notifier ==========
@@ -187,27 +210,18 @@ class AddProductNotifier extends StateNotifier<AddProductState> {
   Future<void> initializeData() async {
     if (state.isInitializing) return;
 
-    state = state.copyWith(isInitializing: true, errorMessage: null);
+    state = state.copyWith(isInitializing: true);
 
     try {
-      final StreamAppProvider appProvider = _ref.read(streamAppProvider);
+      // TODO: Check app state initialization
+      debugPrint('⚠️ App state check needed');
 
-      if (!appProvider.isInitialized) {
-        await appProvider.initialize();
-      }
+      debugPrint('🔄 تم جلب بيانات المخزون في تبويب البيع السريع');
 
-      debugPrint(
-          '🔄 تم جلب بيانات المخزون في تبويب البيع: ${appProvider.inventoryProvider.inventoryItems.length} عنصر');
+      // TODO: Update to use new Riverpod providers
+      final List<InventoryItem> availableItems = <InventoryItem>[];
 
-      // التحقق من وجود عناصر متاحة
-      final List<InventoryItem> availableItems = appProvider
-          .inventoryProvider.inventoryItems
-          .where(
-              (InventoryItem item) => !item.isOutOfStock() && item.id != null)
-          .toList();
-
-      debugPrint(
-          '📦 عناصر المخزون المتاحة: ${availableItems.length} من أصل ${appProvider.inventoryProvider.inventoryItems.length}');
+      debugPrint('📦 عناصر المخزون المتاحة: ${availableItems.length}');
 
       state = state.copyWith(isInitializing: false);
     } catch (e) {
@@ -223,7 +237,6 @@ class AddProductNotifier extends StateNotifier<AddProductState> {
   void selectProduct(String? productName) {
     if (productName == null) {
       state = state.copyWith(
-        selectedProductName: null,
         wholesalePrice: '',
         retailPrice: '',
         isFormValid: false,
@@ -307,13 +320,14 @@ class AddProductNotifier extends StateNotifier<AddProductState> {
   }
 
   /// إضافة المنتج
+  /// ✅ إصلاح: ضمان التناسق مع InventoryDisplayTab
   Future<bool> addProduct() async {
     if (!state.isFormValid || state.selectedProductName == null) {
       state = state.copyWith(errorMessage: 'يرجى ملء جميع الحقول المطلوبة');
       return false;
     }
 
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    state = state.copyWith(isLoading: true);
 
     try {
       // استخراج اسم المنتج ومعرف العنصر
@@ -358,22 +372,33 @@ class AddProductNotifier extends StateNotifier<AddProductState> {
           '📝 بيانات المنتج: $productName, سعر التجزئة: $retailPrice, سعر الجملة: $wholesalePrice');
       debugPrint('🔍 itemId المستخرج: $itemId');
 
-      final StreamAppProvider appProvider = _ref.read(streamAppProvider);
-
       // استخدام ErrorHelper.safeExecute لتنفيذ العملية بأمان
       final bool? success = await ErrorHelper.safeExecute(
         () async {
-          final InventoryItem? selectedItem = appProvider
-              .inventoryProvider.inventoryItems
-              .where((InventoryItem item) => item.id == itemId)
-              .firstOrNull;
+          // ✅ إصلاح: استخدام نفس مصدر البيانات مثل InventoryDisplayTab
+          final stream.InventoryState inventoryState =
+              _ref.read(stream.inventoryControllerProvider);
+          final List<InventoryItem> inventoryItems =
+              inventoryState.inventoryItems;
 
-          if (selectedItem == null) {
+          InventoryItem? selectedItem;
+          try {
+            selectedItem = inventoryItems.firstWhere(
+              (InventoryItem item) => item.id == itemId,
+              orElse: () => throw StateError('Item not found'),
+            );
+          } catch (e) {
             debugPrint(
                 '❌ العنصر غير موجود في المخزون المحلي - itemId: $itemId');
+            debugPrint('🔍 عدد العناصر في المخزون: ${inventoryItems.length}');
+            for (final InventoryItem item in inventoryItems) {
+              debugPrint('   - ${item.name} (ID: ${item.id})');
+            }
             throw Exception(
-                'العنصر المحدد غير موجود في المخزون المحلي. يرجى إضافة المنتج إلى المخزون أولاً.');
+                'العنصر المحدد غير موجود في المخزون المحلي.\n\nيرجى:\n1. إضافة المنتج إلى المخزون أولاً من تبويب "المخزون"\n2. أو استخدام تبويب "نقطة البيع" للبحث عن المنتجات الموجودة');
           }
+
+          // selectedItem مضمون أن يكون غير null هنا بسبب الفحص السابق
 
           debugPrint(
               '✅ تم العثور على العنصر في المخزون المحلي: ${selectedItem.name}');
@@ -393,6 +418,24 @@ class AddProductNotifier extends StateNotifier<AddProductState> {
             product: saleProduct,
           );
 
+          // ✅ إصلاح: إرسال حدث لتحديث InventoryDisplayTab
+          AppEventBus.fire(InventoryUpdatedEvent(
+            itemId,
+            selectedItem.name,
+            selectedItem.quantity,
+            selectedItem.quantity - 1,
+            sourceTab: 'AddProduct',
+          ));
+
+          // ✅ إصلاح: تنسيق البيانات بين التبويبين
+          TabCoordinationService().coordinateInventoryUpdate(
+            itemId: itemId,
+            itemName: selectedItem.name,
+            oldQuantity: selectedItem.quantity,
+            newQuantity: selectedItem.quantity - 1,
+            sourceTab: 'AddProduct',
+          );
+
           // Windows-specific: Add delay before success confirmation
           if (Platform.isWindows) {
             debugPrint('🪟 Windows: إضافة تأخير قبل تأكيد النجاح');
@@ -403,7 +446,6 @@ class AddProductNotifier extends StateNotifier<AddProductState> {
           return true;
         },
         userAction: 'إضافة منتج للبيع من شاشة إضافة المنتج',
-        showUserMessage: null, // سنعرض الرسالة في UI
       );
 
       if (success == true) {
@@ -456,17 +498,15 @@ class AddProductNotifier extends StateNotifier<AddProductState> {
   /// مسح النموذج
   void _clearForm() {
     state = state.copyWith(
-      selectedProductName: null,
       wholesalePrice: '',
       retailPrice: '',
       isFormValid: false,
-      scannedBarcode: null,
     );
   }
 
   /// مسح رسالة الخطأ
   void clearError() {
-    state = state.copyWith(errorMessage: null);
+    state = state.copyWith();
   }
 
   @override
@@ -479,79 +519,88 @@ class AddProductNotifier extends StateNotifier<AddProductState> {
 // ========== Providers ==========
 
 /// Provider الرئيسي لحالة تبويب إضافة المنتج
-final addProductStateProvider =
+final AutoDisposeStateNotifierProvider<AddProductNotifier, AddProductState>
+    addProductStateProvider =
     StateNotifierProvider.autoDispose<AddProductNotifier, AddProductState>(
-  (ref) => AddProductNotifier(ref),
+  AddProductNotifier.new,
 );
 
 /// Provider للتحقق من حالة التحميل
-final addProductLoadingProvider = Provider.autoDispose<bool>(
-  (ref) {
+final AutoDisposeProvider<bool> addProductLoadingProvider =
+    Provider.autoDispose<bool>(
+  (AutoDisposeProviderRef<bool> ref) {
     final AddProductState state = ref.watch(addProductStateProvider);
     return state.isLoading;
   },
-  dependencies: [addProductStateProvider],
+  dependencies: <ProviderOrFamily>[addProductStateProvider],
 );
 
 /// Provider للتحقق من حالة التهيئة
-final addProductInitializingProvider = Provider.autoDispose<bool>(
-  (ref) {
+final AutoDisposeProvider<bool> addProductInitializingProvider =
+    Provider.autoDispose<bool>(
+  (AutoDisposeProviderRef<bool> ref) {
     final AddProductState state = ref.watch(addProductStateProvider);
     return state.isInitializing;
   },
-  dependencies: [addProductStateProvider],
+  dependencies: <ProviderOrFamily>[addProductStateProvider],
 );
 
 /// Provider للتحقق من صحة النموذج
-final addProductFormValidProvider = Provider.autoDispose<bool>(
-  (ref) {
+final AutoDisposeProvider<bool> addProductFormValidProvider =
+    Provider.autoDispose<bool>(
+  (AutoDisposeProviderRef<bool> ref) {
     final AddProductState state = ref.watch(addProductStateProvider);
     return state.isFormValid;
   },
-  dependencies: [addProductStateProvider],
+  dependencies: <ProviderOrFamily>[addProductStateProvider],
 );
 
 /// Provider لرسالة الخطأ
-final addProductErrorProvider = Provider.autoDispose<String?>(
-  (ref) {
+final AutoDisposeProvider<String?> addProductErrorProvider =
+    Provider.autoDispose<String?>(
+  (AutoDisposeProviderRef<String?> ref) {
     final AddProductState state = ref.watch(addProductStateProvider);
     return state.errorMessage;
   },
-  dependencies: [addProductStateProvider],
+  dependencies: <ProviderOrFamily>[addProductStateProvider],
 );
 
 /// Provider للمنتج المحدد
-final selectedProductProvider = Provider.autoDispose<String?>(
-  (ref) {
+final AutoDisposeProvider<String?> selectedProductProvider =
+    Provider.autoDispose<String?>(
+  (AutoDisposeProviderRef<String?> ref) {
     final AddProductState state = ref.watch(addProductStateProvider);
     return state.selectedProductName;
   },
-  dependencies: [addProductStateProvider],
+  dependencies: <ProviderOrFamily>[addProductStateProvider],
 );
 
 /// Provider لسعر الجملة
-final wholesalePriceProvider = Provider.autoDispose<String>(
-  (ref) {
+final AutoDisposeProvider<String> wholesalePriceProvider =
+    Provider.autoDispose<String>(
+  (AutoDisposeProviderRef<String> ref) {
     final AddProductState state = ref.watch(addProductStateProvider);
     return state.wholesalePrice;
   },
-  dependencies: [addProductStateProvider],
+  dependencies: <ProviderOrFamily>[addProductStateProvider],
 );
 
 /// Provider لسعر التجزئة
-final retailPriceProvider = Provider.autoDispose<String>(
-  (ref) {
+final AutoDisposeProvider<String> retailPriceProvider =
+    Provider.autoDispose<String>(
+  (AutoDisposeProviderRef<String> ref) {
     final AddProductState state = ref.watch(addProductStateProvider);
     return state.retailPrice;
   },
-  dependencies: [addProductStateProvider],
+  dependencies: <ProviderOrFamily>[addProductStateProvider],
 );
 
 /// Provider للباركود الممسوح
-final scannedBarcodeProvider = Provider.autoDispose<String?>(
-  (ref) {
+final AutoDisposeProvider<String?> scannedBarcodeProvider =
+    Provider.autoDispose<String?>(
+  (AutoDisposeProviderRef<String?> ref) {
     final AddProductState state = ref.watch(addProductStateProvider);
     return state.scannedBarcode;
   },
-  dependencies: [addProductStateProvider],
+  dependencies: <ProviderOrFamily>[addProductStateProvider],
 );

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+
 import '../models/product.dart';
 import '../utils/constants.dart';
-import '../utils/responsive_breakpoints.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/responsive_breakpoints.dart';
 import 'expandable_card.dart';
 
 /// Modern Product Card with Enhanced UI
@@ -138,13 +139,9 @@ class _ProductCardState extends State<ProductCard>
                             ? LinearGradient(
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
-                                colors: [
-                                  isDark
-                                      ? Colors.white.withValues(alpha: 0.02)
-                                      : Colors.white,
-                                  isDark
-                                      ? Colors.white.withValues(alpha: 0.05)
-                                      : AppConstants.primaryColor
+                                colors: <Color>[
+                                  if (isDark) Colors.white.withValues(alpha: 0.02) else Colors.white,
+                                  if (isDark) Colors.white.withValues(alpha: 0.05) else AppConstants.primaryColor
                                           .withValues(alpha: 0.02),
                                 ],
                               )
@@ -158,7 +155,7 @@ class _ProductCardState extends State<ProductCard>
                           children: <Widget>[
                             // ✅ اسم المنتج مع أيقونة ومؤشر المزامنة
                             Row(
-                              children: [
+                              children: <Widget>[
                                 Container(
                                   padding: EdgeInsets.all(
                                     context.responsiveSpacing * 0.4,
@@ -206,7 +203,6 @@ class _ProductCardState extends State<ProductCard>
                                       border: Border.all(
                                         color: Colors.orange
                                             .withValues(alpha: 0.3),
-                                        width: 1,
                                       ),
                                     ),
                                     child: Icon(
@@ -263,7 +259,7 @@ class _ProductCardState extends State<ProductCard>
       children: <Widget>[
         // صف الأسعار
         if (context.shouldUseVerticalLayout) Column(
-                children: [
+                children: <Widget>[
                   _buildModernInfoItem(
                     context,
                     'سعر الجملة',
@@ -315,7 +311,7 @@ class _ProductCardState extends State<ProductCard>
 
         // صف الأرباح
         if (context.shouldUseVerticalLayout) Column(
-                children: [
+                children: <Widget>[
                   _buildModernInfoItem(
                     context,
                     'الربح',
@@ -367,7 +363,7 @@ class _ProductCardState extends State<ProductCard>
 
   Widget _buildActionsSection(BuildContext context) => context.shouldUseVerticalLayout
         ? Column(
-            children: [
+            children: <Widget>[
               if (widget.onEdit != null)
                 SizedBox(
                   width: double.infinity,
@@ -434,15 +430,14 @@ class _ProductCardState extends State<ProductCard>
         ),
         border: Border.all(
           color: color.withValues(alpha: 0.3),
-          width: 1,
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
-        children: [
+        children: <Widget>[
           Row(
-            children: [
+            children: <Widget>[
               Icon(
                 icon,
                 size: context.responsiveFontSize(16),
@@ -516,7 +511,7 @@ class _ProductCardState extends State<ProductCard>
           child: Row(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
-            children: [
+            children: <Widget>[
               Icon(
                 icon,
                 size: context.responsiveFontSize(16),

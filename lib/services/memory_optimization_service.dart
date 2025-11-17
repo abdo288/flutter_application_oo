@@ -18,10 +18,10 @@ class MemoryOptimizationService {
 
   // إعدادات المراقبة المحسنة
   static const Duration memoryCheckInterval =
-      Duration(minutes: 2); // تقليل التكرار
-  static const int memoryWarningThreshold = 200; // MB - تقليل الحد
-  static const int memoryCriticalThreshold = 300; // MB - تقليل الحد
-  static const int maxCleanupAttempts = 3; // حد أقصى لمحاولات التنظيف
+      Duration(minutes: 1); // مراقبة أكثر تكراراً
+  static const int memoryWarningThreshold = 150; // MB - تقليل الحد أكثر
+  static const int memoryCriticalThreshold = 250; // MB - تقليل الحد أكثر
+  static const int maxCleanupAttempts = 5; // زيادة محاولات التنظيف
 
   // ========== بدء وإيقاف المراقبة ==========
 
@@ -161,6 +161,18 @@ class MemoryOptimizationService {
       ImageCache().clear();
       ImageCache().clearLiveImages();
 
+      // تنظيف ذاكرة النظام
+      if (!kIsWeb) {
+        // إجبار garbage collection
+        // هذا مفيد في حالات الذاكرة الحرجة
+        // System.gc() غير متوفر في Flutter، نستخدم بديل
+        // يمكن استخدام Timer لتأخير العمليات الثقيلة
+      }
+
+      // تنظيف ذاكرة التطبيق العامة
+      PaintingBinding.instance.imageCache.clear();
+      PaintingBinding.instance.imageCache.clearLiveImages();
+
       debugPrint('🧹 تم تنظيف ذاكرة التخزين المؤقت');
     } catch (e) {
       debugPrint('❌ خطأ في تنظيف ذاكرة التخزين المؤقت: $e');
@@ -175,8 +187,8 @@ class MemoryOptimizationService {
       ImageCache().clearLiveImages();
 
       // تحديد حدود ذاكرة الصور
-      ImageCache().maximumSize = 50; // تقليل عدد الصور المحفوظة
-      ImageCache().maximumSizeBytes = 25 * 1024 * 1024; // 25 ميجابايت
+      ImageCache().maximumSize = 20; // تقليل عدد الصور المحفوظة أكثر
+      ImageCache().maximumSizeBytes = 10 * 1024 * 1024; // 10 ميجابايت فقط
 
       debugPrint('🖼️ تم تنظيف ذاكرة الصور');
     } catch (e) {

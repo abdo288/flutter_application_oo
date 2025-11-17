@@ -1,82 +1,108 @@
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
 import '../services/error_handler_service.dart';
 import '../services/presence_service.dart';
 
+/// حالة المصادقة
+@immutable
+class AuthState {
+  const AuthState({
+    this.appUser,
+    this.firebaseUser,
+    this.isLoading = true,
+    this.errorMessage,
+  });
+
+  final AppUser? appUser;
+  final fb_auth.User? firebaseUser;
+  final bool isLoading;
+  final String? errorMessage;
+
+  bool get isAuthenticated => firebaseUser != null;
+  bool get isAdmin => appUser?.isAdmin == true;
+  bool get isSeller => appUser?.isSeller == true;
+
+  AuthState copyWith({
+    AppUser? appUser,
+    fb_auth.User? firebaseUser,
+    bool? isLoading,
+    String? errorMessage,
+  }) =>
+      AuthState(
+        appUser: appUser ?? this.appUser,
+        firebaseUser: firebaseUser ?? this.firebaseUser,
+        isLoading: isLoading ?? this.isLoading,
+        errorMessage: errorMessage ?? this.errorMessage,
+      );
+}
+
 /// مزود حالة المصادقة والأدوار
-class AuthProvider with ChangeNotifier {
-  AuthProvider() {
+class AuthNotifier extends StateNotifier<AuthState> {
+  AuthNotifier() : super(const AuthState()) {
     _listenToAuthChanges();
   }
 
   final AuthService _authService = AuthService.instance;
   final PresenceService _presenceService = PresenceService.instance;
 
-  AppUser? _appUser;
-  fb_auth.User? _firebaseUser;
-  bool _isLoading = true;
-  String? _errorMessage;
-
-  AppUser? get appUser => _appUser;
-  fb_auth.User? get firebaseUser => _firebaseUser;
-  bool get isLoading => _isLoading;
-  String? get errorMessage => _errorMessage;
-  bool get isAuthenticated => _firebaseUser != null;
-
-  bool get isAdmin => _appUser?.isAdmin == true;
-  bool get isSeller => _appUser?.isSeller == true;
-
   void _setLoading(bool value) {
-    _isLoading = value;
-    notifyListeners();
+    state = state.copyWith(isLoading: value);
   }
 
   void _setError(String? message) {
-    _errorMessage = message;
-    notifyListeners();
+    state = state.copyWith(errorMessage: message);
   }
 
   void _listenToAuthChanges() {
-    _authService.authStateChanges().listen((fb_auth.User? user) async {
-      _firebaseUser = user;
-      if (user == null) {
-        _appUser = null;
-        // إيقاف جلسة الحضور عند تسجيل الخروج
-        await _presenceService.goOffline();
-        _setLoading(false);
-        return;
-      }
-      _setLoading(true);
-      try {
-        _appUser = await _authService.getCurrentAppUser();
-        _setError(null);
+    _authService.authStateChanges().listen((fb_auth.User? user) {
+      // استخدام SchedulerBinding للتأكد من platform thread
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        // استخدام Future.microtask للتأكد من platform thread
+        Future.microtask(() async {
+          state = state.copyWith(firebaseUser: user);
+          if (user == null) {
+            // إيقاف جلسة الحضور عند تسجيل الخروج
+            await _presenceService.goOffline();
+            state = state.copyWith(
+              isLoading: false,
+            );
+            return;
+          }
+          _setLoading(true);
+          try {
+            final AppUser? appUser = await _authService.getCurrentAppUser();
+            state = state.copyWith(
+              appUser: appUser,
+            );
 
-        // بدء جلسة الحضور عند تسجيل الدخول الناجح
-        if (_appUser != null) {
-          await _presenceService.goOnline(_appUser!.uid);
-          // إرسال تحديث فوري للواجهة
-          notifyListeners();
-        }
-      } on Exception catch (e, stackTrace) {
-        await ErrorHandlerService.handleError(
-          e,
-          stackTrace: stackTrace.toString(),
-          type: ErrorType.unknown,
-          severity: ErrorSeverity.high,
-          userAction: 'تحميل بيانات المستخدم في AuthProvider',
-          context: <String, dynamic>{
-            'operation': '_listenToAuthChanges',
-            'provider': 'AuthProvider',
-            'userId': user.uid,
-          },
-        );
-        _setError('فشل تحميل بيانات المستخدم');
-      } finally {
-        _setLoading(false);
-      }
+            // بدء جلسة الحضور عند تسجيل الدخول الناجح
+            if (appUser != null) {
+              await _presenceService.goOnline(appUser.uid);
+            }
+          } on Exception catch (e, stackTrace) {
+            await ErrorHandlerService.handleError(
+              e,
+              stackTrace: stackTrace.toString(),
+              type: ErrorType.unknown,
+              severity: ErrorSeverity.high,
+              userAction: 'تحميل بيانات المستخدم في AuthNotifier',
+              context: <String, dynamic>{
+                'operation': '_listenToAuthChanges',
+                'provider': 'AuthNotifier',
+                'userId': user.uid,
+              },
+            );
+            _setError('فشل تحميل بيانات المستخدم');
+          } finally {
+            _setLoading(false);
+          }
+        });
+      });
     });
   }
 
@@ -85,18 +111,19 @@ class AuthProvider with ChangeNotifier {
     try {
       final AppUser user =
           await _authService.signInWithEmail(email: email, password: password);
-      _appUser = user;
-      _setError(null);
+      state = state.copyWith(
+        appUser: user,
+      );
     } on fb_auth.FirebaseAuthException catch (e, stackTrace) {
       await ErrorHandlerService.handleError(
         e,
         stackTrace: stackTrace.toString(),
         type: ErrorType.firebase,
         severity: ErrorSeverity.high,
-        userAction: 'تسجيل الدخول في AuthProvider',
+        userAction: 'تسجيل الدخول في AuthNotifier',
         context: <String, dynamic>{
           'operation': 'signIn',
-          'provider': 'AuthProvider',
+          'provider': 'AuthNotifier',
           'email': email,
           'errorCode': e.code,
         },
@@ -111,8 +138,8 @@ class AuthProvider with ChangeNotifier {
     // إيقاف جلسة الحضور قبل تسجيل الخروج
     await _presenceService.goOffline();
     await _authService.signOut();
-    // إرسال تحديث فوري للواجهة
-    notifyListeners();
+    // إعادة تعيين الحالة
+    state = const AuthState();
   }
 
   Future<void> resetPassword(String email) async {
@@ -125,10 +152,10 @@ class AuthProvider with ChangeNotifier {
         e,
         stackTrace: stackTrace.toString(),
         type: ErrorType.firebase,
-        userAction: 'إعادة تعيين كلمة المرور في AuthProvider',
+        userAction: 'إعادة تعيين كلمة المرور في AuthNotifier',
         context: <String, dynamic>{
           'operation': 'resetPassword',
-          'provider': 'AuthProvider',
+          'provider': 'AuthNotifier',
           'email': email,
           'errorCode': e.code,
         },
@@ -169,3 +196,39 @@ class AuthProvider with ChangeNotifier {
     }
   }
 }
+
+// ========== Riverpod Providers ==========
+
+/// Provider للـ AuthNotifier
+final StateNotifierProvider<AuthNotifier, AuthState> authNotifierProvider =
+    StateNotifierProvider<AuthNotifier, AuthState>(
+        (StateNotifierProviderRef<AuthNotifier, AuthState> ref) =>
+            AuthNotifier());
+
+/// Provider لحالة المصادقة
+final Provider<AuthState> authStateProvider = Provider<AuthState>(
+    (ProviderRef<AuthState> ref) => ref.watch(authNotifierProvider));
+
+/// Provider للمستخدم الحالي
+final Provider<AppUser?> currentUserProvider = Provider<AppUser?>(
+    (ProviderRef<AppUser?> ref) => ref.watch(authStateProvider).appUser);
+
+/// Provider لحالة التحميل
+final Provider<bool> authLoadingProvider = Provider<bool>(
+    (ProviderRef<bool> ref) => ref.watch(authStateProvider).isLoading);
+
+/// Provider لرسالة الخطأ
+final Provider<String?> authErrorProvider = Provider<String?>(
+    (ProviderRef<String?> ref) => ref.watch(authStateProvider).errorMessage);
+
+/// Provider لحالة المصادقة
+final Provider<bool> isAuthenticatedProvider = Provider<bool>(
+    (ProviderRef<bool> ref) => ref.watch(authStateProvider).isAuthenticated);
+
+/// Provider للتحقق من صلاحية المدير
+final Provider<bool> isAdminProvider = Provider<bool>(
+    (ProviderRef<bool> ref) => ref.watch(authStateProvider).isAdmin);
+
+/// Provider للتحقق من صلاحية البائع
+final Provider<bool> isSellerProvider = Provider<bool>(
+    (ProviderRef<bool> ref) => ref.watch(authStateProvider).isSeller);

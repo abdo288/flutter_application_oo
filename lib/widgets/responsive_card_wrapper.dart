@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../utils/responsive_breakpoints.dart';
+
 import '../utils/constants.dart';
+import '../utils/responsive_breakpoints.dart';
 
 /// مكون مساعد للبطاقات المتجاوبة
 /// يوفر تخطيط مرن يتكيف مع حجم المحتوى والشاشة
@@ -34,7 +35,7 @@ class ResponsiveCardWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
-      builder: (context, constraints) {
+      builder: (BuildContext context, BoxConstraints constraints) {
         // حساب القيود الآمنة بناءً على المساحة المتاحة
         final BoxConstraints safeConstraints = BoxConstraints(
           maxWidth: constraints.maxWidth,
@@ -51,7 +52,7 @@ class ResponsiveCardWrapper extends StatelessWidget {
                 BorderRadius.circular(context.isSmallScreen ? 8 : 12),
             border: border,
             boxShadow: elevation != null
-                ? [
+                ? <BoxShadow>[
                     BoxShadow(
                       color: shadowColor ?? Colors.black.withValues(alpha: 0.1),
                       blurRadius: elevation!,

@@ -143,43 +143,43 @@ class _WindowsProductCardState extends State<WindowsProductCard>
 
   /// بطاقة الحذف
   Widget _buildDeletingCard(Product product, bool isDark) => Container(
-      width: double.infinity,
-      margin: EdgeInsets.symmetric(
-        vertical: context.responsiveSpacing * 0.5,
-        horizontal: context.responsiveSpacing * 0.25,
-      ),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFEF4444).withOpacity(0.3),
-          width: 2,
+        width: double.infinity,
+        margin: EdgeInsets.symmetric(
+          vertical: context.responsiveSpacing * 0.5,
+          horizontal: context.responsiveSpacing * 0.25,
         ),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(context.responsiveSpacing * 1.5),
-        child: Row(
-          children: [
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEF4444)),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                'جاري حذف ${product.name}...',
-                style: TextStyle(
-                  fontSize: context.responsiveFontSize(16),
-                  fontWeight: FontWeight.w600,
-                  color: isDark
-                      ? const Color(0xFFF1F5F9)
-                      : const Color(0xFF1E293B),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: const Color(0xFFEF4444).withOpacity(0.3),
+            width: 2,
+          ),
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(context.responsiveSpacing * 1.5),
+          child: Row(
+            children: <Widget>[
+              const CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEF4444)),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  'جاري حذف ${product.name}...',
+                  style: TextStyle(
+                    fontSize: context.responsiveFontSize(16),
+                    fontWeight: FontWeight.w600,
+                    color: isDark
+                        ? const Color(0xFFF1F5F9)
+                        : const Color(0xFF1E293B),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
+      );
 
   /// الحصول على لون الحدود حسب حالة المنتج
   Color _getBorderColor(Product product, bool isDark) {
@@ -232,104 +232,210 @@ class _CollapsedRow extends StatelessWidget {
       color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B),
     );
 
-    return Row(
-      children: <Widget>[
-        // الاسم — يأخذ المساحة المرنة
-        Expanded(
-          child: Text(
-            product.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: textStyle.copyWith(
-              fontWeight: FontWeight.bold,
-              fontSize: context.responsiveFontSize(15),
-            ),
-          ),
-        ),
-
-        // فاصل صغير
-        const SizedBox(width: 8),
-
-        // السعر — شارة أنيقة
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: const Color(0xFF2563EB).withOpacity(0.08),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: const Color(0xFF2563EB).withOpacity(0.2),
-            ),
-          ),
-          child: Text(
-            CurrencyFormatter.formatCurrency(
-                product.retailPrice.toDouble(), context),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: textStyle.copyWith(
-              color: const Color(0xFF2563EB),
-              fontSize: context.responsiveFontSize(12),
-            ),
-          ),
-        ),
-
-        // فاصل صغير
-        const SizedBox(width: 8),
-
-        // الربح — شارة مميزة
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: const Color(0xFF22C55E).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: const Color(0xFF22C55E).withOpacity(0.2),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        // إذا كانت الشاشة ضيقة جداً، اعرض المعلومات عمودياً
+        if (constraints.maxWidth < 300) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              const Icon(
-                Icons.trending_up,
-                size: 16,
-                color: Color(0xFF22C55E),
-              ),
-              const SizedBox(width: 4),
+              // الاسم
               Text(
-                CurrencyFormatter.formatCurrency(
-                  (product.retailPrice - product.wholesalePrice).toDouble(),
-                  context,
-                ),
+                product.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: textStyle.copyWith(
-                  color: const Color(0xFF22C55E),
-                  fontSize: context.responsiveFontSize(12),
+                  fontWeight: FontWeight.bold,
+                  fontSize: context.responsiveFontSize(15),
                 ),
+              ),
+              const SizedBox(height: 8),
+              // السعر والربح في صف واحد
+              Row(
+                children: <Widget>[
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2563EB).withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: const Color(0xFF2563EB).withOpacity(0.2),
+                      ),
+                    ),
+                    child: Text(
+                      CurrencyFormatter.formatCurrency(
+                          product.retailPrice.toDouble(), context),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: textStyle.copyWith(
+                        color: const Color(0xFF2563EB),
+                        fontSize: context.responsiveFontSize(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF22C55E).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: const Color(0xFF22C55E).withOpacity(0.2),
+                      ),
+                    ),
+                    child: Text(
+                      CurrencyFormatter.formatCurrency(
+                        (product.retailPrice - product.wholesalePrice)
+                            .toDouble(),
+                        context,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: textStyle.copyWith(
+                        color: const Color(0xFF22C55E),
+                        fontSize: context.responsiveFontSize(11),
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: onToggleExpanded,
+                    icon: Icon(
+                      Icons.expand_more,
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
+                      size: 16,
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 28,
+                      minHeight: 28,
+                    ),
+                  ),
+                ],
               ),
             ],
-          ),
-        ),
+          );
+        }
 
-        // فاصل صغير
-        const SizedBox(width: 6),
+        // للشاشات الأوسع، اعرض المعلومات أفقياً
+        return Row(
+          children: <Widget>[
+            // الاسم — يأخذ المساحة المرنة
+            Expanded(
+              flex: 3,
+              child: Text(
+                product.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: textStyle.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: context.responsiveFontSize(15),
+                ),
+              ),
+            ),
 
-        // زر التوسيع/الانغلاق
-        AnimatedRotation(
-          turns: 0.0, // دائماً في حالة الإغلاق
-          duration: const Duration(milliseconds: 300),
-          child: IconButton(
-            onPressed: onToggleExpanded,
-            icon: Icon(
-              Icons.expand_more,
-              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-              size: 16,
+            // فاصل صغير
+            const SizedBox(width: 6),
+
+            // السعر — شارة أنيقة
+            Flexible(
+              flex: 2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2563EB).withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: const Color(0xFF2563EB).withOpacity(0.2),
+                  ),
+                ),
+                child: Text(
+                  CurrencyFormatter.formatCurrency(
+                      product.retailPrice.toDouble(), context),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textStyle.copyWith(
+                    color: const Color(0xFF2563EB),
+                    fontSize: context.responsiveFontSize(11),
+                  ),
+                ),
+              ),
             ),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(
-              minWidth: 28,
-              minHeight: 28,
+
+            // فاصل صغير
+            const SizedBox(width: 6),
+
+            // الربح — شارة مميزة
+            Flexible(
+              flex: 2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF22C55E).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: const Color(0xFF22C55E).withOpacity(0.2),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    const Icon(
+                      Icons.trending_up,
+                      size: 14,
+                      color: Color(0xFF22C55E),
+                    ),
+                    const SizedBox(width: 2),
+                    Flexible(
+                      child: Text(
+                        CurrencyFormatter.formatCurrency(
+                          (product.retailPrice - product.wholesalePrice)
+                              .toDouble(),
+                          context,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: textStyle.copyWith(
+                          color: const Color(0xFF22C55E),
+                          fontSize: context.responsiveFontSize(10),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
-        ),
-      ],
+
+            // فاصل صغير
+            const SizedBox(width: 4),
+
+            // زر التوسيع/الانغلاق
+            AnimatedRotation(
+              turns: 0.0, // دائماً في حالة الإغلاق
+              duration: const Duration(milliseconds: 300),
+              child: IconButton(
+                onPressed: onToggleExpanded,
+                icon: Icon(
+                  Icons.expand_more,
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B),
+                  size: 16,
+                ),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(
+                  minWidth: 24,
+                  minHeight: 24,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -354,345 +460,405 @@ class _ExpandedContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // الصف الأول في العرض الموسع
-          Row(
-            children: [
-              // العنوان
-              Expanded(
-                flex: 2,
-                child: Text(
-                  product.name,
+        physics: const BouncingScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            // الصف الأول في العرض الموسع
+            Row(
+              children: <Widget>[
+                // العنوان
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    product.name,
+                    style: TextStyle(
+                      fontSize: context.responsiveFontSize(18),
+                      fontWeight: FontWeight.bold,
+                      color: isDark
+                          ? const Color(0xFFF1F5F9)
+                          : const Color(0xFF1E293B),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+
+                const SizedBox(width: 8),
+
+                // زر التوسيع/الانغلاق
+                AnimatedRotation(
+                  turns: 0.5, // دائماً في حالة التوسيع
+                  duration: const Duration(milliseconds: 300),
+                  child: IconButton(
+                    onPressed: onToggleExpanded,
+                    icon: Icon(
+                      Icons.expand_more,
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
+                      size: 24,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // الباركود (إذا كان متوفراً)
+            if (product.barcode != null &&
+                product.barcode!.isNotEmpty) ...<Widget>[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isDark
+                        ? const Color(0xFF475569)
+                        : const Color(0xFFE2E8F0),
+                  ),
+                ),
+                child: Row(
+                  children: <Widget>[
+                    const Icon(
+                      Icons.qr_code,
+                      color: Color(0xFF2563EB),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        product.barcode!,
+                        style: TextStyle(
+                          fontSize: context.responsiveFontSize(16),
+                          fontWeight: FontWeight.w600,
+                          color: isDark
+                              ? const Color(0xFFF1F5F9)
+                              : const Color(0xFF1E293B),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => _copyBarcode(product.barcode!, context),
+                      icon: const Icon(
+                        Icons.copy,
+                        color: Color(0xFF2563EB),
+                        size: 20,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // المعلومات المالية
+            LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+                // إذا كانت الشاشة ضيقة جداً، اعرض المعلومات عمودياً
+                if (constraints.maxWidth < 400) {
+                  return Column(
+                    children: <Widget>[
+                      _buildInfoCard(
+                        'سعر البيع',
+                        CurrencyFormatter.formatCurrency(
+                          product.retailPrice.toDouble(),
+                          context,
+                        ),
+                        const Color(0xFF2563EB),
+                        Icons.sell,
+                        isDark,
+                      ),
+                      const SizedBox(height: 8),
+                      _buildInfoCard(
+                        'سعر الجملة',
+                        CurrencyFormatter.formatCurrency(
+                          product.wholesalePrice.toDouble(),
+                          context,
+                        ),
+                        const Color(0xFF8B5CF6),
+                        Icons.store,
+                        isDark,
+                      ),
+                      const SizedBox(height: 8),
+                      _buildInfoCard(
+                        'الربح',
+                        CurrencyFormatter.formatCurrency(
+                          (product.retailPrice - product.wholesalePrice)
+                              .toDouble(),
+                          context,
+                        ),
+                        const Color(0xFF22C55E),
+                        Icons.trending_up,
+                        isDark,
+                      ),
+                    ],
+                  );
+                }
+
+                // للشاشات الأوسع، اعرض المعلومات أفقياً
+                return IntrinsicHeight(
+                  child: Row(
+                    children: <Widget>[
+                      // سعر البيع
+                      Expanded(
+                        child: _buildInfoCard(
+                          'سعر البيع',
+                          CurrencyFormatter.formatCurrency(
+                            product.retailPrice.toDouble(),
+                            context,
+                          ),
+                          const Color(0xFF2563EB),
+                          Icons.sell,
+                          isDark,
+                        ),
+                      ),
+
+                      const SizedBox(width: 6),
+
+                      // سعر الجملة
+                      Expanded(
+                        child: _buildInfoCard(
+                          'سعر الجملة',
+                          CurrencyFormatter.formatCurrency(
+                            product.wholesalePrice.toDouble(),
+                            context,
+                          ),
+                          const Color(0xFF8B5CF6),
+                          Icons.store,
+                          isDark,
+                        ),
+                      ),
+
+                      const SizedBox(width: 6),
+
+                      // الربح
+                      Expanded(
+                        child: _buildInfoCard(
+                          'الربح',
+                          CurrencyFormatter.formatCurrency(
+                            (product.retailPrice - product.wholesalePrice)
+                                .toDouble(),
+                            context,
+                          ),
+                          const Color(0xFF22C55E),
+                          Icons.trending_up,
+                          isDark,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+
+            const SizedBox(height: 16),
+
+            // تفاصيل إضافية
+            _buildExpandedContent(product, isDark, context),
+
+            const SizedBox(height: 16),
+
+            // الأزرار
+            if (showActions) ...<Widget>[
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: _buildActionButton(
+                      'تحرير',
+                      Icons.edit,
+                      const Color(0xFF22C55E),
+                      onEdit,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildActionButton(
+                      'حذف',
+                      Icons.delete,
+                      const Color(0xFFEF4444),
+                      onDelete,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      );
+
+  /// بناء بطاقة المعلومات
+  Widget _buildInfoCard(String label, String value, Color color, IconData icon,
+          bool isDark) =>
+      Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: color.withOpacity(0.3),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(
+              icon,
+              color: color,
+              size: 14,
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color:
+                    isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 2),
+            Flexible(
+              child: Text(
+                value,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
+      );
+
+  /// بناء زر الإجراء
+  Widget _buildActionButton(
+          String label, IconData icon, Color color, VoidCallback onTap) =>
+      ElevatedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 18),
+        label: Text(
+          label,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      );
+
+  /// بناء المحتوى القابل للتوسيع
+  Widget _buildExpandedContent(
+          Product product, bool isDark, BuildContext context) =>
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark
+              ? const Color(0xFF1E293B).withOpacity(0.5)
+              : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isDark ? const Color(0xFF475569) : const Color(0xFFE2E8F0),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            // عنوان القسم
+            Row(
+              children: <Widget>[
+                const Icon(
+                  Icons.info_outline,
+                  color: Color(0xFF2563EB),
+                  size: 20,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'تفاصيل إضافية',
                   style: TextStyle(
-                    fontSize: context.responsiveFontSize(18),
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: isDark
                         ? const Color(0xFFF1F5F9)
                         : const Color(0xFF1E293B),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-
-              const SizedBox(width: 8),
-
-              // زر التوسيع/الانغلاق
-              AnimatedRotation(
-                turns: 0.5, // دائماً في حالة التوسيع
-                duration: const Duration(milliseconds: 300),
-                child: IconButton(
-                  onPressed: onToggleExpanded,
-                  icon: Icon(
-                    Icons.expand_more,
-                    color: isDark
-                        ? const Color(0xFF94A3B8)
-                        : const Color(0xFF64748B),
-                    size: 24,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-
-          // الباركود (إذا كان متوفراً)
-          if (product.barcode != null && product.barcode!.isNotEmpty) ...[
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color:
-                    isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: isDark
-                      ? const Color(0xFF475569)
-                      : const Color(0xFFE2E8F0),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.qr_code,
-                    color: const Color(0xFF2563EB),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      product.barcode!,
-                      style: TextStyle(
-                        fontSize: context.responsiveFontSize(16),
-                        fontWeight: FontWeight.w600,
-                        color: isDark
-                            ? const Color(0xFFF1F5F9)
-                            : const Color(0xFF1E293B),
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => _copyBarcode(product.barcode!, context),
-                    icon: Icon(
-                      Icons.copy,
-                      color: const Color(0xFF2563EB),
-                      size: 20,
-                    ),
-                  ),
-                ],
-              ),
+              ],
             ),
+
             const SizedBox(height: 16),
+
+            // معلومات إضافية
+            _buildDetailRow(
+                'تاريخ الإضافة',
+                _formatDate(product.savedAt.toIso8601String()),
+                Icons.calendar_today,
+                const Color(0xFF22C55E),
+                isDark),
+
+            const SizedBox(height: 12),
+
+            _buildDetailRow('حالة المزامنة', 'مزامن', Icons.sync,
+                const Color(0xFF22C55E), isDark),
+
+            const SizedBox(height: 12),
+
+            _buildDetailRow(
+                'آخر تعديل',
+                _formatDate(product.lastModified?.toIso8601String() ??
+                    product.savedAt.toIso8601String()),
+                Icons.access_time,
+                const Color(0xFF2563EB),
+                isDark),
           ],
-
-          // المعلومات المالية
-          IntrinsicHeight(
-            child: Row(
-              children: [
-                // سعر البيع
-                Expanded(
-                  child: _buildInfoCard(
-                    'سعر البيع',
-                    CurrencyFormatter.formatCurrency(
-                      product.retailPrice.toDouble(),
-                      context,
-                    ),
-                    const Color(0xFF2563EB),
-                    Icons.sell,
-                  ),
-                ),
-
-                const SizedBox(width: 8),
-
-                // سعر الجملة
-                Expanded(
-                  child: _buildInfoCard(
-                    'سعر الجملة',
-                    CurrencyFormatter.formatCurrency(
-                      product.wholesalePrice.toDouble(),
-                      context,
-                    ),
-                    const Color(0xFF8B5CF6),
-                    Icons.store,
-                  ),
-                ),
-
-                const SizedBox(width: 8),
-
-                // الربح
-                Expanded(
-                  child: _buildInfoCard(
-                    'الربح',
-                    CurrencyFormatter.formatCurrency(
-                      (product.retailPrice - product.wholesalePrice).toDouble(),
-                      context,
-                    ),
-                    const Color(0xFF22C55E),
-                    Icons.trending_up,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // تفاصيل إضافية
-          _buildExpandedContent(product, isDark, context),
-
-          const SizedBox(height: 16),
-
-          // الأزرار
-          if (showActions) ...[
-            Row(
-              children: [
-                Expanded(
-                  child: _buildActionButton(
-                    'تحرير',
-                    Icons.edit,
-                    const Color(0xFF22C55E),
-                    onEdit,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildActionButton(
-                    'حذف',
-                    Icons.delete,
-                    const Color(0xFFEF4444),
-                    onDelete,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-
-  /// بناء بطاقة المعلومات
-  Widget _buildInfoCard(
-      String label, String value, Color color, IconData icon) => Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: color.withOpacity(0.3),
         ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            color: color,
-            size: 16,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 2),
-          Flexible(
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
-
-  /// بناء زر الإجراء
-  Widget _buildActionButton(
-      String label, IconData icon, Color color, VoidCallback onTap) => ElevatedButton.icon(
-      onPressed: onTap,
-      icon: Icon(icon, size: 18),
-      label: Text(
-        label,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-      ),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-      ),
-    );
-
-  /// بناء المحتوى القابل للتوسيع
-  Widget _buildExpandedContent(
-      Product product, bool isDark, BuildContext context) => Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark
-            ? const Color(0xFF1E293B).withOpacity(0.5)
-            : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isDark ? const Color(0xFF475569) : const Color(0xFFE2E8F0),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // عنوان القسم
-          Row(
-            children: [
-              Icon(
-                Icons.info_outline,
-                color: const Color(0xFF2563EB),
-                size: 20,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                'تفاصيل إضافية',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: isDark
-                      ? const Color(0xFFF1F5F9)
-                      : const Color(0xFF1E293B),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-
-          // معلومات إضافية
-          _buildDetailRow(
-              'تاريخ الإضافة',
-              _formatDate(product.savedAt.toIso8601String()),
-              Icons.calendar_today,
-              const Color(0xFF22C55E),
-              isDark),
-
-          const SizedBox(height: 12),
-
-          _buildDetailRow('حالة المزامنة', 'مزامن', Icons.sync,
-              const Color(0xFF22C55E), isDark),
-
-          const SizedBox(height: 12),
-
-          _buildDetailRow(
-              'آخر تعديل',
-              _formatDate(product.lastModified?.toIso8601String() ??
-                  product.savedAt.toIso8601String()),
-              Icons.access_time,
-              const Color(0xFF2563EB),
-              isDark),
-        ],
-      ),
-    );
+      );
 
   /// بناء صف التفاصيل
-  Widget _buildDetailRow(
-      String label, String value, IconData icon, Color color, bool isDark) => Row(
-      children: [
-        Icon(icon, color: color, size: 18),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+  Widget _buildDetailRow(String label, String value, IconData icon, Color color,
+          bool isDark) =>
+      Row(
+        children: <Widget>[
+          Icon(icon, color: color, size: 18),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color:
+                    isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
             ),
           ),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: color,
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
           ),
-        ),
-      ],
-    );
+        ],
+      );
 
   /// تنسيق التاريخ
   String _formatDate(String dateString) {

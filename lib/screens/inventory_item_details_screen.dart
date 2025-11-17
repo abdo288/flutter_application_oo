@@ -1,23 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../dialogs/modern_edit_inventory_dialog.dart';
+import '../dialogs/inventory_edit/modern_edit_inventory_dialog_riverpod.dart';
 import '../l10n/app_localizations.dart';
 import '../models/inventory_item.dart';
-import '../providers/stream_inventory_provider.dart';
+import '../providers/riverpod/stream_inventory_riverpod_provider.dart';
 import '../utils/constants.dart';
 import '../utils/currency_formatter.dart';
 import '../widgets/info_card.dart';
 
-class InventoryItemDetailsScreen extends StatelessWidget {
+class InventoryItemDetailsScreen extends ConsumerWidget {
   const InventoryItemDetailsScreen({super.key, required this.item});
 
   final InventoryItem item;
 
   @override
-  Widget build(BuildContext context) {
-    final StreamInventoryProvider provider =
-        context.read<StreamInventoryProvider>();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final InventoryController inventoryController = ref.read(inventoryControllerProvider.notifier);
 
     return Scaffold(
       appBar: AppBar(
@@ -25,12 +24,12 @@ class InventoryItemDetailsScreen extends StatelessWidget {
         actions: <Widget>[
           IconButton(
             icon: const Icon(Icons.delete_outline),
-            onPressed: () => _confirmDelete(context, provider),
+            onPressed: () => _confirmDelete(context, inventoryController),
             tooltip: AppLocalizations.of(context).deleteItem,
           ),
           IconButton(
             icon: const Icon(Icons.edit_outlined),
-            onPressed: () => _editItem(context, provider),
+            onPressed: () => _editItem(context, inventoryController),
             tooltip: AppLocalizations.of(context).editItem,
           ),
         ],
@@ -52,7 +51,7 @@ class InventoryItemDetailsScreen extends StatelessWidget {
   }
 
   Future<void> _confirmDelete(
-      BuildContext context, StreamInventoryProvider provider) async {
+      BuildContext context, InventoryController controller) async {
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) => AlertDialog(
@@ -75,7 +74,7 @@ class InventoryItemDetailsScreen extends StatelessWidget {
     );
 
     if (confirmed == true && item.id != null) {
-      final bool success = await provider.deleteInventoryItem(item.id!);
+      final bool success = await controller.deleteInventoryItem(item.id!);
       if (context.mounted) {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -188,17 +187,17 @@ class InventoryItemDetailsScreen extends StatelessWidget {
       );
 
   /// فتح نافذة تعديل العنصر
-  void _editItem(BuildContext context, StreamInventoryProvider provider) {
+  void _editItem(BuildContext context, InventoryController controller) {
     showDialog<void>(
       context: context,
-      builder: (BuildContext context) => ModernEditInventoryDialog(
+      builder: (BuildContext context) => ModernEditInventoryDialogRiverpod(
         item: item,
         onItemUpdated: () async {
           // إعادة تحميل البيانات بعد التعديل
-          await provider.loadInventoryItems();
+          await controller.loadInventoryItems();
           // تأخير صغير لضمان اكتمال التحديث
           await Future<void>.delayed(const Duration(milliseconds: 300));
-          if (Navigator.of(context).canPop()) {
+          if (context.mounted && Navigator.of(context).canPop()) {
             Navigator.of(context).pop();
           }
         },

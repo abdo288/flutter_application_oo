@@ -129,7 +129,7 @@ class _ProductFiltersWidgetState extends State<ProductFiltersWidget> {
           SizedBox(height: context.responsiveSpacing * 0.5),
           if (context.shouldUseVerticalLayout) Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: [
+                  children: <Widget>[
                     _buildRangeChip(
                         context, 'منخفض', () => _applyPriceFilter('low')),
                     SizedBox(height: context.responsiveSpacing * 0.5),
@@ -140,7 +140,7 @@ class _ProductFiltersWidgetState extends State<ProductFiltersWidget> {
                         context, 'عالي', () => _applyPriceFilter('high')),
                   ],
                 ) else Row(
-                  children: [
+                  children: <Widget>[
                     Expanded(
                       child: _buildRangeChip(
                           context, 'منخفض', () => _applyPriceFilter('low')),
@@ -175,7 +175,7 @@ class _ProductFiltersWidgetState extends State<ProductFiltersWidget> {
           SizedBox(height: context.responsiveSpacing * 0.5),
           if (context.shouldUseVerticalLayout) Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: [
+                  children: <Widget>[
                     _buildRangeChip(
                         context, 'منخفض', () => _applyProfitFilter('low')),
                     SizedBox(height: context.responsiveSpacing * 0.5),
@@ -186,7 +186,7 @@ class _ProductFiltersWidgetState extends State<ProductFiltersWidget> {
                         context, 'عالي', () => _applyProfitFilter('high')),
                   ],
                 ) else Row(
-                  children: [
+                  children: <Widget>[
                     Expanded(
                       child: _buildRangeChip(
                           context, 'منخفض', () => _applyProfitFilter('low')),

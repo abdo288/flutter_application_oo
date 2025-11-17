@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
+import '../utils/platform_thread_safety.dart';
+
 /// خدمة إدارة الحضور والجلسات النشطة
 class PresenceService {
   factory PresenceService() => _instance;
@@ -64,8 +66,10 @@ class PresenceService {
       // بدء نبضات القلب
       _startHeartbeat();
 
-      // إرسال تحديث فوري للجلسات
-      _sessionsController.add(<ActiveSession>[]);
+      // إرسال تحديث فوري للجلسات (فقط إذا كان StreamController مفتوحاً)
+      if (!_sessionsController.isClosed) {
+        _sessionsController.add(<ActiveSession>[]);
+      }
     } catch (e) {
       debugPrint('❌ خطأ في بدء جلسة الحضور: $e');
       rethrow;
@@ -75,20 +79,42 @@ class PresenceService {
   /// إيقاف جلسة الحضور
   Future<void> goOffline() async {
     try {
-      // إيقاف نبضات القلب
+      // إيقاف نبضات القلب أولاً
       _stopHeartbeat();
 
-      // حذف الجلسة من قاعدة البيانات
+      // حذف الجلسة من قاعدة البيانات (مع timeout ومعالجة الأخطاء)
       if (_currentSessionId != null) {
-        await _firestore
-            .collection(_collectionName)
-            .doc(_currentSessionId)
-            .delete();
+        final String sessionId = _currentSessionId!;
 
-        debugPrint('✅ تم إيقاف جلسة الحضور: $_currentSessionId');
+        try {
+          // محاولة حذف الجلسة مع timeout
+          await _firestore
+              .collection(_collectionName)
+              .doc(sessionId)
+              .delete()
+              .timeout(
+            const Duration(seconds: 2),
+            onTimeout: () {
+              debugPrint('⚠️ انتهت مهلة حذف جلسة الحضور');
+            },
+          );
 
-        // إرسال تحديث فوري للجلسات
-        _sessionsController.add(<ActiveSession>[]);
+          debugPrint('✅ تم إيقاف جلسة الحضور: $sessionId');
+        } on Exception catch (e) {
+          // تجاهل permission-denied بهدوء عند تسجيل الخروج
+          if (e.toString().contains('permission-denied')) {
+            debugPrint('⚠️ تم تجاهل خطأ صلاحيات في goOffline: $e');
+          } else {
+            debugPrint('❌ خطأ في حذف جلسة الحضور: $e');
+          }
+        } catch (e) {
+          debugPrint('⚠️ خطأ في حذف جلسة الحضور (سيتم تجاهله): $e');
+        }
+
+        // إرسال تحديث فوري للجلسات (فقط إذا كان StreamController مفتوحاً)
+        if (!_sessionsController.isClosed) {
+          _sessionsController.add(<ActiveSession>[]);
+        }
       }
 
       // مسح البيانات المحلية
@@ -96,8 +122,8 @@ class PresenceService {
       _currentUserId = null;
       _currentPlatform = null;
     } catch (e) {
-      debugPrint('❌ خطأ في إيقاف جلسة الحضور: $e');
-      rethrow;
+      debugPrint('⚠️ خطأ في إيقاف جلسة الحضور (سيتم تجاهله): $e');
+      // لا نعيد throw لأن هذه عملية cleanup
     }
   }
 
@@ -105,18 +131,24 @@ class PresenceService {
   void _startHeartbeat() {
     _stopHeartbeat(); // إيقاف أي نبضات سابقة
 
-    // استخدام scheduleMicrotask للتأكد من تشغيل العملية على platform thread
-    scheduleMicrotask(() {
+    // ✅ استخدام Future.microtask لضمان التنفيذ على platform thread
+    Future.microtask(() {
       _heartbeatTimer =
           Timer.periodic(const Duration(seconds: 30), (Timer timer) async {
         if (_currentSessionId != null && _currentUserId != null) {
           try {
-            await _firestore
-                .collection(_collectionName)
-                .doc(_currentSessionId)
-                .update(<Object, Object?>{
-              'lastSeen': FieldValue.serverTimestamp(),
-            });
+            // ✅ استخدام PlatformThreadSafety لضمان التنفيذ على platform thread
+            await PlatformThreadSafety.executeFirestoreOperation(
+              () async {
+                await _firestore
+                    .collection(_collectionName)
+                    .doc(_currentSessionId)
+                    .update(<Object, Object?>{
+                  'lastSeen': FieldValue.serverTimestamp(),
+                });
+              },
+              operationName: 'presence_heartbeat',
+            );
 
             debugPrint('💓 تم إرسال نبضة قلب للجلسة: $_currentSessionId');
           } catch (e) {
@@ -141,16 +173,24 @@ class PresenceService {
                   DateTime.now().subtract(const Duration(seconds: 45))))
           .orderBy('lastSeen', descending: true)
           .snapshots()
-          .map((QuerySnapshot<Map<String, dynamic>> snapshot) {
-        final List<ActiveSession> sessions = snapshot.docs
-            .map((QueryDocumentSnapshot<Map<String, dynamic>> doc) =>
-                ActiveSession.fromMap(doc.data(), doc.id))
-            .toList();
+          .asyncMap((QuerySnapshot<Map<String, dynamic>> snapshot) async {
+        // ✅ استخدام PlatformThreadSafety لضمان التنفيذ على platform thread
+        return await PlatformThreadSafety.executeStreamHandler(
+          () async {
+            final List<ActiveSession> sessions = snapshot.docs
+                .map((QueryDocumentSnapshot<Map<String, dynamic>> doc) =>
+                    ActiveSession.fromMap(doc.data(), doc.id))
+                .toList();
 
-        // تحديث الـ stream
-        _sessionsController.add(sessions);
+            // تحديث الـ stream (فقط إذا كان StreamController مفتوحاً)
+            if (!_sessionsController.isClosed) {
+              _sessionsController.add(sessions);
+            }
 
-        return sessions;
+            return sessions;
+          },
+          operationName: 'getActiveSessionsStream',
+        );
       });
 
   /// الحصول على منصة التشغيل الحالية
@@ -187,8 +227,10 @@ class PresenceService {
         debugPrint(
             '🧹 تم تنظيف ${expiredSessions.docs.length} جلسة منتهية الصلاحية');
 
-        // إرسال تحديث فوري للجلسات
-        _sessionsController.add(<ActiveSession>[]);
+        // إرسال تحديث فوري للجلسات (فقط إذا كان StreamController مفتوحاً)
+        if (!_sessionsController.isClosed) {
+          _sessionsController.add(<ActiveSession>[]);
+        }
       }
     } catch (e) {
       debugPrint('❌ خطأ في تنظيف الجلسات المنتهية: $e');

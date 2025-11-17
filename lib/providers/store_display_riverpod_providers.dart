@@ -3,12 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/inventory_item.dart';
 import 'inventory_riverpod_providers.dart';
+import 'riverpod/stream_inventory_riverpod_provider.dart' as stream;
 
 // ========== State Model ==========
 
-/// حالة تبويب عرض المتجر
-class StoreDisplayState {
-  const StoreDisplayState({
+/// حالة تبويب المخزون (عرض قائمة المخزون)
+class InventoryDisplayState {
+  const InventoryDisplayState({
     this.isLoading = false,
     this.isDeleting = false,
     this.searchQuery = '',
@@ -28,7 +29,7 @@ class StoreDisplayState {
   final String? errorMessage;
   final bool isInitialized;
 
-  StoreDisplayState copyWith({
+  InventoryDisplayState copyWith({
     bool? isLoading,
     bool? isDeleting,
     String? searchQuery,
@@ -38,13 +39,13 @@ class StoreDisplayState {
     String? errorMessage,
     bool? isInitialized,
   }) =>
-      StoreDisplayState(
+      InventoryDisplayState(
         isLoading: isLoading ?? this.isLoading,
         isDeleting: isDeleting ?? this.isDeleting,
         searchQuery: searchQuery ?? this.searchQuery,
         sortBy: sortBy ?? this.sortBy,
         sortAscending: sortAscending ?? this.sortAscending,
-        expandedItemId: expandedItemId ?? this.expandedItemId,
+        expandedItemId: expandedItemId, // Allow explicit null to collapse card
         errorMessage: errorMessage ?? this.errorMessage,
         isInitialized: isInitialized ?? this.isInitialized,
       );
@@ -52,7 +53,7 @@ class StoreDisplayState {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is StoreDisplayState &&
+      other is InventoryDisplayState &&
           runtimeType == other.runtimeType &&
           isLoading == other.isLoading &&
           isDeleting == other.isDeleting &&
@@ -78,9 +79,9 @@ class StoreDisplayState {
 
 // ========== Notifier ==========
 
-/// Notifier لإدارة حالة تبويب عرض المتجر
-class StoreDisplayNotifier extends StateNotifier<StoreDisplayState> {
-  StoreDisplayNotifier() : super(const StoreDisplayState());
+/// Notifier لإدارة حالة تبويب المخزون (عرض قائمة المخزون)
+class InventoryDisplayNotifier extends StateNotifier<InventoryDisplayState> {
+  InventoryDisplayNotifier() : super(const InventoryDisplayState());
 
   /// تهيئة الحالة
   void initialize() {
@@ -129,112 +130,191 @@ class StoreDisplayNotifier extends StateNotifier<StoreDisplayState> {
 
   /// مسح رسالة الخطأ
   void clearError() {
-    state = state.copyWith(errorMessage: null);
+    state = state.copyWith();
   }
 }
 
 // ========== Providers ==========
 
-/// Provider لحالة تبويب عرض المتجر
-final storeDisplayStateProvider =
-    StateNotifierProvider<StoreDisplayNotifier, StoreDisplayState>((ref) {
-  return StoreDisplayNotifier();
-});
+/// Provider لحالة تبويب المخزون (عرض قائمة المخزون)
+final StateNotifierProvider<InventoryDisplayNotifier, InventoryDisplayState>
+    inventoryDisplayStateProvider =
+    StateNotifierProvider<InventoryDisplayNotifier, InventoryDisplayState>(
+        (StateNotifierProviderRef<InventoryDisplayNotifier, InventoryDisplayState>
+                ref) =>
+            InventoryDisplayNotifier());
 
 /// Provider للمخزون المفلتر والمرتب
-final filteredInventoryProvider = Provider<List<InventoryItem>>((ref) {
-  final inventoryItems = ref.watch(inventoryItemsProvider);
-  final storeDisplayState = ref.watch(storeDisplayStateProvider);
+/// ✅ إصلاح: ضمان التناسق التام مع ProductFormTab
+final Provider<List<InventoryItem>> filteredInventoryProvider =
+    Provider<List<InventoryItem>>((ProviderRef<List<InventoryItem>> ref) {
+  // استخدام نفس مصدر البيانات مع ProductFormTab لضمان التناسق
+  final InventoryDisplayState inventoryDisplayState =
+      ref.watch(inventoryDisplayStateProvider);
 
-  if (inventoryItems.isEmpty) {
-    return [];
-  }
+  // التحقق من أن inventoryControllerProvider مهيأ
+  try {
+    final stream.InventoryState inventoryState =
+        ref.watch(stream.inventoryControllerProvider);
 
-  List<InventoryItem> filteredItems = List<InventoryItem>.from(inventoryItems);
-
-  // تطبيق البحث
-  if (storeDisplayState.searchQuery.isNotEmpty) {
-    final String query = storeDisplayState.searchQuery.toLowerCase();
-    filteredItems = filteredItems.where((item) {
-      return item.name.toLowerCase().contains(query) ||
-          (item.barcode?.toLowerCase().contains(query) ?? false);
-    }).toList();
-  }
-
-  // تطبيق الترتيب
-  filteredItems.sort((a, b) {
-    int comparison = 0;
-    switch (storeDisplayState.sortBy) {
-      case 'name':
-        comparison = a.name.compareTo(b.name);
-        break;
-      case 'quantity':
-        comparison = a.quantity.compareTo(b.quantity);
-        break;
-      case 'price':
-        comparison = a.retailPrice.compareTo(b.retailPrice);
-        break;
-      case 'date':
-        comparison = a.addedDate.compareTo(b.addedDate);
-        break;
-      default:
-        comparison = a.name.compareTo(b.name);
+    // التحقق من أن البيانات مهيأة أولاً
+    if (!inventoryState.isInitialized) {
+      debugPrint('⚠️ filteredInventoryProvider: البيانات غير مهيأة بعد');
+      return <InventoryItem>[];
     }
 
-    return storeDisplayState.sortAscending ? comparison : -comparison;
-  });
+    // استخدام البيانات من inventoryControllerProvider
+    final List<InventoryItem> inventoryItems = inventoryState.inventoryItems;
+    debugPrint(
+        '🔍 filteredInventoryProvider: ${inventoryItems.length} عنصر من inventoryControllerProvider');
 
-  return filteredItems;
-}, dependencies: [inventoryItemsProvider, storeDisplayStateProvider]);
+    if (inventoryItems.isEmpty) {
+      debugPrint(
+          '⚠️ filteredInventoryProvider: لا توجد عناصر في inventoryItems');
+      return <InventoryItem>[];
+    }
+
+    List<InventoryItem> filteredItems =
+        List<InventoryItem>.from(inventoryItems);
+
+    // تطبيق البحث مع تحسينات للبحث المتقدم
+    if (inventoryDisplayState.searchQuery.isNotEmpty) {
+      final String query = inventoryDisplayState.searchQuery.toLowerCase().trim();
+      filteredItems = filteredItems.where((InventoryItem item) {
+        // البحث في الاسم
+        if (item.name.toLowerCase().contains(query)) {
+          return true;
+        }
+
+        // البحث في الباركود
+        if (item.barcode != null &&
+            item.barcode!.isNotEmpty &&
+            item.barcode!.toLowerCase().contains(query)) {
+          return true;
+        }
+
+        // البحث في السعر (تحويل السعر إلى نص للبحث)
+        if (item.retailPrice.toString().contains(query)) {
+          return true;
+        }
+
+        return false;
+      }).toList();
+    }
+
+    // تطبيق الترتيب مع تحسينات
+    filteredItems.sort((InventoryItem a, InventoryItem b) {
+      int comparison = 0;
+      switch (inventoryDisplayState.sortBy) {
+        case 'name':
+          comparison = a.name.compareTo(b.name);
+          break;
+        case 'quantity':
+          comparison = a.quantity.compareTo(b.quantity);
+          break;
+        case 'price':
+          comparison = a.retailPrice.compareTo(b.retailPrice);
+          break;
+        case 'date':
+          comparison = a.addedDate.compareTo(b.addedDate);
+          break;
+        case 'profit':
+          // إضافة ترتيب حسب الربح
+          final int profitA = a.retailPrice - a.wholesalePrice;
+          final int profitB = b.retailPrice - b.wholesalePrice;
+          comparison = profitA.compareTo(profitB);
+          break;
+        default:
+          comparison = a.name.compareTo(b.name);
+      }
+
+      return inventoryDisplayState.sortAscending ? comparison : -comparison;
+    });
+
+    debugPrint(
+        '✅ filteredInventoryProvider: تم تطبيق الفلترة والترتيب - ${filteredItems.length} عنصر');
+    return filteredItems;
+  } catch (e) {
+    debugPrint('❌ خطأ في filteredInventoryProvider: $e');
+    return <InventoryItem>[];
+  }
+}, dependencies: <ProviderOrFamily>[
+  stream.inventoryControllerProvider,
+  inventoryDisplayStateProvider
+]);
 
 /// Provider لإحصائيات المخزون
-final inventoryStatsProvider = Provider<Map<String, dynamic>>((ref) {
-  final filteredItems = ref.watch(filteredInventoryProvider);
+final Provider<Map<String, dynamic>> inventoryStatsProvider =
+    Provider<Map<String, dynamic>>((ProviderRef<Map<String, dynamic>> ref) {
+  final List<InventoryItem> filteredItems =
+      ref.watch(filteredInventoryProvider);
 
   final int totalItems = filteredItems.length;
   final int outOfStockCount =
-      filteredItems.where((item) => item.isOutOfStock()).length;
-  final double totalValue =
-      filteredItems.fold<double>(0, (sum, item) => sum + item.getTotalValue());
+      filteredItems.where((InventoryItem item) => item.isOutOfStock()).length;
+  final double totalValue = filteredItems.fold<double>(
+      0, (double sum, InventoryItem item) => sum + item.getTotalValue());
 
-  return {
+  return <String, dynamic>{
     'totalItems': totalItems,
     'outOfStockCount': outOfStockCount,
     'totalValue': totalValue,
   };
-}, dependencies: [filteredInventoryProvider]);
+}, dependencies: <ProviderOrFamily>[filteredInventoryProvider]);
 
 /// Provider للتحقق من وجود عناصر
-final hasInventoryItemsProvider = Provider<bool>((ref) {
-  final inventoryItems = ref.watch(inventoryItemsProvider);
-  return inventoryItems.isNotEmpty;
-}, dependencies: [inventoryItemsProvider]);
+final Provider<bool> hasInventoryItemsProvider =
+    Provider<bool>((ProviderRef<bool> ref) {
+  try {
+    final stream.InventoryState inventoryState =
+        ref.watch(stream.inventoryControllerProvider);
+
+    // التحقق من أن البيانات مهيأة أولاً
+    if (!inventoryState.isInitialized) {
+      debugPrint('⚠️ hasInventoryItemsProvider: البيانات غير مهيأة بعد');
+      return false;
+    }
+
+    final bool hasItems = inventoryState.inventoryItems.isNotEmpty;
+    debugPrint(
+        '🔍 hasInventoryItemsProvider: ${inventoryState.inventoryItems.length} عنصر، hasItems: $hasItems');
+    return hasItems;
+  } catch (e) {
+    debugPrint('❌ خطأ في hasInventoryItemsProvider: $e');
+    return false;
+  }
+}, dependencies: <ProviderOrFamily>[stream.inventoryControllerProvider]);
 
 /// Provider للتحقق من وجود نتائج بعد الفلترة
-final hasFilteredResultsProvider = Provider<bool>((ref) {
-  final filteredItems = ref.watch(filteredInventoryProvider);
+final Provider<bool> hasFilteredResultsProvider =
+    Provider<bool>((ProviderRef<bool> ref) {
+  final List<InventoryItem> filteredItems =
+      ref.watch(filteredInventoryProvider);
   return filteredItems.isNotEmpty;
-}, dependencies: [filteredInventoryProvider]);
+}, dependencies: <ProviderOrFamily>[filteredInventoryProvider]);
 
 /// Provider لإحصائيات المخزون المفلتر
-final filteredInventoryStatsProvider = Provider<Map<String, dynamic>>((ref) {
-  final filteredItems = ref.watch(filteredInventoryProvider);
+final Provider<Map<String, dynamic>> filteredInventoryStatsProvider =
+    Provider<Map<String, dynamic>>((ProviderRef<Map<String, dynamic>> ref) {
+  final List<InventoryItem> filteredItems =
+      ref.watch(filteredInventoryProvider);
 
   final int totalItems = filteredItems.length;
   final int outOfStockCount =
-      filteredItems.where((item) => item.isOutOfStock()).length;
-  final double totalValue =
-      filteredItems.fold<double>(0, (sum, item) => sum + item.getTotalValue());
+      filteredItems.where((InventoryItem item) => item.isOutOfStock()).length;
+  final double totalValue = filteredItems.fold<double>(
+      0, (double sum, InventoryItem item) => sum + item.getTotalValue());
 
-  return {
+  return <String, dynamic>{
     'totalItems': totalItems,
     'outOfStockCount': outOfStockCount,
     'totalValue': totalValue,
   };
-}, dependencies: [filteredInventoryProvider]);
+}, dependencies: <ProviderOrFamily>[filteredInventoryProvider]);
 
 /// Provider لتنظيف البيانات
-final cleanupInventoryDataProvider = FutureProvider<void>((ref) async {
+final FutureProvider<void> cleanupInventoryDataProvider =
+    FutureProvider<void>((FutureProviderRef<void> ref) async {
   try {
     // تنظيف البيانات الخاطئة
     debugPrint('🔄 تحديث المخزون - الـ provider يتولى التحديث تلقائياً');
@@ -246,15 +326,16 @@ final cleanupInventoryDataProvider = FutureProvider<void>((ref) async {
 });
 
 /// Provider لاختبار تحميل البيانات
-final testDataLoadingProvider =
-    FutureProvider<Map<String, dynamic>>((ref) async {
+final FutureProvider<Map<String, dynamic>> testDataLoadingProvider =
+    FutureProvider<Map<String, dynamic>>(
+        (FutureProviderRef<Map<String, dynamic>> ref) async {
   try {
     debugPrint('🧪 بدء اختبار تحميل البيانات...');
 
     // إعادة تحميل البيانات
     ref.invalidate(inventoryItemsProvider);
 
-    final inventoryItems = ref.read(inventoryItemsProvider);
+    final List<InventoryItem> inventoryItems = ref.read(inventoryItemsProvider);
     final int totalCount = inventoryItems.length;
     final int filteredCount = ref.read(filteredInventoryProvider).length;
 
@@ -262,51 +343,27 @@ final testDataLoadingProvider =
     debugPrint('   - إجمالي العناصر: $totalCount');
     debugPrint('   - العناصر المفلترة: $filteredCount');
 
-    return {
+    return <String, dynamic>{
       'totalCount': totalCount,
       'filteredCount': filteredCount,
       'success': true,
     };
   } catch (e) {
     debugPrint('❌ خطأ في اختبار تحميل البيانات: $e');
-    return {
+    return <String, dynamic>{
       'error': e.toString(),
       'success': false,
     };
   }
 });
 
-/// Provider لحذف عنصر المخزون
-final deleteInventoryItemProvider =
-    FutureProvider.family<bool, String>((ref, itemId) async {
-  try {
-    debugPrint('🗑️ بدء حذف العنصر: $itemId');
-    // إعادة تحميل البيانات بعد الحذف
-    ref.invalidate(inventoryItemsProvider);
-    debugPrint('✅ تم حذف العنصر بنجاح: $itemId');
-    return true;
-  } catch (e) {
-    debugPrint('❌ خطأ في حذف العنصر: $e');
-    return false;
-  }
-});
-
-/// Provider لتحديث عنصر المخزون
-final updateInventoryItemProvider =
-    FutureProvider.family<bool, InventoryItem>((ref, item) async {
-  try {
-    // إعادة تحميل البيانات بعد التحديث
-    ref.invalidate(inventoryItemsProvider);
-    debugPrint('✅ تم تحديث عنصر المخزون بنجاح: ${item.name}');
-    return true;
-  } catch (e) {
-    debugPrint('❌ خطأ في تحديث عنصر المخزون: $e');
-    return false;
-  }
-});
+// ملاحظة: تم حذف deleteInventoryItemProvider و updateInventoryItemProvider
+// لأنه يسبب مشكلة Riverpod (Providers are not allowed to modify other providers during their initialization)
+// بدلاً من ذلك، نستخدم inventoryControllerProvider.notifier مباشرة
 
 /// Provider لإعادة تحميل المخزون
-final refreshInventoryProvider = FutureProvider<void>((ref) async {
+final FutureProvider<void> refreshInventoryProvider =
+    FutureProvider<void>((FutureProviderRef<void> ref) async {
   try {
     ref.invalidate(inventoryItemsProvider);
     debugPrint('🔄 تم إعادة تحميل المخزون بنجاح');

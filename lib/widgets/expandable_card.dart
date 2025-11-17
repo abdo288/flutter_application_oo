@@ -383,7 +383,6 @@ class ExpandableProductCard extends StatelessWidget {
             ),
             border: Border.all(
               color: color.withValues(alpha: 0.3),
-              width: 1,
             ),
           ),
           child: Row(

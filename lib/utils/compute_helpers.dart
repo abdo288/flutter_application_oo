@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/product.dart';
-import '../providers/stream_product_provider.dart';
+import '../providers/riverpod/shared_types.dart';
 
 /// مساعدات العمليات الثقيلة في Isolate منفصل
 class ComputeHelpers {
@@ -11,13 +11,14 @@ class ComputeHelpers {
     required FilterOption filter,
     required double minProfit,
     required double maxProfit,
-  }) async => compute(_filterProductsImpl, {
-      'products': products,
-      'searchText': searchText,
-      'filter': filter,
-      'minProfit': minProfit,
-      'maxProfit': maxProfit,
-    });
+  }) async =>
+      compute(_filterProductsImpl, <String, Object>{
+        'products': products,
+        'searchText': searchText,
+        'filter': filter,
+        'minProfit': minProfit,
+        'maxProfit': maxProfit,
+      });
 
   static List<Product> _filterProductsImpl(Map<String, dynamic> params) {
     final List<Product> products = params['products'] as List<Product>;
@@ -45,10 +46,11 @@ class ComputeHelpers {
   static Future<List<Product>> sortProducts({
     required List<Product> products,
     required SortOption sortOption,
-  }) async => compute(_sortProductsImpl, {
-      'products': products,
-      'sortOption': sortOption,
-    });
+  }) async =>
+      compute(_sortProductsImpl, <String, Object>{
+        'products': products,
+        'sortOption': sortOption,
+      });
 
   static List<Product> _sortProductsImpl(Map<String, dynamic> params) {
     final List<Product> products = params['products'] as List<Product>;
@@ -96,20 +98,22 @@ class ComputeHelpers {
     required SortOption sortOption,
     required double minProfit,
     required double maxProfit,
-  }) async => compute(_filterAndSortProductsImpl, {
-      'products': products,
-      'searchText': searchText,
-      'filter': filter,
-      'sortOption': sortOption,
-      'minProfit': minProfit,
-      'maxProfit': maxProfit,
-    });
+  }) async =>
+      compute(_filterAndSortProductsImpl, <String, Object>{
+        'products': products,
+        'searchText': searchText,
+        'filter': filter.index,
+        'sortOption': sortOption.index,
+        'minProfit': minProfit,
+        'maxProfit': maxProfit,
+      });
 
   static List<Product> _filterAndSortProductsImpl(Map<String, dynamic> params) {
     final List<Product> products = params['products'] as List<Product>;
     final String searchText = params['searchText'] as String;
-    final FilterOption filter = params['filter'] as FilterOption;
-    final SortOption sortOption = params['sortOption'] as SortOption;
+    final FilterOption filter = FilterOption.values[params['filter'] as int];
+    final SortOption sortOption =
+        SortOption.values[params['sortOption'] as int];
     final double minProfit = params['minProfit'] as double;
     final double maxProfit = params['maxProfit'] as double;
 
@@ -258,7 +262,8 @@ class ComputeHelpers {
   /// حساب إحصائيات المنتجات في Isolate منفصل
   static Future<Map<String, dynamic>> calculateProductStats({
     required List<Product> products,
-  }) async => compute(_calculateProductStatsImpl, products);
+  }) async =>
+      compute(_calculateProductStatsImpl, products);
 
   static Map<String, dynamic> _calculateProductStatsImpl(
       List<Product> products) {
@@ -283,9 +288,13 @@ class ComputeHelpers {
     final double averageProfit = totalProfit / products.length;
 
     final DateTime now = DateTime.now();
-    final int highProfitCount = products.where((Product product) => product.calculateProfit() >= 1000).length;
+    final int highProfitCount = products
+        .where((Product product) => product.calculateProfit() >= 1000)
+        .length;
 
-    final int lowProfitCount = products.where((Product product) => product.calculateProfit() < 1000).length;
+    final int lowProfitCount = products
+        .where((Product product) => product.calculateProfit() < 1000)
+        .length;
 
     final int recentCount = products.where((Product product) {
       final int daysSinceAdded = now.difference(product.savedAt).inDays;

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import '../utils/platform_thread_safety.dart';
 
 /// خدمة الإشعارات الذكية بين المنصات
 /// تستخدم نظام "الإعلام ثم السحب" لتوفير التحديثات المستهدفة
@@ -79,10 +80,19 @@ class SmartNotificationService {
           .doc(_currentUserId!)
           .snapshots()
           .listen(
-        _onNotificationReceived,
+        (DocumentSnapshot<Map<String, dynamic>> snapshot) {
+          // ✅ استخدام PlatformThreadSafety لضمان التنفيذ على platform thread
+          PlatformThreadSafety.executeStreamListenerCallback(
+            () => _onNotificationReceived(snapshot),
+            operationName: 'notificationListener',
+          );
+        },
         onError: (Object error) {
           debugPrint('❌ خطأ في مستمع الإشعارات: $error');
-          _handleListenerError(error);
+          PlatformThreadSafety.executeStreamListenerCallback(
+            () => _handleListenerError(error),
+            operationName: 'notificationListener_error',
+          );
         },
       );
 

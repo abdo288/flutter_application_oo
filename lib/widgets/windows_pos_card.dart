@@ -13,6 +13,7 @@ class WindowsPOSCard extends StatefulWidget {
     required this.onQuantityChanged,
     required this.onRemove,
     this.onDiscountChanged,
+    this.onRemoveDiscount,
     this.isExpanded = false,
     this.onExpansionChanged,
     this.onIncreaseQuantity,
@@ -23,6 +24,7 @@ class WindowsPOSCard extends StatefulWidget {
   final ValueChanged<int> onQuantityChanged;
   final VoidCallback onRemove;
   final ValueChanged<double>? onDiscountChanged;
+  final VoidCallback? onRemoveDiscount;
   final bool isExpanded;
   final ValueChanged<bool>? onExpansionChanged;
   final VoidCallback? onIncreaseQuantity;
@@ -149,6 +151,7 @@ class _WindowsPOSCardState extends State<WindowsPOSCard>
                     onQuantityChanged: widget.onQuantityChanged,
                     onRemove: widget.onRemove,
                     onDiscountChanged: widget.onDiscountChanged,
+                    onRemoveDiscount: widget.onRemoveDiscount,
                     onToggleExpanded: _toggleExpanded,
                     discountController: _discountController,
                     onIncreaseQuantity: widget.onIncreaseQuantity,
@@ -171,43 +174,43 @@ class _WindowsPOSCardState extends State<WindowsPOSCard>
 
   /// بطاقة الحذف
   Widget _buildDeletingCard(CartItem item, bool isDark) => Container(
-      width: double.infinity,
-      margin: EdgeInsets.symmetric(
-        vertical: context.responsiveSpacing * 0.5,
-        horizontal: context.responsiveSpacing * 0.25,
-      ),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFEF4444).withOpacity(0.3),
-          width: 2,
+        width: double.infinity,
+        margin: EdgeInsets.symmetric(
+          vertical: context.responsiveSpacing * 0.5,
+          horizontal: context.responsiveSpacing * 0.25,
         ),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(context.responsiveSpacing * 1.5),
-        child: Row(
-          children: [
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEF4444)),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                'جاري حذف ${item.name}...',
-                style: TextStyle(
-                  fontSize: context.responsiveFontSize(16),
-                  fontWeight: FontWeight.w600,
-                  color: isDark
-                      ? const Color(0xFFF1F5F9)
-                      : const Color(0xFF1E293B),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: const Color(0xFFEF4444).withOpacity(0.3),
+            width: 2,
+          ),
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(context.responsiveSpacing * 1.5),
+          child: Row(
+            children: <Widget>[
+              const CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEF4444)),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  'جاري حذف ${item.name}...',
+                  style: TextStyle(
+                    fontSize: context.responsiveFontSize(16),
+                    fontWeight: FontWeight.w600,
+                    color: isDark
+                        ? const Color(0xFFF1F5F9)
+                        : const Color(0xFF1E293B),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
+      );
 
   /// الحصول على لون الحدود حسب حالة المنتج
   Color _getBorderColor(CartItem item, bool isDark) {
@@ -409,6 +412,7 @@ class _ExpandedContent extends StatefulWidget {
     required this.onQuantityChanged,
     required this.onRemove,
     required this.onDiscountChanged,
+    this.onRemoveDiscount,
     required this.onToggleExpanded,
     required this.discountController,
     this.onIncreaseQuantity,
@@ -420,6 +424,7 @@ class _ExpandedContent extends StatefulWidget {
   final ValueChanged<int> onQuantityChanged;
   final VoidCallback onRemove;
   final ValueChanged<double>? onDiscountChanged;
+  final VoidCallback? onRemoveDiscount;
   final VoidCallback onToggleExpanded;
   final TextEditingController discountController;
   final VoidCallback? onIncreaseQuantity;
@@ -1072,13 +1077,34 @@ class _ExpandedContentState extends State<_ExpandedContent> {
                                 ),
                               ),
                               onChanged: (String value) {
-                                final double discount = double.tryParse(value) ?? 0.0;
+                                final double discount =
+                                    double.tryParse(value) ?? 0.0;
                                 onDiscountChanged(discount);
                               },
                             ),
                           ],
                         ),
                       ),
+
+                      const SizedBox(height: 8),
+
+                      // زر إلغاء الخصم
+                      if (widget.onRemoveDiscount != null && item.discount > 0)
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: widget.onRemoveDiscount,
+                            icon: const Icon(Icons.remove_circle_outline,
+                                size: 16),
+                            label: const Text('إلغاء الخصم'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red[50],
+                              foregroundColor: Colors.red[700],
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                            ),
+                          ),
+                        ),
 
                       const SizedBox(height: 12),
 
@@ -1125,176 +1151,181 @@ class _ExpandedContentState extends State<_ExpandedContent> {
   }
 
   /// بناء صف التفاصيل
-  Widget _buildDetailRow(
-      String label, String value, IconData icon, Color color, bool isDark) => Row(
-      children: [
-        Icon(icon, color: color, size: 16),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+  Widget _buildDetailRow(String label, String value, IconData icon, Color color,
+          bool isDark) =>
+      Row(
+        children: <Widget>[
+          Icon(icon, color: color, size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color:
+                    isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
             ),
           ),
-        ),
-        Flexible(
-          child: Text(
-            value,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: color,
+          Flexible(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+              textAlign: TextAlign.end,
             ),
-            textAlign: TextAlign.end,
           ),
-        ),
-      ],
-    );
+        ],
+      );
 
   /// بناء صف معلومات تفصيلي مع إمكانية النسخ
   Widget _buildDetailInfoRow(
-      String label, String value, IconData icon, Color color, bool isDark,
-      {VoidCallback? onCopy}) => Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: color.withOpacity(0.2),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: isDark
-                        ? const Color(0xFF94A3B8)
-                        : const Color(0xFF64748B),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-                ),
-              ],
-            ),
+          String label, String value, IconData icon, Color color, bool isDark,
+          {VoidCallback? onCopy}) =>
+      Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: color.withOpacity(0.2),
           ),
-          if (onCopy != null) ...[
-            const SizedBox(width: 8),
-            IconButton(
-              onPressed: onCopy,
-              icon: Icon(
-                Icons.copy,
-                color: color,
-                size: 18,
-              ),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(
-                minWidth: 32,
-                minHeight: 32,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-
-  /// بناء صف معلومات مالي
-  Widget _buildFinancialRow(
-      String label, String value, IconData icon, Color color, bool isDark,
-      {String? subtitle, bool isHighlighted = false}) => Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color:
-            isHighlighted ? color.withOpacity(0.15) : color.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color:
-              isHighlighted ? color.withOpacity(0.4) : color.withOpacity(0.2),
-          width: isHighlighted ? 2 : 1,
         ),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: isDark
-                        ? const Color(0xFF94A3B8)
-                        : const Color(0xFF64748B),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: isHighlighted ? 16 : 14,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-                ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 2),
+        child: Row(
+          children: <Widget>[
+            Icon(icon, color: color, size: 18),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
                   Text(
-                    subtitle,
+                    label,
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                       color: isDark
                           ? const Color(0xFF94A3B8)
                           : const Color(0xFF64748B),
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
+                  ),
                 ],
-              ],
+              ),
             ),
+            if (onCopy != null) ...<Widget>[
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: onCopy,
+                icon: Icon(
+                  Icons.copy,
+                  color: color,
+                  size: 18,
+                ),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(
+                  minWidth: 32,
+                  minHeight: 32,
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+
+  /// بناء صف معلومات مالي
+  Widget _buildFinancialRow(
+          String label, String value, IconData icon, Color color, bool isDark,
+          {String? subtitle, bool isHighlighted = false}) =>
+      Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color:
+              isHighlighted ? color.withOpacity(0.15) : color.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color:
+                isHighlighted ? color.withOpacity(0.4) : color.withOpacity(0.2),
+            width: isHighlighted ? 2 : 1,
           ),
-        ],
-      ),
-    );
+        ),
+        child: Row(
+          children: <Widget>[
+            Icon(icon, color: color, size: 18),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: isHighlighted ? 16 : 14,
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
+                  ),
+                  if (subtitle != null) ...<Widget>[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
 
   /// بناء زر الإجراء
   Widget _buildActionButton(
-      String label, IconData icon, Color color, VoidCallback onTap) => ElevatedButton.icon(
-      onPressed: onTap,
-      icon: Icon(icon, size: 18),
-      label: Text(
-        label,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-      ),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
+          String label, IconData icon, Color color, VoidCallback onTap) =>
+      ElevatedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 18),
+        label: Text(
+          label,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
-      ),
-    );
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      );
 
   /// نسخ الباركود
   Future<void> _copyBarcode(String barcode, BuildContext context) async {

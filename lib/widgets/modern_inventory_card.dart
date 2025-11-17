@@ -16,6 +16,8 @@ class ModernInventoryCard extends StatefulWidget {
     required this.onDelete,
     this.showActions = true,
     this.compactMode = false,
+    this.isExpanded = false,
+    this.onExpansionChanged,
   });
 
   final InventoryItem item;
@@ -24,6 +26,8 @@ class ModernInventoryCard extends StatefulWidget {
   final VoidCallback onDelete;
   final bool showActions;
   final bool compactMode;
+  final bool isExpanded;
+  final ValueChanged<bool>? onExpansionChanged;
 
   @override
   State<ModernInventoryCard> createState() => _ModernInventoryCardState();
@@ -31,7 +35,6 @@ class ModernInventoryCard extends StatefulWidget {
 
 class _ModernInventoryCardState extends State<ModernInventoryCard>
     with TickerProviderStateMixin {
-  bool _expanded = false;
   final bool _isDeleting = false;
   late AnimationController _rotationController;
   late AnimationController _scaleController;
@@ -123,10 +126,10 @@ class _ModernInventoryCardState extends State<ModernInventoryCard>
 
   /// العرض المضغوط المحسّن بتصميم HTML
   Widget _buildCompactView(InventoryItem item, bool isDark) => Column(
-        children: [
+        children: <Widget>[
           // الصف الأول: الاسم والحالة
           Row(
-            children: [
+            children: <Widget>[
               // أيقونة المنتج
               Container(
                 padding: const EdgeInsets.all(12),
@@ -146,7 +149,7 @@ class _ModernInventoryCardState extends State<ModernInventoryCard>
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                  children: <Widget>[
                     Text(
                       item.name,
                       style: TextStyle(
@@ -181,16 +184,14 @@ class _ModernInventoryCardState extends State<ModernInventoryCard>
               // أيقونة التوسيع
               AnimatedBuilder(
                 animation: _rotationController,
-                builder: (context, child) {
-                  return Transform.rotate(
+                builder: (BuildContext context, Widget? child) => Transform.rotate(
                     angle: _rotationController.value * 3.14159, // 180 degrees
-                    child: Icon(
+                    child: const Icon(
                       Icons.keyboard_arrow_down,
-                      color: const Color(0xFF2563EB),
+                      color: Color(0xFF2563EB),
                       size: 24,
                     ),
-                  );
-                },
+                  ),
               ),
             ],
           ),
@@ -199,7 +200,7 @@ class _ModernInventoryCardState extends State<ModernInventoryCard>
 
           // الصف الثاني: المعلومات الأساسية
           Row(
-            children: [
+            children: <Widget>[
               _buildInfoChip(
                 icon: Icons.inventory_2_outlined,
                 label: 'الكمية',
@@ -244,7 +245,7 @@ class _ModernInventoryCardState extends State<ModernInventoryCard>
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
-          children: [
+          children: <Widget>[
             Icon(
               Icons.warning_amber,
               size: 16,
@@ -281,10 +282,10 @@ class _ModernInventoryCardState extends State<ModernInventoryCard>
             border: Border.all(color: color.withOpacity(0.3)),
           ),
           child: Column(
-            children: [
+            children: <Widget>[
               Row(
                 mainAxisSize: MainAxisSize.min,
-                children: [
+                children: <Widget>[
                   Icon(icon, size: 14, color: color),
                   const SizedBox(width: 4),
                   Text(
@@ -319,9 +320,9 @@ class _ModernInventoryCardState extends State<ModernInventoryCard>
   Widget _buildExpandedDetails(InventoryItem item, bool isDark) => AnimatedSize(
         duration: const Duration(milliseconds: 400),
         curve: Curves.easeInOut,
-        child: _expanded
+        child: widget.isExpanded
             ? Column(
-                children: [
+                children: <Widget>[
                   const SizedBox(height: 16),
                   Divider(
                     height: 24,
@@ -336,11 +337,11 @@ class _ModernInventoryCardState extends State<ModernInventoryCard>
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: isDark
-                            ? [
+                            ? <Color>[
                                 const Color(0xFF1E293B),
                                 const Color(0xFF0F172A),
                               ]
-                            : [
+                            : <Color>[
                                 const Color(0xFFF8FAFC),
                                 const Color(0xFFF1F5F9),
                               ],
@@ -348,7 +349,7 @@ class _ModernInventoryCardState extends State<ModernInventoryCard>
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
-                      children: [
+                      children: <Widget>[
                         _buildDetailRow(
                           'سعر الشراء:',
                           CurrencyFormatter.formatCurrency(
@@ -412,7 +413,7 @@ class _ModernInventoryCardState extends State<ModernInventoryCard>
     bool isDark,
   ) =>
       Row(
-        children: [
+        children: <Widget>[
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
@@ -462,7 +463,7 @@ class _ModernInventoryCardState extends State<ModernInventoryCard>
           ],
         ),
         child: Row(
-          children: [
+          children: <Widget>[
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
@@ -479,7 +480,7 @@ class _ModernInventoryCardState extends State<ModernInventoryCard>
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                children: <Widget>[
                   Text(
                     'الباركود:',
                     style: TextStyle(
@@ -530,13 +531,13 @@ class _ModernInventoryCardState extends State<ModernInventoryCard>
 
   /// أزرار الإجراءات بتصميم HTML
   Widget _buildActionsRow(bool isDark) => Row(
-        children: [
+        children: <Widget>[
           Expanded(
             child: _buildActionButton(
               label: 'تحرير',
               icon: Icons.edit_outlined,
               gradient: const LinearGradient(
-                colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+                colors: <Color>[Color(0xFF3B82F6), Color(0xFF2563EB)],
               ),
               onPressed: widget.onEdit,
             ),
@@ -547,7 +548,7 @@ class _ModernInventoryCardState extends State<ModernInventoryCard>
               label: 'طباعة',
               icon: Icons.print_outlined,
               gradient: const LinearGradient(
-                colors: [Color(0xFF8B5CF6), Color(0xFF7C3AED)],
+                colors: <Color>[Color(0xFF8B5CF6), Color(0xFF7C3AED)],
               ),
               onPressed: widget.onPrint,
             ),
@@ -558,7 +559,7 @@ class _ModernInventoryCardState extends State<ModernInventoryCard>
               label: 'حذف',
               icon: Icons.delete_outline,
               gradient: const LinearGradient(
-                colors: [Color(0xFFEF4444), Color(0xFFDC2626)],
+                colors: <Color>[Color(0xFFEF4444), Color(0xFFDC2626)],
               ),
               onPressed: widget.onDelete,
             ),
@@ -592,7 +593,7 @@ class _ModernInventoryCardState extends State<ModernInventoryCard>
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Column(
-                children: [
+                children: <Widget>[
                   Icon(icon, color: Colors.white, size: 22),
                   const SizedBox(height: 4),
                   Text(
@@ -626,7 +627,7 @@ class _ModernInventoryCardState extends State<ModernInventoryCard>
         child: Padding(
           padding: EdgeInsets.all(context.responsiveSpacing * 1.0),
           child: Row(
-            children: [
+            children: <Widget>[
               const CircularProgressIndicator(
                 strokeWidth: 2,
                 valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2563EB)),
@@ -650,13 +651,13 @@ class _ModernInventoryCardState extends State<ModernInventoryCard>
 
   /// تبديل حالة التوسيع
   void _toggleExpanded() {
-    setState(() {
-      _expanded = !_expanded;
-    });
+    if (widget.onExpansionChanged != null) {
+      widget.onExpansionChanged!(!widget.isExpanded);
+    }
 
     if (mounted) {
       try {
-        if (_expanded) {
+        if (!widget.isExpanded) {
           _rotationController.forward();
         } else {
           _rotationController.reverse();

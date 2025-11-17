@@ -168,21 +168,28 @@ class AuthService {
         if (u == null) {
           yield null;
         } else {
-          yield* _usersCol.doc(u.uid).snapshots().map(
-              (DocumentSnapshot<Map<String, dynamic>> snap) =>
-                  snap.exists ? AppUser.fromDoc(snap) : null);
+          yield* _usersCol
+              .doc(u.uid)
+              .snapshots()
+              .asyncMap((DocumentSnapshot<Map<String, dynamic>> snap) async {
+            // ✅ معالجة مباشرة بدون PlatformThreadSafety
+            return snap.exists ? AppUser.fromDoc(snap) : null;
+          });
         }
       });
 
   /// بث قائمة جميع المستخدمين (لوحة المدير)
-  Stream<List<AppUser>> usersStream() =>
-      _usersCol.orderBy('createdAt', descending: true).snapshots().map(
-            (QuerySnapshot<Map<String, dynamic>> query) => query.docs
-                .where((QueryDocumentSnapshot<Map<String, dynamic>> d) =>
-                    d.data().containsKey('email'))
-                .map(AppUser.fromDoc)
-                .toList(),
-          );
+  Stream<List<AppUser>> usersStream() => _usersCol
+          .orderBy('createdAt', descending: true)
+          .snapshots()
+          .asyncMap((QuerySnapshot<Map<String, dynamic>> query) async {
+        // ✅ معالجة مباشرة بدون PlatformThreadSafety
+        return query.docs
+            .where((QueryDocumentSnapshot<Map<String, dynamic>> d) =>
+                d.data().containsKey('email'))
+            .map(AppUser.fromDoc)
+            .toList();
+      });
 
   /// تحديث دور المستخدم
   Future<void> setUserRole(

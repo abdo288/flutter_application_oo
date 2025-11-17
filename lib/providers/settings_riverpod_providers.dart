@@ -2,12 +2,32 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/cleanup/models/cleanup_result.dart';
 import '../services/connectivity_service.dart';
+import '../services/data_cleanup_service.dart';
 import '../services/inventory_alert_service.dart';
 import '../services/local_notification_service.dart';
 
 /// حالة تبويب الإعدادات
 class SettingsState {
+
+  const SettingsState({
+    this.notificationsEnabled = true,
+    this.lowStockAlertsEnabled = true,
+    this.dailyRemindersEnabled = true,
+    this.weeklyRemindersEnabled = true,
+    this.isOnline = true,
+    this.isConnectionExpanded = false,
+    this.isLanguageExpanded = false,
+    this.isNotificationsExpanded = false,
+    this.isRemindersExpanded = false,
+    this.isActionsExpanded = false,
+    this.isAppInfoExpanded = false,
+    this.isAppearanceExpanded = false,
+    this.isUserMgmtExpanded = false,
+    this.isLoading = false,
+    this.errorMessage,
+  });
   // الإشعارات
   final bool notificationsEnabled;
   final bool lowStockAlertsEnabled;
@@ -33,24 +53,6 @@ class SettingsState {
   final bool isLoading;
   final String? errorMessage;
 
-  const SettingsState({
-    this.notificationsEnabled = true,
-    this.lowStockAlertsEnabled = true,
-    this.dailyRemindersEnabled = true,
-    this.weeklyRemindersEnabled = true,
-    this.isOnline = true,
-    this.isConnectionExpanded = false,
-    this.isLanguageExpanded = false,
-    this.isNotificationsExpanded = false,
-    this.isRemindersExpanded = false,
-    this.isActionsExpanded = false,
-    this.isAppInfoExpanded = false,
-    this.isAppearanceExpanded = false,
-    this.isUserMgmtExpanded = false,
-    this.isLoading = false,
-    this.errorMessage,
-  });
-
   SettingsState copyWith({
     bool? notificationsEnabled,
     bool? lowStockAlertsEnabled,
@@ -67,8 +69,7 @@ class SettingsState {
     bool? isUserMgmtExpanded,
     bool? isLoading,
     String? errorMessage,
-  }) {
-    return SettingsState(
+  }) => SettingsState(
       notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
       lowStockAlertsEnabled:
           lowStockAlertsEnabled ?? this.lowStockAlertsEnabled,
@@ -89,7 +90,6 @@ class SettingsState {
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage ?? this.errorMessage,
     );
-  }
 }
 
 /// مدير حالة الإعدادات
@@ -113,7 +113,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   /// تحميل الإعدادات من SharedPreferences
   Future<void> loadSettings() async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    state = state.copyWith(isLoading: true);
 
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -240,11 +240,27 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   /// تنظيف البيانات
   Future<void> performCleanup() async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    state = state.copyWith(isLoading: true);
 
     try {
+      // تنظيف التنبيهات القديمة
       await InventoryAlertService.cleanupOldAlerts();
-      state = state.copyWith(isLoading: false);
+
+      // تنظيف البيانات المحلية الأساسية
+      final DataCleanupService cleanupService = DataCleanupService();
+      final CleanupResult result = await cleanupService.performFullCleanup(
+        
+      );
+
+      if (result.success) {
+        debugPrint('✅ تم تنظيف البيانات المحلية بنجاح');
+        state = state.copyWith(isLoading: false);
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: 'خطأ في تنظيف البيانات: ${result.message}',
+        );
+      }
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -256,7 +272,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   /// إعادة تعيين الإعدادات
   Future<void> resetSettings() async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    state = state.copyWith(isLoading: true);
 
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -285,7 +301,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   /// مسح رسالة الخطأ
   void clearError() {
-    state = state.copyWith(errorMessage: null);
+    state = state.copyWith();
   }
 
   @override
@@ -298,79 +314,79 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 // ========== Providers ==========
 
 /// Provider الرئيسي لحالة الإعدادات
-final settingsNotifierProvider =
+final AutoDisposeStateNotifierProvider<SettingsNotifier, SettingsState> settingsNotifierProvider =
     StateNotifierProvider.autoDispose<SettingsNotifier, SettingsState>(
-  (ref) => SettingsNotifier(ref),
+  SettingsNotifier.new,
 );
 
 /// Provider للتحقق من حالة التحميل
-final settingsLoadingProvider = Provider.autoDispose<bool>(
-  (ref) {
+final AutoDisposeProvider<bool> settingsLoadingProvider = Provider.autoDispose<bool>(
+  (AutoDisposeProviderRef<bool> ref) {
     final SettingsState state = ref.watch(settingsNotifierProvider);
     return state.isLoading;
   },
-  dependencies: [settingsNotifierProvider],
+  dependencies: <ProviderOrFamily>[settingsNotifierProvider],
 );
 
 /// Provider لرسالة الخطأ
-final settingsErrorProvider = Provider.autoDispose<String?>(
-  (ref) {
+final AutoDisposeProvider<String?> settingsErrorProvider = Provider.autoDispose<String?>(
+  (AutoDisposeProviderRef<String?> ref) {
     final SettingsState state = ref.watch(settingsNotifierProvider);
     return state.errorMessage;
   },
-  dependencies: [settingsNotifierProvider],
+  dependencies: <ProviderOrFamily>[settingsNotifierProvider],
 );
 
 /// Provider لحالة الاتصال
-final connectionStatusProvider = Provider.autoDispose<bool>(
-  (ref) {
+final AutoDisposeProvider<bool> connectionStatusProvider = Provider.autoDispose<bool>(
+  (AutoDisposeProviderRef<bool> ref) {
     final SettingsState state = ref.watch(settingsNotifierProvider);
     return state.isOnline;
   },
-  dependencies: [settingsNotifierProvider],
+  dependencies: <ProviderOrFamily>[settingsNotifierProvider],
 );
 
 /// Provider للإشعارات
-final notificationsEnabledProvider = Provider.autoDispose<bool>(
-  (ref) {
+final AutoDisposeProvider<bool> notificationsEnabledProvider = Provider.autoDispose<bool>(
+  (AutoDisposeProviderRef<bool> ref) {
     final SettingsState state = ref.watch(settingsNotifierProvider);
     return state.notificationsEnabled;
   },
-  dependencies: [settingsNotifierProvider],
+  dependencies: <ProviderOrFamily>[settingsNotifierProvider],
 );
 
 /// Provider لتنبيهات المخزون المنخفض
-final lowStockAlertsEnabledProvider = Provider.autoDispose<bool>(
-  (ref) {
+final AutoDisposeProvider<bool> lowStockAlertsEnabledProvider = Provider.autoDispose<bool>(
+  (AutoDisposeProviderRef<bool> ref) {
     final SettingsState state = ref.watch(settingsNotifierProvider);
     return state.lowStockAlertsEnabled;
   },
-  dependencies: [settingsNotifierProvider],
+  dependencies: <ProviderOrFamily>[settingsNotifierProvider],
 );
 
 /// Provider للتذكيرات اليومية
-final dailyRemindersEnabledProvider = Provider.autoDispose<bool>(
-  (ref) {
+final AutoDisposeProvider<bool> dailyRemindersEnabledProvider = Provider.autoDispose<bool>(
+  (AutoDisposeProviderRef<bool> ref) {
     final SettingsState state = ref.watch(settingsNotifierProvider);
     return state.dailyRemindersEnabled;
   },
-  dependencies: [settingsNotifierProvider],
+  dependencies: <ProviderOrFamily>[settingsNotifierProvider],
 );
 
 /// Provider للتذكيرات الأسبوعية
-final weeklyRemindersEnabledProvider = Provider.autoDispose<bool>(
-  (ref) {
+final AutoDisposeProvider<bool> weeklyRemindersEnabledProvider = Provider.autoDispose<bool>(
+  (AutoDisposeProviderRef<bool> ref) {
     final SettingsState state = ref.watch(settingsNotifierProvider);
     return state.weeklyRemindersEnabled;
   },
-  dependencies: [settingsNotifierProvider],
+  dependencies: <ProviderOrFamily>[settingsNotifierProvider],
 );
 
 /// Provider لحالة توسع البطاقات
-final cardExpansionProvider = Provider.autoDispose<Map<String, bool>>(
-  (ref) {
+final AutoDisposeProvider<Map<String, bool>> cardExpansionProvider = Provider.autoDispose<Map<String, bool>>(
+  (AutoDisposeProviderRef<Map<String, bool>> ref) {
     final SettingsState state = ref.watch(settingsNotifierProvider);
-    return {
+    return <String, bool>{
       'connection': state.isConnectionExpanded,
       'language': state.isLanguageExpanded,
       'notifications': state.isNotificationsExpanded,
@@ -381,5 +397,5 @@ final cardExpansionProvider = Provider.autoDispose<Map<String, bool>>(
       'userMgmt': state.isUserMgmtExpanded,
     };
   },
-  dependencies: [settingsNotifierProvider],
+  dependencies: <ProviderOrFamily>[settingsNotifierProvider],
 );

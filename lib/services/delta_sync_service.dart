@@ -3,10 +3,12 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/inventory_item.dart';
 import '../models/product.dart';
-import '../providers/stream_app_provider.dart';
+import '../providers/riverpod/stream_inventory_riverpod_provider.dart';
+import '../providers/riverpod/stream_product_riverpod_provider.dart';
 import 'error_handler_service.dart';
 import 'sync_state_service.dart';
 
@@ -37,15 +39,15 @@ class DeltaSyncService {
   final SyncStateService _syncStateService = SyncStateService();
 
   // Dependency injection for providers
-  StreamAppProvider? _appProvider;
+  WidgetRef? _ref;
 
   /// Initialize the service with required providers
-  void initialize(StreamAppProvider appProvider) {
-    _appProvider = appProvider;
+  void initialize(WidgetRef ref) {
+    _ref = ref;
   }
 
   /// Check if service is properly initialized
-  bool get isInitialized => _appProvider != null;
+  bool get isInitialized => _ref != null;
 
   /// مزامنة المنتجات التفاضلية
   Future<DeltaSyncResult> syncProducts() async {
@@ -108,21 +110,20 @@ class DeltaSyncService {
           final Map<String, dynamic> data = doc.data();
           final String productId = doc.id;
 
-          // استخدام Provider المحقون
-          final StreamAppProvider appProvider = _appProvider!;
+          // استخدام Riverpod ref المحقون
+          final WidgetRef ref = _ref!;
 
           // التحقق من وجود المنتج محلياً
-          final bool existsLocally =
-              await _productExists(appProvider, productId);
+          final bool existsLocally = await _productExists(ref, productId);
 
           if (existsLocally) {
             // تحديث المنتج الموجود
-            await _updateLocalProduct(appProvider, productId, data);
+            await _updateLocalProduct(ref, productId, data);
             updated++;
             debugPrint('✏️ تم تحديث المنتج: ${data['name']}');
           } else {
             // إضافة منتج جديد
-            await _addLocalProduct(appProvider, productId, data);
+            await _addLocalProduct(ref, productId, data);
             added++;
             debugPrint('➕ تم إضافة منتج جديد: ${data['name']}');
           }
@@ -223,21 +224,20 @@ class DeltaSyncService {
           final Map<String, dynamic> data = doc.data();
           final String itemId = doc.id;
 
-          // استخدام Provider المحقون
-          final StreamAppProvider appProvider = _appProvider!;
+          // استخدام Riverpod ref المحقون
+          final WidgetRef ref = _ref!;
 
           // التحقق من وجود العنصر محلياً
-          final bool existsLocally =
-              await _inventoryItemExists(appProvider, itemId);
+          final bool existsLocally = await _inventoryItemExists(ref, itemId);
 
           if (existsLocally) {
             // تحديث العنصر الموجود
-            await _updateLocalInventoryItem(appProvider, itemId, data);
+            await _updateLocalInventoryItem(ref, itemId, data);
             updated++;
             debugPrint('✏️ تم تحديث عنصر المخزون: ${data['name']}');
           } else {
             // إضافة عنصر جديد
-            await _addLocalInventoryItem(appProvider, itemId, data);
+            await _addLocalInventoryItem(ref, itemId, data);
             added++;
             debugPrint('➕ تم إضافة عنصر مخزون جديد: ${data['name']}');
           }
@@ -328,10 +328,10 @@ class DeltaSyncService {
   // ========== دوال مساعدة ==========
 
   /// التحقق من وجود منتج
-  Future<bool> _productExists(
-      StreamAppProvider appProvider, String productId) async {
+  Future<bool> _productExists(WidgetRef ref, String productId) async {
     try {
-      final List<Product> products = appProvider.productProvider.products;
+      final ProductsState productsState = ref.read(productsControllerProvider);
+      final List<Product> products = productsState.products;
       return products.any((Product product) => product.id == productId);
     } catch (e) {
       debugPrint('❌ خطأ في التحقق من وجود المنتج: $e');
@@ -340,11 +340,10 @@ class DeltaSyncService {
   }
 
   /// التحقق من وجود عنصر مخزون
-  Future<bool> _inventoryItemExists(
-      StreamAppProvider appProvider, String itemId) async {
+  Future<bool> _inventoryItemExists(WidgetRef ref, String itemId) async {
     try {
-      final List<InventoryItem> items =
-          appProvider.inventoryProvider.inventoryItems;
+      final InventoryState inventoryState = ref.read(inventoryControllerProvider);
+      final List<InventoryItem> items = inventoryState.inventoryItems;
       return items.any((InventoryItem item) => item.id == itemId);
     } catch (e) {
       debugPrint('❌ خطأ في التحقق من وجود عنصر المخزون: $e');
@@ -353,8 +352,8 @@ class DeltaSyncService {
   }
 
   /// إضافة منتج محلي
-  Future<void> _addLocalProduct(StreamAppProvider appProvider, String productId,
-      Map<String, dynamic> data) async {
+  Future<void> _addLocalProduct(
+      WidgetRef ref, String productId, Map<String, dynamic> data) async {
     try {
       final Product product = Product(
         id: productId,
@@ -363,7 +362,7 @@ class DeltaSyncService {
         retailPrice: _safeParseInt(data['retail_price']),
         savedAt: _safeParseDateTime(data['saved_at']),
       );
-      await appProvider.productProvider.addProduct(product);
+      await ref.read(productsControllerProvider.notifier).addProduct(product);
     } catch (e) {
       debugPrint('❌ خطأ في إضافة المنتج محلياً: $e');
       rethrow;
@@ -371,10 +370,11 @@ class DeltaSyncService {
   }
 
   /// تحديث منتج محلي
-  Future<void> _updateLocalProduct(StreamAppProvider appProvider,
-      String productId, Map<String, dynamic> data) async {
+  Future<void> _updateLocalProduct(
+      WidgetRef ref, String productId, Map<String, dynamic> data) async {
     try {
-      final List<Product> products = appProvider.productProvider.products;
+      final ProductsState productsState = ref.read(productsControllerProvider);
+      final List<Product> products = productsState.products;
       final Product existingProduct = products.firstWhere(
         (Product product) => product.id == productId,
         orElse: () => throw Exception('Product not found'),
@@ -387,7 +387,9 @@ class DeltaSyncService {
         savedAt: _safeParseDateTime(data['saved_at']),
       );
 
-      await appProvider.productProvider.updateProduct(updatedProduct);
+      await ref
+          .read(productsControllerProvider.notifier)
+          .updateProduct(updatedProduct);
     } catch (e) {
       debugPrint('❌ خطأ في تحديث المنتج محلياً: $e');
       rethrow;
@@ -395,8 +397,8 @@ class DeltaSyncService {
   }
 
   /// إضافة عنصر مخزون محلي
-  Future<void> _addLocalInventoryItem(StreamAppProvider appProvider,
-      String itemId, Map<String, dynamic> data) async {
+  Future<void> _addLocalInventoryItem(
+      WidgetRef ref, String itemId, Map<String, dynamic> data) async {
     try {
       final InventoryItem inventoryItem = InventoryItem(
         id: itemId,
@@ -409,7 +411,9 @@ class DeltaSyncService {
         addedDate: _safeParseDateTime(data['added_date']),
         addedTime: _safeParseDateTime(data['added_time']),
       );
-      await appProvider.inventoryProvider.addInventoryItem(inventoryItem);
+      await ref
+          .read(inventoryControllerProvider.notifier)
+          .addInventoryItem(inventoryItem);
     } catch (e) {
       debugPrint('❌ خطأ في إضافة عنصر المخزون محلياً: $e');
       rethrow;
@@ -417,11 +421,11 @@ class DeltaSyncService {
   }
 
   /// تحديث عنصر مخزون محلي
-  Future<void> _updateLocalInventoryItem(StreamAppProvider appProvider,
-      String itemId, Map<String, dynamic> data) async {
+  Future<void> _updateLocalInventoryItem(
+      WidgetRef ref, String itemId, Map<String, dynamic> data) async {
     try {
-      final List<InventoryItem> items =
-          appProvider.inventoryProvider.inventoryItems;
+      final InventoryState inventoryState = ref.read(inventoryControllerProvider);
+      final List<InventoryItem> items = inventoryState.inventoryItems;
       final InventoryItem existingItem = items.firstWhere(
         (InventoryItem item) => item.id == itemId,
         orElse: () => throw Exception('Inventory item not found'),
@@ -437,7 +441,9 @@ class DeltaSyncService {
         addedTime: _safeParseDateTime(data['added_time']),
       );
 
-      await appProvider.inventoryProvider.updateInventoryItem(updatedItem);
+      await ref
+          .read(inventoryControllerProvider.notifier)
+          .updateInventoryItem(updatedItem);
     } catch (e) {
       debugPrint('❌ خطأ في تحديث عنصر المخزون محلياً: $e');
       rethrow;

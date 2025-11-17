@@ -4,11 +4,13 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:profit_calculator/services/realtime_settings_service.dart';
+import 'package:profit_calculator/services/realtime_update_service.dart';
 
-import '../models/active_session.dart';
 import '../providers/realtime_settings_riverpod_providers.dart';
-import '../widgets/realtime_status_widget.dart';
+import '../services/presence_service.dart';
 import '../widgets/realtime_stats_chart.dart';
+import '../widgets/realtime_status_widget.dart';
 import '../widgets/realtime_updates_log.dart';
 
 /// شاشة إعدادات التحديثات الفورية مع Riverpod
@@ -41,8 +43,8 @@ class _RealtimeSettingsTabRiverpodState
   /// تهيئة الخدمات
   Future<void> _initializeServices() async {
     try {
-      final realtimeService = ref.read(realtimeUpdateServiceProvider);
-      final settingsService = ref.read(realtimeSettingsServiceProvider);
+      final RealtimeUpdateService realtimeService = ref.read(realtimeUpdateServiceProvider);
+      final RealtimeSettingsService settingsService = ref.read(realtimeSettingsServiceProvider);
       // final presenceService = ref.read(presenceServiceProvider);
 
       await settingsService.initialize();
@@ -58,17 +60,16 @@ class _RealtimeSettingsTabRiverpodState
   /// تنظيف الجلسات المكررة للجهاز الحالي
   Future<void> _cleanupDuplicateSessions() async {
     try {
-      final presenceService = ref.read(presenceServiceProvider);
-      final sessions = await presenceService.getActiveSessionsStream().first;
+      final PresenceService presenceService = ref.read(presenceServiceProvider);
+      final List<ActiveSession> sessions = await presenceService.getActiveSessionsStream().first;
 
       // تجميع الجلسات حسب المنصة
       final Map<String, List<ActiveSession>> sessionsByPlatform =
           <String, List<ActiveSession>>{};
-      for (final session in sessions) {
+      for (final ActiveSession session in sessions) {
         sessionsByPlatform.putIfAbsent(
             session.platform, () => <ActiveSession>[]);
-        sessionsByPlatform[session.platform]!
-            .add(ActiveSession.fromMap(session.toMap()));
+        sessionsByPlatform[session.platform]!.add(session);
       }
 
       int deletedCount = 0;
@@ -104,7 +105,7 @@ class _RealtimeSettingsTabRiverpodState
     // الاستماع للأخطاء وعرضها كـ SnackBar
     ref.listen<RealtimeStatusState>(
       realtimeStatusProvider,
-      (previous, next) {
+      (RealtimeStatusState? previous, RealtimeStatusState next) {
         if (next.error != null && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -227,7 +228,7 @@ class _RealtimeSettingsTabRiverpodState
   /// تبويب الحالة
   Widget _buildStatusTab() => Consumer(
         builder: (BuildContext context, WidgetRef ref, Widget? child) {
-          final statusState = ref.watch(realtimeStatusProvider);
+          final RealtimeStatusState statusState = ref.watch(realtimeStatusProvider);
           // final connectivityStatus = ref.watch(connectivityStatusProvider);
 
           return SingleChildScrollView(
@@ -335,19 +336,19 @@ class _RealtimeSettingsTabRiverpodState
 
                         // عرض المنصات النشطة باستخدام StreamProvider
                         Consumer(
-                          builder: (context, ref, child) {
-                            final sessionsAsync =
+                          builder: (BuildContext context, WidgetRef ref, Widget? child) {
+                            final AsyncValue<List<ActiveSession>> sessionsAsync =
                                 ref.watch(activeSessionsStreamProvider);
 
                             return sessionsAsync.when(
-                              data: (sessions) => _buildSessionsList(sessions),
+                              data: _buildSessionsList,
                               loading: () => const Center(
                                 child: Padding(
                                   padding: EdgeInsets.all(20.0),
                                   child: CircularProgressIndicator(),
                                 ),
                               ),
-                              error: (error, stack) => Center(
+                              error: (Object error, StackTrace stack) => Center(
                                 child: Padding(
                                   padding: const EdgeInsets.all(20.0),
                                   child: Column(
@@ -499,12 +500,12 @@ class _RealtimeSettingsTabRiverpodState
                     const SizedBox(height: 12),
                     // إحصائيات سريعة
                     Consumer(
-                      builder: (context, ref, child) {
-                        final sessionCount =
+                      builder: (BuildContext context, WidgetRef ref, Widget? child) {
+                        final int sessionCount =
                             ref.watch(activeSessionsCountProvider);
-                        final windowsCount =
+                        final int windowsCount =
                             ref.watch(windowsSessionsCountProvider);
-                        final mobileCount =
+                        final int mobileCount =
                             ref.watch(mobileSessionsCountProvider);
 
                         return Row(
@@ -529,18 +530,18 @@ class _RealtimeSettingsTabRiverpodState
 
             // عرض المنصات النشطة باستخدام StreamProvider
             Consumer(
-              builder: (context, ref, child) {
-                final sessionsAsync = ref.watch(activeSessionsStreamProvider);
+              builder: (BuildContext context, WidgetRef ref, Widget? child) {
+                final AsyncValue<List<ActiveSession>> sessionsAsync = ref.watch(activeSessionsStreamProvider);
 
                 return sessionsAsync.when(
-                  data: (sessions) => _buildSessionsList(sessions),
+                  data: _buildSessionsList,
                   loading: () => const Center(
                     child: Padding(
                       padding: EdgeInsets.all(20.0),
                       child: CircularProgressIndicator(),
                     ),
                   ),
-                  error: (error, stack) => Center(
+                  error: (Object error, StackTrace stack) => Center(
                     child: Padding(
                       padding: const EdgeInsets.all(20.0),
                       child: Column(
@@ -583,7 +584,7 @@ class _RealtimeSettingsTabRiverpodState
   /// تبويب الحالة المحسن لـ Windows
   Widget _buildWindowsStatusTab() => Consumer(
         builder: (BuildContext context, WidgetRef ref, Widget? child) {
-          final statusState = ref.watch(realtimeStatusProvider);
+          final RealtimeStatusState statusState = ref.watch(realtimeStatusProvider);
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
@@ -824,18 +825,18 @@ class _RealtimeSettingsTabRiverpodState
 
             // عرض المنصات النشطة باستخدام StreamProvider
             Consumer(
-              builder: (context, ref, child) {
-                final sessionsAsync = ref.watch(activeSessionsStreamProvider);
+              builder: (BuildContext context, WidgetRef ref, Widget? child) {
+                final AsyncValue<List<ActiveSession>> sessionsAsync = ref.watch(activeSessionsStreamProvider);
 
                 return sessionsAsync.when(
-                  data: (sessions) => _buildSessionsList(sessions),
+                  data: _buildSessionsList,
                   loading: () => const Center(
                     child: Padding(
                       padding: EdgeInsets.all(20.0),
                       child: CircularProgressIndicator(),
                     ),
                   ),
-                  error: (error, stack) => Center(
+                  error: (Object error, StackTrace stack) => Center(
                     child: Padding(
                       padding: const EdgeInsets.all(20.0),
                       child: Column(
@@ -989,7 +990,7 @@ class _RealtimeSettingsTabRiverpodState
   /// تبويب الإعدادات
   Widget _buildSettingsTab() => Consumer(
         builder: (BuildContext context, WidgetRef ref, Widget? child) {
-          final settingsState = ref.watch(realtimeSettingsProvider);
+          final RealtimeSettingsState settingsState = ref.watch(realtimeSettingsProvider);
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
@@ -1014,7 +1015,7 @@ class _RealtimeSettingsTabRiverpodState
                           value: settingsState.notificationsEnabled,
                           onChanged: settingsState.isLoading
                               ? null
-                              : (value) => ref
+                              : (bool value) => ref
                                   .read(realtimeSettingsProvider.notifier)
                                   .setNotificationsEnabled(value),
                         ),
@@ -1024,7 +1025,7 @@ class _RealtimeSettingsTabRiverpodState
                           value: settingsState.soundsEnabled,
                           onChanged: settingsState.isLoading
                               ? null
-                              : (value) => ref
+                              : (bool value) => ref
                                   .read(realtimeSettingsProvider.notifier)
                                   .setSoundsEnabled(value),
                         ),
@@ -1034,7 +1035,7 @@ class _RealtimeSettingsTabRiverpodState
                           value: settingsState.vibrationEnabled,
                           onChanged: settingsState.isLoading
                               ? null
-                              : (value) => ref
+                              : (bool value) => ref
                                   .read(realtimeSettingsProvider.notifier)
                                   .setVibrationEnabled(value),
                         ),
@@ -1045,7 +1046,7 @@ class _RealtimeSettingsTabRiverpodState
                           value: settingsState.autoSyncEnabled,
                           onChanged: settingsState.isLoading
                               ? null
-                              : (value) => ref
+                              : (bool value) => ref
                                   .read(realtimeSettingsProvider.notifier)
                                   .setAutoSyncEnabled(value),
                         ),
@@ -1522,9 +1523,7 @@ class _RealtimeSettingsTabRiverpodState
       );
 
   /// التحقق من أن الجلسة هي الجلسة الحالية
-  bool _isCurrentSession(ActiveSession session) {
-    return session.platform == _getCurrentPlatform();
-  }
+  bool _isCurrentSession(ActiveSession session) => session.platform == _getCurrentPlatform();
 
   /// الحصول على المنصة الحالية
   String _getCurrentPlatform() {

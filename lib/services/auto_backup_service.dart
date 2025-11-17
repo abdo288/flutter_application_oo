@@ -1,9 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/stream_inventory_provider.dart';
-import '../providers/stream_product_provider.dart';
 import 'backup_service.dart';
 import 'connectivity_service.dart';
 
@@ -40,8 +39,7 @@ class AutoBackupService {
 
   /// فحص الحاجة لإنشاء نسخة احتياطية وإنشاؤها
   static Future<void> _checkAndCreateBackup({
-    StreamProductProvider? productProvider,
-    StreamInventoryProvider? inventoryProvider,
+    WidgetRef? ref,
   }) async {
     try {
       // التحقق من تفعيل النسخ الاحتياطي التلقائي
@@ -64,15 +62,14 @@ class AutoBackupService {
 
       debugPrint('بدء النسخ الاحتياطي التلقائي...');
 
-      // إنشاء النسخة الاحتياطية (تخطي إذا لم يكن هناك providers)
-      if (productProvider != null && inventoryProvider != null) {
+      // إنشاء النسخة الاحتياطية (تخطي إذا لم يكن هناك ref)
+      if (ref != null) {
         await BackupService.createAutoBackupStatic(
-          productProvider: productProvider,
-          inventoryProvider: inventoryProvider,
+          ref: ref,
         );
         debugPrint('تم إنشاء النسخة الاحتياطية التلقائية بنجاح');
       } else {
-        debugPrint('تخطي النسخ الاحتياطي التلقائي - لا يوجد providers');
+        debugPrint('تخطي النسخ الاحتياطي التلقائي - لا يوجد ref');
       }
     } catch (e) {
       debugPrint('خطأ في النسخ الاحتياطي التلقائي: $e');
@@ -81,13 +78,11 @@ class AutoBackupService {
 
   /// إنشاء نسخة احتياطية فورية
   static Future<bool> createImmediateBackup({
-    required StreamProductProvider productProvider,
-    required StreamInventoryProvider inventoryProvider,
+    required WidgetRef ref,
   }) async {
     try {
       final BackupResult result = await BackupService.createFullBackupStatic(
-        productProvider: productProvider,
-        inventoryProvider: inventoryProvider,
+        ref: ref,
         includeCloud: BackupService.cloudBackupEnabled,
       );
 
@@ -127,17 +122,13 @@ class AutoBackupService {
 
   /// تهيئة خدمة النسخ الاحتياطي التلقائي مع providers
   static Future<void> initializeWithProviders({
-    required StreamProductProvider productProvider,
-    required StreamInventoryProvider inventoryProvider,
+    required WidgetRef ref,
   }) async {
     if (_isInitialized) return;
 
     try {
       await BackupService.initialize();
-      _startPeriodicCheckWithProviders(
-        productProvider: productProvider,
-        inventoryProvider: inventoryProvider,
-      );
+      _startPeriodicCheckWithProviders(ref: ref);
       _isInitialized = true;
       debugPrint('تم تهيئة خدمة النسخ الاحتياطي التلقائي مع providers');
     } catch (e) {
@@ -147,21 +138,14 @@ class AutoBackupService {
 
   /// بدء الفحص الدوري للنسخ الاحتياطي مع providers
   static void _startPeriodicCheckWithProviders({
-    required StreamProductProvider productProvider,
-    required StreamInventoryProvider inventoryProvider,
+    required WidgetRef ref,
   }) {
     // فحص كل ساعة
     _checkTimer = Timer.periodic(const Duration(hours: 1), (Timer timer) {
-      _checkAndCreateBackup(
-        productProvider: productProvider,
-        inventoryProvider: inventoryProvider,
-      );
+      _checkAndCreateBackup(ref: ref);
     });
 
     // فحص فوري عند بدء التطبيق
-    _checkAndCreateBackup(
-      productProvider: productProvider,
-      inventoryProvider: inventoryProvider,
-    );
+    _checkAndCreateBackup(ref: ref);
   }
 }

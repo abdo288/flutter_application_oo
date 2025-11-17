@@ -174,7 +174,7 @@ class _WindowsInventoryCardState extends State<WindowsInventoryCard>
       child: Padding(
         padding: EdgeInsets.all(context.responsiveSpacing * 1.5),
         child: Row(
-          children: [
+          children: <Widget>[
             const CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEF4444)),
             ),
@@ -373,10 +373,10 @@ class _ExpandedContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
-        children: [
+        children: <Widget>[
           // الصف الأول في العرض الموسع
           Row(
-            children: [
+            children: <Widget>[
               // العنوان
               Expanded(
                 flex: 2,
@@ -446,7 +446,7 @@ class _ExpandedContent extends StatelessWidget {
           const SizedBox(height: 16),
 
           // الباركود (إذا كان متوفراً)
-          if (item.barcode != null && item.barcode!.isNotEmpty) ...[
+          if (item.barcode != null && item.barcode!.isNotEmpty) ...<Widget>[
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
@@ -461,10 +461,10 @@ class _ExpandedContent extends StatelessWidget {
                 ),
               ),
               child: Row(
-                children: [
-                  Icon(
+                children: <Widget>[
+                  const Icon(
                     Icons.qr_code,
-                    color: const Color(0xFF2563EB),
+                    color: Color(0xFF2563EB),
                     size: 20,
                   ),
                   const SizedBox(width: 8),
@@ -482,9 +482,9 @@ class _ExpandedContent extends StatelessWidget {
                   ),
                   IconButton(
                     onPressed: () => onCopyBarcode(item.barcode!),
-                    icon: Icon(
+                    icon: const Icon(
                       Icons.copy,
-                      color: const Color(0xFF2563EB),
+                      color: Color(0xFF2563EB),
                       size: 20,
                     ),
                   ),
@@ -497,7 +497,7 @@ class _ExpandedContent extends StatelessWidget {
           // المعلومات المالية
           IntrinsicHeight(
             child: Row(
-              children: [
+              children: <Widget>[
                 // الربح
                 Expanded(
                   child: _buildInfoCard(
@@ -549,9 +549,9 @@ class _ExpandedContent extends StatelessWidget {
           const SizedBox(height: 16),
 
           // الأزرار
-          if (showActions) ...[
+          if (showActions) ...<Widget>[
             Row(
-              children: [
+              children: <Widget>[
                 Expanded(
                   child: _buildActionButton(
                     'تحرير',
@@ -598,7 +598,7 @@ class _ExpandedContent extends StatelessWidget {
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        children: [
+        children: <Widget>[
           Icon(
             icon,
             color: color,
@@ -666,13 +666,13 @@ class _ExpandedContent extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        children: <Widget>[
           // عنوان القسم
           Row(
-            children: [
-              Icon(
+            children: <Widget>[
+              const Icon(
                 Icons.info_outline,
-                color: const Color(0xFF2563EB),
+                color: Color(0xFF2563EB),
                 size: 20,
               ),
               const SizedBox(width: 4),
@@ -734,7 +734,7 @@ class _ExpandedContent extends StatelessWidget {
   /// بناء صف التفاصيل
   Widget _buildDetailRow(
       String label, String value, IconData icon, Color color, bool isDark) => Row(
-      children: [
+      children: <Widget>[
         Icon(icon, color: color, size: 18),
         const SizedBox(width: 12),
         Expanded(

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'app_state_manager.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'app_event_bus.dart';
+import 'app_state_manager.dart';
+import 'cross_tab_sync_service.dart';
 
 /// خدمة التنقل مع تمرير البيانات
 class NavigationService {
@@ -20,6 +22,7 @@ class NavigationService {
 
   /// الانتقال إلى تبويب مع بيانات
   static void navigateToTab(
+    Ref ref,
     int tabIndex, {
     Map<String, dynamic>? data,
     String? sourceTab,
@@ -37,9 +40,10 @@ class NavigationService {
     }
 
     try {
-      // 1. حفظ البيانات في AppStateManager
+      // 1. حفظ البيانات في AppStateNotifier
       if (data != null) {
-        final AppStateManager stateManager = context.read<AppStateManager>();
+        final AppStateNotifier stateManager =
+            ref.read(appStateNotifierProvider.notifier);
 
         if (clearPreviousData) {
           // مسح البيانات السابقة
@@ -69,7 +73,7 @@ class NavigationService {
       // 4. مسح البيانات بعد 10 ثواني (اختياري)
       if (data != null) {
         Future.delayed(const Duration(seconds: 10), () {
-          _clearNavigationData(context, data.keys.toList());
+          _clearNavigationData(ref, data.keys.toList());
         });
       }
 
@@ -81,12 +85,14 @@ class NavigationService {
 
   /// الانتقال مع فلتر
   static void navigateWithFilter(
+    Ref ref,
     int tabIndex,
     String filterType,
-    dynamic filterValue, {
+    filterValue, {
     String? sourceTab,
   }) {
     navigateToTab(
+      ref,
       tabIndex,
       data: <String, dynamic>{
         'filterType': filterType,
@@ -99,11 +105,13 @@ class NavigationService {
 
   /// الانتقال مع بحث
   static void navigateWithSearch(
+    Ref ref,
     int tabIndex,
     String searchQuery, {
     String? sourceTab,
   }) {
     navigateToTab(
+      ref,
       tabIndex,
       data: <String, dynamic>{
         'searchQuery': searchQuery,
@@ -115,11 +123,13 @@ class NavigationService {
 
   /// الانتقال مع تمييز عنصر
   static void navigateWithHighlight(
+    Ref ref,
     int tabIndex,
     String itemId, {
     String? sourceTab,
   }) {
     navigateToTab(
+      ref,
       tabIndex,
       data: <String, dynamic>{
         'highlightItemId': itemId,
@@ -131,6 +141,7 @@ class NavigationService {
 
   /// الانتقال مع إجراء
   static void navigateWithAction(
+    Ref ref,
     int tabIndex,
     String action, {
     Map<String, dynamic>? actionData,
@@ -146,6 +157,7 @@ class NavigationService {
     }
 
     navigateToTab(
+      ref,
       tabIndex,
       data: data,
       sourceTab: sourceTab,
@@ -153,9 +165,10 @@ class NavigationService {
   }
 
   /// قراءة بيانات التنقل
-  static T? getNavigationData<T>(BuildContext context, String key) {
+  static T? getNavigationData<T>(Ref ref, String key) {
     try {
-      final AppStateManager stateManager = context.read<AppStateManager>();
+      final AppStateNotifier stateManager =
+          ref.read(appStateNotifierProvider.notifier);
       return stateManager.getSharedData<T>('nav_$key');
     } catch (e) {
       debugPrint('❌ خطأ في قراءة بيانات التنقل: $e');
@@ -164,14 +177,15 @@ class NavigationService {
   }
 
   /// مسح بيانات التنقل
-  static void clearNavigationData(BuildContext context, List<String> keys) {
-    _clearNavigationData(context, keys);
+  static void clearNavigationData(Ref ref, List<String> keys) {
+    _clearNavigationData(ref, keys);
   }
 
   /// مسح جميع بيانات التنقل
-  static void clearAllNavigationData(BuildContext context) {
+  static void clearAllNavigationData(Ref ref) {
     try {
-      final AppStateManager stateManager = context.read<AppStateManager>();
+      final AppStateNotifier stateManager =
+          ref.read(appStateNotifierProvider.notifier);
       final Map<String, dynamic> sharedData =
           stateManager.getSharedData<Map<String, dynamic>>('_sharedData') ??
               <String, dynamic>{};
@@ -196,9 +210,10 @@ class NavigationService {
   }
 
   /// مسح بيانات التنقل
-  static void _clearNavigationData(BuildContext context, List<String> keys) {
+  static void _clearNavigationData(Ref ref, List<String> keys) {
     try {
-      final AppStateManager stateManager = context.read<AppStateManager>();
+      final AppStateNotifier stateManager =
+          ref.read(appStateNotifierProvider.notifier);
       for (final String key in keys) {
         stateManager.removeSharedData('nav_$key');
       }
@@ -213,11 +228,12 @@ class NavigationService {
 class TabNavigationHelper {
   /// الانتقال إلى ProductList مع فلتر
   static void goToProductListWithFilter(
-    BuildContext context,
+    Ref ref,
     String filterType,
-    dynamic filterValue,
+    filterValue,
   ) {
     NavigationService.navigateWithFilter(
+      ref,
       3, // ProductList tab index
       filterType,
       filterValue,
@@ -227,12 +243,13 @@ class TabNavigationHelper {
 
   /// الانتقال إلى Inventory مع فلتر
   static void goToInventoryWithFilter(
-    BuildContext context,
+    Ref ref,
     String filterType,
-    dynamic filterValue,
+    filterValue,
   ) {
     NavigationService.navigateWithFilter(
-      2, // Inventory tab index
+      ref,
+      2, // ProductForm tab index (نموذج المنتج)
       filterType,
       filterValue,
       sourceTab: 'helper',
@@ -241,10 +258,11 @@ class TabNavigationHelper {
 
   /// الانتقال إلى POS مع منتج
   static void goToPOSWithProduct(
-    BuildContext context,
+    Ref ref,
     String productId,
   ) {
     NavigationService.navigateWithAction(
+      ref,
       4, // POS tab index
       'addProduct',
       actionData: <String, dynamic>{'productId': productId},
@@ -254,10 +272,11 @@ class TabNavigationHelper {
 
   /// الانتقال إلى Dashboard مع إحصائيات
   static void goToDashboardWithStats(
-    BuildContext context,
+    Ref ref,
     Map<String, dynamic> stats,
   ) {
     NavigationService.navigateToTab(
+      ref,
       0, // Dashboard tab index
       data: <String, dynamic>{
         'stats': stats,
@@ -269,10 +288,11 @@ class TabNavigationHelper {
 
   /// الانتقال إلى AddProduct مع بيانات
   static void goToAddProductWithData(
-    BuildContext context,
+    Ref ref,
     Map<String, dynamic> productData,
   ) {
     NavigationService.navigateToTab(
+      ref,
       1, // AddProduct tab index
       data: <String, dynamic>{
         'productData': productData,
@@ -287,11 +307,12 @@ class TabNavigationHelper {
 class EventNavigationHelper {
   /// معالجة حدث إضافة منتج
   static void handleProductAdded(
-    BuildContext context,
+    Ref ref,
     ProductAddedEvent event,
   ) {
     // الانتقال إلى ProductList مع تمييز المنتج الجديد
     NavigationService.navigateWithHighlight(
+      ref,
       3, // ProductList tab index
       event.product.id ?? '',
       sourceTab: event.sourceTab,
@@ -300,12 +321,13 @@ class EventNavigationHelper {
 
   /// معالجة حدث تحديث مخزون
   static void handleInventoryUpdated(
-    BuildContext context,
+    Ref ref,
     InventoryUpdatedEvent event,
   ) {
     // الانتقال إلى Inventory مع تمييز العنصر المحدث
     NavigationService.navigateWithHighlight(
-      2, // Inventory tab index
+      ref,
+      2, // ProductForm tab index (نموذج المنتج)
       event.itemId,
       sourceTab: event.sourceTab,
     );
@@ -313,16 +335,39 @@ class EventNavigationHelper {
 
   /// معالجة حدث إتمام بيع
   static void handleSaleCompleted(
-    BuildContext context,
+    Ref ref,
     SaleCompletedEvent event,
   ) {
+    // إطلاق حدث تحديث التقارير
+    AppEventBus.fire(ReportsUpdateEvent(
+      'sale',
+      sourceTab: event.sourceTab,
+      data: <String, dynamic>{
+        'saleId': event.sale.id,
+        'saleAmount': event.sale.totalAmount,
+        'saleDate': event.sale.saleDate.toIso8601String(),
+      },
+    ));
+
+    // إشعار CrossTabSyncService
+    CrossTabSyncService.notifyReportsUpdate(
+      'sale',
+      sourceTab: event.sourceTab,
+      data: <String, dynamic>{
+        'saleId': event.sale.id,
+        'saleAmount': event.sale.totalAmount,
+      },
+    );
+
     // الانتقال إلى Dashboard مع تحديث الإحصائيات
     NavigationService.navigateToTab(
+      ref,
       0, // Dashboard tab index
       data: <String, dynamic>{
         'refreshStats': true,
         'showSaleSuccess': true,
         'saleAmount': event.sale.totalAmount,
+        'triggerReportsUpdate': true,
       },
       sourceTab: event.sourceTab,
     );
@@ -330,12 +375,13 @@ class EventNavigationHelper {
 
   /// معالجة حدث تنبيه مخزون منخفض
   static void handleLowStockAlert(
-    BuildContext context,
+    Ref ref,
     LowStockAlertEvent event,
   ) {
     // الانتقال إلى Inventory مع فلتر المخزون المنخفض
     NavigationService.navigateWithFilter(
-      2, // Inventory tab index
+      ref,
+      2, // ProductForm tab index (نموذج المنتج)
       'lowStock',
       true,
       sourceTab: 'alert',
@@ -347,12 +393,13 @@ class EventNavigationHelper {
 class ComplexNavigationHelper {
   /// الانتقال مع بيانات منتج كاملة
   static void navigateWithProductData(
-    BuildContext context,
+    Ref ref,
     int tabIndex,
     Map<String, dynamic> productData, {
     String? sourceTab,
   }) {
     NavigationService.navigateToTab(
+      ref,
       tabIndex,
       data: <String, dynamic>{
         'productData': productData,
@@ -365,12 +412,13 @@ class ComplexNavigationHelper {
 
   /// الانتقال مع بيانات مخزون كاملة
   static void navigateWithInventoryData(
-    BuildContext context,
+    Ref ref,
     int tabIndex,
     Map<String, dynamic> inventoryData, {
     String? sourceTab,
   }) {
     NavigationService.navigateToTab(
+      ref,
       tabIndex,
       data: <String, dynamic>{
         'inventoryData': inventoryData,
@@ -383,12 +431,13 @@ class ComplexNavigationHelper {
 
   /// الانتقال مع بيانات بيع كاملة
   static void navigateWithSaleData(
-    BuildContext context,
+    Ref ref,
     int tabIndex,
     Map<String, dynamic> saleData, {
     String? sourceTab,
   }) {
     NavigationService.navigateToTab(
+      ref,
       tabIndex,
       data: <String, dynamic>{
         'saleData': saleData,

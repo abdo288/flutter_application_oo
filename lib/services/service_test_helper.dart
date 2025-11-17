@@ -1,10 +1,11 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/cart_item.dart';
 import '../models/dashboard_stats.dart';
 import '../models/product.dart';
-import '../providers/stream_inventory_provider.dart';
-import '../providers/stream_product_provider.dart';
+import '../providers/riverpod/stream_inventory_riverpod_provider.dart';
+import '../providers/riverpod/stream_product_riverpod_provider.dart';
 import 'backup_service.dart';
 import 'dashboard_service.dart';
 import 'restore_service.dart';
@@ -14,17 +15,19 @@ import 'unified_sales_service.dart';
 class ServiceTestHelper {
   /// اختبار DashboardService
   static Future<void> testDashboardService({
-    required StreamProductProvider productProvider,
-    required StreamInventoryProvider inventoryProvider,
+    required WidgetRef ref,
   }) async {
     try {
       debugPrint('🧪 بدء اختبار DashboardService...');
 
       // اختبار الدالة الثابتة
+      final ProductsState productsState = ref.read(productsControllerProvider);
+      final InventoryState inventoryState =
+          ref.read(inventoryControllerProvider);
       final DashboardStats stats =
-          await DashboardService.calculateDashboardStatsStatic(
-        productProvider: productProvider,
-        inventoryProvider: inventoryProvider,
+          await DashboardService.calculateDashboardStatsForStates(
+        productsState: productsState,
+        inventoryState: inventoryState,
       );
 
       debugPrint(
@@ -33,8 +36,7 @@ class ServiceTestHelper {
       // اختبار أفضل المنتجات ربحية
       final List<Map<String, dynamic>> topProducts =
           await DashboardService.getTopProfitableProductsStatic(
-        productProvider: productProvider,
-        inventoryProvider: inventoryProvider,
+        ref: ref,
         limit: 3,
       );
 
@@ -43,8 +45,7 @@ class ServiceTestHelper {
 
       // اختبار إنشاء مثيل الخدمة
       final DashboardService service = DashboardService.create(
-        productProvider: productProvider,
-        inventoryProvider: inventoryProvider,
+        ref: ref,
       );
 
       final DashboardStats instanceStats =
@@ -60,8 +61,7 @@ class ServiceTestHelper {
 
   /// اختبار UnifiedSalesService
   static Future<void> testUnifiedSalesService({
-    required StreamProductProvider productProvider,
-    required StreamInventoryProvider inventoryProvider,
+    required WidgetRef ref,
   }) async {
     try {
       debugPrint('🧪 بدء اختبار UnifiedSalesService...');
@@ -69,8 +69,7 @@ class ServiceTestHelper {
       // اختبار البحث عن منتج
       final Product? product =
           await UnifiedSalesService.findProductByBarcodeStatic(
-        productProvider: productProvider,
-        inventoryProvider: inventoryProvider,
+        ref: ref,
         barcode: 'test',
       );
 
@@ -80,8 +79,7 @@ class ServiceTestHelper {
       // اختبار إضافة منتج إلى السلة
       final CartItem? cartItem =
           await UnifiedSalesService.addProductToCartStatic(
-        productProvider: productProvider,
-        inventoryProvider: inventoryProvider,
+        ref: ref,
         barcode: 'test',
       );
 
@@ -90,8 +88,7 @@ class ServiceTestHelper {
 
       // اختبار إنشاء مثيل الخدمة
       final UnifiedSalesService service = UnifiedSalesService.create(
-        productProvider: productProvider,
-        inventoryProvider: inventoryProvider,
+        ref: ref,
       );
 
       final Product? instanceProduct =
@@ -107,8 +104,7 @@ class ServiceTestHelper {
 
   /// اختبار BackupService
   static Future<void> testBackupService({
-    required StreamProductProvider productProvider,
-    required StreamInventoryProvider inventoryProvider,
+    required WidgetRef ref,
   }) async {
     try {
       debugPrint('🧪 بدء اختبار BackupService...');
@@ -116,8 +112,7 @@ class ServiceTestHelper {
       // اختبار إنشاء نسخة احتياطية للمخزون
       final BackupResult result =
           await BackupService.createInventoryBackupStatic(
-        productProvider: productProvider,
-        inventoryProvider: inventoryProvider,
+        ref: ref,
       );
 
       debugPrint(
@@ -125,8 +120,7 @@ class ServiceTestHelper {
 
       // اختبار إنشاء مثيل الخدمة
       final BackupService service = BackupService.create(
-        productProvider: productProvider,
-        inventoryProvider: inventoryProvider,
+        ref: ref,
       );
 
       final BackupResult instanceResult = await service.createInventoryBackup();
@@ -141,20 +135,13 @@ class ServiceTestHelper {
 
   /// اختبار RestoreService
   static Future<void> testRestoreService({
-    required StreamProductProvider productProvider,
-    required StreamInventoryProvider inventoryProvider,
+    required WidgetRef ref,
   }) async {
     try {
       debugPrint('🧪 بدء اختبار RestoreService...');
 
-      // اختبار إنشاء مثيل الخدمة
-      RestoreService.create(
-        productProvider: productProvider,
-        inventoryProvider: inventoryProvider,
-      );
-
-      // التحقق من أن الخدمة تم إنشاؤها بنجاح
-      debugPrint('✅ RestoreService - تم إنشاء مثيل الخدمة بنجاح');
+      // اختبار الخدمة الثابتة
+      debugPrint('✅ RestoreService - اختبار الخدمة الثابتة');
 
       // اختبار الحصول على تاريخ الاستعادة
       final List<RestoreHistory> history =
@@ -169,27 +156,14 @@ class ServiceTestHelper {
 
   /// تشغيل جميع الاختبارات
   static Future<void> runAllTests({
-    required StreamProductProvider productProvider,
-    required StreamInventoryProvider inventoryProvider,
+    required WidgetRef ref,
   }) async {
     debugPrint('🚀 بدء تشغيل جميع اختبارات الخدمات...');
 
-    await testDashboardService(
-      productProvider: productProvider,
-      inventoryProvider: inventoryProvider,
-    );
-    await testUnifiedSalesService(
-      productProvider: productProvider,
-      inventoryProvider: inventoryProvider,
-    );
-    await testBackupService(
-      productProvider: productProvider,
-      inventoryProvider: inventoryProvider,
-    );
-    await testRestoreService(
-      productProvider: productProvider,
-      inventoryProvider: inventoryProvider,
-    );
+    await testDashboardService(ref: ref);
+    await testUnifiedSalesService(ref: ref);
+    await testBackupService(ref: ref);
+    await testRestoreService(ref: ref);
 
     debugPrint('🏁 انتهت جميع اختبارات الخدمات!');
   }

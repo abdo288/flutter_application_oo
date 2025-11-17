@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart' as firestore;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:drift/drift.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 import '../database/drift_database.dart';
@@ -13,6 +14,7 @@ import '../services/error_handler_service.dart';
 import '../services/server_timestamp_service.dart';
 import '../services/sync_state_service.dart';
 import '../services/unified_sync_manager.dart';
+import '../utils/platform_thread_safety.dart';
 
 /// مستودع موحد - مصدر الحقيقة الوحيد للبيانات
 /// يدمج قاعدة البيانات المحلية (Drift) مع Firestore
@@ -30,11 +32,255 @@ class UnifiedRepository {
   final firestore.FirebaseFirestore _firestore =
       firestore.FirebaseFirestore.instance;
 
+  // Stream لحالة المصادقة
+  Stream<User?> get _authStateStream =>
+      FirebaseAuth.instance.authStateChanges();
+
+  // مفتاح الأمان - يتحكم في تفعيل/تعطيل Streams
+  bool _streamsEnabled = true;
+
+  // Stream subscriptions للتحكم فيها
+  StreamSubscription<firestore.QuerySnapshot<Map<String, dynamic>>>?
+      _productsSubscription;
+  StreamSubscription<firestore.QuerySnapshot<Map<String, dynamic>>>?
+      _inventorySubscription;
+
+  /// تعطيل Streams قبل تسجيل الخروج
+  Future<void> disableStreams() async {
+    debugPrint('🔒 UnifiedRepository: بدء تعطيل Streams وإغلاق الاشتراكات');
+    _streamsEnabled = false;
+
+    try {
+      // إلغاء الاشتراكات بشكل غير متزامن مع timeout
+      final List<Future<void>> cancellations = <Future<void>>[];
+
+      if (_productsSubscription != null) {
+        cancellations.add(_productsSubscription!.cancel().then((_) => null));
+      }
+
+      if (_inventorySubscription != null) {
+        cancellations.add(_inventorySubscription!.cancel().then((_) => null));
+      }
+
+      if (cancellations.isNotEmpty) {
+        await Future.wait<void>(cancellations).timeout(
+          const Duration(seconds: 2),
+          onTimeout: () {
+            debugPrint('⚠️ انتهت مهلة إغلاق Streams');
+            return <void>[];
+          },
+        );
+      }
+    } catch (e) {
+      debugPrint('⚠️ خطأ في إغلاق Streams (سيتم تجاهله): $e');
+    }
+
+    _productsSubscription = null;
+    _inventorySubscription = null;
+
+    debugPrint('✅ UnifiedRepository: تم إغلاق جميع الاشتراكات بنجاح');
+  }
+
+  /// إعادة تفعيل Streams بعد تسجيل الخروج
+  void enableStreams() {
+    debugPrint('😀 UnifiedRepository: تم إعادة تفعيل Streams');
+    _streamsEnabled = true;
+  }
+
   // ========== Streams للبيانات ==========
 
-  /// Stream للمنتجات من قاعدة البيانات المحلية
+  /// Stream للمنتجات - يستمع مباشرة لـ Firestore ويحدث Local DB تلقائياً
+  /// ✅ تطبيق CQRS Pattern: Firestore = مصدر الحقيقة الوحيد
   Stream<List<Product>> get productsStream {
     try {
+      debugPrint('🔄 إنشاء productsStream مع Firestore listener مباشر');
+
+      // ✅ التحقق من مفتاح الأمان أولاً
+      if (!_streamsEnabled) {
+        debugPrint('🔒 Streams معطلة - إرجاع قائمة فارغة');
+        return Stream.value(<Product>[]);
+      }
+
+      // ✅ التحقق من حالة المصادقة قبل إنشاء Stream
+      if (FirebaseAuth.instance.currentUser == null) {
+        debugPrint('⚠️ المستخدم غير مصادق عليه - إرجاع Stream فارغ');
+        return const Stream.empty();
+      }
+
+      // ✅ إغلاق الاشتراك السابق إن وجد
+      _productsSubscription?.cancel();
+
+      // ✅ استخدام authStateChanges للتحقق المستمر من حالة المصادقة
+      return _authStateStream.asyncExpand((User? user) {
+        if (user == null) {
+          debugPrint('⚠️ المستخدم غير مصادق عليه - إرجاع Stream فارغ');
+          return const Stream.empty();
+        }
+
+        // ✅ التحقق من مفتاح الأمان
+        if (!_streamsEnabled) {
+          debugPrint('🔒 Streams معطلة - إرجاع Stream فارغ');
+          return const Stream.empty();
+        }
+
+        debugPrint('✅ المستخدم مصادق عليه - بدء الاستماع للمنتجات');
+
+        // ✅ إغلاق الاشتراك السابق إن وجد
+        _productsSubscription?.cancel();
+
+        // ✅ إنشاء stream جديد للـ Firestore
+        final Stream<firestore.QuerySnapshot<Map<String, dynamic>>> stream = _firestore
+            .collection('products')
+            .snapshots(includeMetadataChanges: true);
+
+        // ✅ حفظ الاشتراك للتحكم فيه لاحقاً
+        _productsSubscription = stream.listen(
+          null,
+          onError: (Object error) {
+            // تجاهل أخطاء الصلاحيات بعد تسجيل الخروج
+            if (error.toString().contains('permission-denied') ||
+                error
+                    .toString()
+                    .contains('Missing or insufficient permissions')) {
+              debugPrint(
+                  '! تم تجاهل خطأ صلاحيات في productsStream (تسجيل خروج): $error');
+              return;
+            }
+            debugPrint('❌ خطأ في productsSubscription: $error');
+          },
+        );
+
+        return stream.asyncMap(
+            (firestore.QuerySnapshot<Map<String, dynamic>> snapshot) async {
+          try {
+            // ✅ التحقق من مفتاح الأمان قبل المعالجة
+            if (!_streamsEnabled) {
+              debugPrint('🔒 Streams معطلة - إرجاع قائمة فارغة');
+              return <Product>[];
+            }
+
+            debugPrint('📥 استلام ${snapshot.docs.length} منتج من Firestore');
+
+            // ✅ استخدام PlatformThreadSafety لضمان التنفيذ على platform thread
+            return await PlatformThreadSafety.executeFirestoreOperation(
+              () async {
+                // تحديث Local DB فوراً عند كل تغيير من Firestore
+                for (final firestore
+                    .QueryDocumentSnapshot<Map<String, dynamic>> doc
+                    in snapshot.docs) {
+                  // تخطي التحديثات المحلية المعلقة
+                  if (doc.metadata.hasPendingWrites) {
+                    debugPrint('⏭️ تخطي تحديث محلي معلق: ${doc.id}');
+                    continue;
+                  }
+
+                  final Map<String, dynamic> data = doc.data();
+                  data['id'] = doc.id;
+
+                  // تحديث Local DB
+                  await _upsertProductToLocalDb(data);
+                }
+
+                // إرجاع البيانات من Local DB (للاستفادة من الكاش)
+                final List<ProductsTableData> rows =
+                    await _localDb.select(_localDb.productsTable).get();
+
+                return rows
+                    .map((ProductsTableData row) => Product(
+                          id: row.id,
+                          name: row.name,
+                          wholesalePrice: row.wholesalePrice,
+                          retailPrice: row.retailPrice,
+                          savedAt: safeParseDateTime(row.savedAt),
+                          lastModified: safeParseDateTime(row.lastModified),
+                          description: row.description,
+                          barcode: row.barcode,
+                          category: row.category,
+                          supplier: row.supplier,
+                          status: _parseProductStatus(row.status),
+                          images: row.images != null
+                              ? _parseStringList(row.images!)
+                              : null,
+                          tags: row.tags != null
+                              ? _parseStringList(row.tags!)
+                              : null,
+                          weight: row.weight,
+                          dimensions: row.dimensions,
+                          minimumStock: row.minimumStock,
+                          maximumStock: row.maximumStock,
+                          taxRate: row.taxRate,
+                          discountRate: row.discountRate,
+                          isActive: row.isActive,
+                          notes: row.notes,
+                        ))
+                    .toList();
+              },
+              operationName: 'productsStream_asyncMap',
+            );
+          } catch (e) {
+            // تجاهل أخطاء الصلاحيات
+            if (e.toString().contains('permission-denied') ||
+                e.toString().contains('Missing or insufficient permissions')) {
+              debugPrint(
+                  '! تم تجاهل خطأ صلاحيات في productsStream asyncMap: $e');
+              return <Product>[];
+            }
+            debugPrint('❌ خطأ في معالجة Firestore snapshot: $e');
+            // في حالة الخطأ، إرجاع البيانات من Local DB
+            try {
+              final List<ProductsTableData> rows =
+                  await _localDb.select(_localDb.productsTable).get();
+              return rows
+                  .map((ProductsTableData row) => Product(
+                        id: row.id,
+                        name: row.name,
+                        wholesalePrice: row.wholesalePrice,
+                        retailPrice: row.retailPrice,
+                        savedAt: safeParseDateTime(row.savedAt),
+                        lastModified: safeParseDateTime(row.lastModified),
+                        description: row.description,
+                        barcode: row.barcode,
+                        category: row.category,
+                        supplier: row.supplier,
+                        status: _parseProductStatus(row.status),
+                        images: row.images != null
+                            ? _parseStringList(row.images!)
+                            : null,
+                        tags: row.tags != null
+                            ? _parseStringList(row.tags!)
+                            : null,
+                        weight: row.weight,
+                        dimensions: row.dimensions,
+                        minimumStock: row.minimumStock,
+                        maximumStock: row.maximumStock,
+                        taxRate: row.taxRate,
+                        discountRate: row.discountRate,
+                        isActive: row.isActive,
+                        notes: row.notes,
+                      ))
+                  .toList();
+            } catch (dbError) {
+              debugPrint('❌ خطأ في قراءة Local DB: $dbError');
+              return <Product>[];
+            }
+          }
+        }).handleError((Object error) {
+          // تجاهل أخطاء الصلاحيات بعد تسجيل الخروج
+          if (error.toString().contains('permission-denied') ||
+              error
+                  .toString()
+                  .contains('Missing or insufficient permissions')) {
+            debugPrint(
+                '⚠️ تم تجاهل خطأ صلاحيات في productsStream (تسجيل خروج): $error');
+            return <Product>[];
+          }
+          debugPrint('❌ خطأ في productsStream: $error');
+          return <Product>[];
+        });
+      });
+    } catch (e) {
+      debugPrint('❌ خطأ في إنشاء productsStream: $e');
+      // Fallback: إرجاع stream من Local DB فقط
       return _localDb
           .select(_localDb.productsTable)
           .watch()
@@ -46,8 +292,6 @@ class UnifiedRepository {
                     retailPrice: row.retailPrice,
                     savedAt: safeParseDateTime(row.savedAt),
                     lastModified: safeParseDateTime(row.lastModified),
-
-                    // ✅ إضافة جميع الحقول الجديدة
                     description: row.description,
                     barcode: row.barcode,
                     category: row.category,
@@ -66,31 +310,186 @@ class UnifiedRepository {
                     isActive: row.isActive,
                     notes: row.notes,
                   ))
-              .toList())
-          .handleError((Object error) {
-        debugPrint('❌ خطأ في productsStream: $error');
-        // إرجاع قائمة فارغة في حالة الخطأ
-        return <Product>[];
-      });
-    } catch (e) {
-      debugPrint('❌ خطأ في إنشاء productsStream: $e');
-      // إرجاع stream فارغ في حالة الخطأ
-      return Stream<List<Product>>.value(<Product>[]);
+              .toList());
     }
   }
 
-  /// Stream للمخزون من قاعدة البيانات المحلية
+  /// مساعد: تحديث منتج في Local DB من Firestore data
+  Future<void> _upsertProductToLocalDb(Map<String, dynamic> data) async {
+    try {
+      await _localDb.upsertProduct(ProductsTableCompanion(
+        id: Value(data['id']?.toString() ?? ''),
+        name: Value(data['name']?.toString() ?? ''),
+        wholesalePrice: Value(safeParseInt(
+          data['wholesalePrice'] ?? data['wholesale_price'],
+        )),
+        retailPrice: Value(safeParseInt(
+          data['retailPrice'] ?? data['retail_price'],
+        )),
+        savedAt: Value(safeParseDateTime(
+          data['savedAt'] ?? data['saved_at'],
+        ).toIso8601String()),
+        isSynced: const Value(true),
+        lastModified: Value(DateTime.now().toIso8601String()),
+        description: Value(data['description']?.toString()),
+        barcode: Value(data['barcode']?.toString()),
+        category: Value(data['category']?.toString()),
+        supplier: Value(data['supplier']?.toString()),
+        status: Value(data['status']?.toString() ?? 'active'),
+      ));
+    } catch (e) {
+      debugPrint('❌ خطأ في تحديث منتج في Local DB: $e');
+    }
+  }
+
+  /// Stream للمخزون - يستمع مباشرة لـ Firestore ويحدث Local DB تلقائياً
+  /// ✅ تطبيق CQRS Pattern: Firestore = مصدر الحقيقة الوحيد
   Stream<List<InventoryItem>> get inventoryStream {
     try {
+      debugPrint('🔄 إنشاء inventoryStream مع Firestore listener مباشر');
+
+      // ✅ التحقق من مفتاح الأمان أولاً
+      if (!_streamsEnabled) {
+        debugPrint('🔒 Streams معطلة - إرجاع قائمة فارغة');
+        return Stream.value(<InventoryItem>[]);
+      }
+
+      // ✅ التحقق من حالة المصادقة قبل إنشاء Stream
+      if (FirebaseAuth.instance.currentUser == null) {
+        debugPrint('⚠️ المستخدم غير مصادق عليه - إرجاع Stream فارغ');
+        return const Stream.empty();
+      }
+
+      // ✅ إغلاق الاشتراك السابق إن وجد
+      _inventorySubscription?.cancel();
+
+      // ✅ استخدام authStateChanges للتحقق المستمر من حالة المصادقة
+      return _authStateStream.asyncExpand((User? user) {
+        if (user == null) {
+          debugPrint('⚠️ المستخدم غير مصادق عليه - إرجاع Stream فارغ');
+          return const Stream.empty();
+        }
+
+        // ✅ التحقق من مفتاح الأمان
+        if (!_streamsEnabled) {
+          debugPrint('🔒 Streams معطلة - إرجاع Stream فارغ');
+          return const Stream.empty();
+        }
+
+        debugPrint('✅ المستخدم مصادق عليه - بدء الاستماع للمخزون');
+
+        // ✅ إغلاق الاشتراك السابق إن وجد
+        _inventorySubscription?.cancel();
+
+        // ✅ إنشاء stream جديد للـ Firestore
+        final Stream<firestore.QuerySnapshot<Map<String, dynamic>>> stream = _firestore
+            .collection('quantities')
+            .snapshots(includeMetadataChanges: true);
+
+        // ✅ حفظ الاشتراك للتحكم فيه لاحقاً
+        _inventorySubscription = stream.listen(
+          null,
+          onError: (Object error) {
+            // تجاهل أخطاء الصلاحيات بعد تسجيل الخروج
+            if (error.toString().contains('permission-denied') ||
+                error
+                    .toString()
+                    .contains('Missing or insufficient permissions')) {
+              debugPrint(
+                  '! تم تجاهل خطأ صلاحيات في inventoryStream (تسجيل خروج): $error');
+              return;
+            }
+            debugPrint('❌ خطأ في inventorySubscription: $error');
+          },
+        );
+
+        return stream.asyncMap(
+            (firestore.QuerySnapshot<Map<String, dynamic>> snapshot) async {
+          try {
+            debugPrint(
+                '📥 استلام ${snapshot.docs.length} عنصر مخزون من Firestore');
+
+            // ✅ استخدام PlatformThreadSafety لضمان التنفيذ على platform thread
+            return await PlatformThreadSafety.executeFirestoreOperation(
+              () async {
+                for (final firestore
+                    .QueryDocumentSnapshot<Map<String, dynamic>> doc
+                    in snapshot.docs) {
+                  // تخطي التحديثات المحلية المعلقة
+                  if (doc.metadata.hasPendingWrites) {
+                    debugPrint('⏭️ تخطي تحديث محلي معلق: ${doc.id}');
+                    continue;
+                  }
+
+                  final Map<String, dynamic> data = doc.data();
+                  data['id'] = doc.id;
+
+                  // تحديث Local DB
+                  await _upsertInventoryToLocalDb(data);
+                }
+
+                // إرجاع البيانات من Local DB (للاستفادة من الكاش)
+                final List<InventoryTableData> rows =
+                    await _localDb.select(_localDb.inventoryTable).get();
+
+                return rows
+                    .map((InventoryTableData row) => InventoryItem(
+                          id: row.id,
+                          name: row.name,
+                          barcode: row.barcode,
+                          wholesalePrice: row.wholesalePrice,
+                          retailPrice: row.retailPrice,
+                          quantity: row.quantity,
+                          originalQuantity: row.originalQuantity,
+                          addedDate: safeParseDateTime(row.addedDate),
+                          addedTime: safeParseDateTime(row.addedTime),
+                        ))
+                    .toList();
+              },
+              operationName: 'inventoryStream',
+            );
+          } catch (e) {
+            debugPrint('❌ خطأ في معالجة Firestore snapshot للمخزون: $e');
+            // في حالة الخطأ، إرجاع البيانات من Local DB
+            final List<InventoryTableData> rows =
+                await _localDb.select(_localDb.inventoryTable).get();
+            return rows
+                .map((InventoryTableData row) => InventoryItem(
+                      id: row.id,
+                      name: row.name,
+                      barcode: row.barcode,
+                      wholesalePrice: row.wholesalePrice,
+                      retailPrice: row.retailPrice,
+                      quantity: row.quantity,
+                      originalQuantity: row.originalQuantity,
+                      addedDate: safeParseDateTime(row.addedDate),
+                      addedTime: safeParseDateTime(row.addedTime),
+                    ))
+                .toList();
+          }
+        }).handleError((Object error) {
+          // تجاهل أخطاء الصلاحيات بعد تسجيل الخروج
+          if (error.toString().contains('permission-denied') ||
+              error
+                  .toString()
+                  .contains('Missing or insufficient permissions')) {
+            debugPrint(
+                '⚠️ تم تجاهل خطأ صلاحيات في inventoryStream (تسجيل خروج): $error');
+            return <InventoryItem>[];
+          }
+          debugPrint('❌ خطأ في inventoryStream: $error');
+          // ✅ إضافة fallback لتحميل البيانات من قاعدة البيانات المحلية
+          return _getInventoryItemsFromLocal();
+        });
+      });
+    } catch (e) {
+      debugPrint('❌ خطأ في إنشاء inventoryStream: $e');
+      // Fallback: إرجاع stream من Local DB فقط
       return _localDb
           .select(_localDb.inventoryTable)
           .watch()
-          .map((List<InventoryTableData> rows) {
-        try {
-          return rows
-              .map((InventoryTableData row) {
-                try {
-                  return InventoryItem(
+          .map((List<InventoryTableData> rows) => rows
+              .map((InventoryTableData row) => InventoryItem(
                     id: row.id,
                     name: row.name,
                     barcode: row.barcode,
@@ -100,28 +499,60 @@ class UnifiedRepository {
                     originalQuantity: row.originalQuantity,
                     addedDate: safeParseDateTime(row.addedDate),
                     addedTime: safeParseDateTime(row.addedTime),
-                  );
-                } catch (e) {
-                  debugPrint('❌ خطأ في تحويل صف المخزون: $e');
-                  return null;
-                }
-              })
-              .where((InventoryItem? item) => item != null)
-              .cast<InventoryItem>()
-              .toList();
-        } catch (e) {
-          debugPrint('❌ خطأ في معالجة صفوف المخزون: $e');
-          return <InventoryItem>[];
-        }
-      }).handleError((Object error) {
-        debugPrint('❌ خطأ في inventoryStream: $error');
-        // إرجاع قائمة فارغة في حالة الخطأ
-        return <InventoryItem>[];
-      });
+                  ))
+              .toList());
+    }
+  }
+
+  /// مساعد: تحميل البيانات من قاعدة البيانات المحلية
+  Future<List<InventoryItem>> _getInventoryItemsFromLocal() async {
+    try {
+      debugPrint('🔄 تحميل البيانات من قاعدة البيانات المحلية...');
+      final List<InventoryTableData> rows =
+          await _localDb.select(_localDb.inventoryTable).get();
+
+      final List<InventoryItem> items = rows
+          .map((InventoryTableData row) => InventoryItem(
+                id: row.id,
+                name: row.name,
+                barcode: row.barcode,
+                wholesalePrice: row.wholesalePrice,
+                retailPrice: row.retailPrice,
+                quantity: row.quantity,
+                originalQuantity: row.originalQuantity,
+                addedDate: safeParseDateTime(row.addedDate),
+                addedTime: safeParseDateTime(row.addedTime),
+              ))
+          .toList();
+
+      debugPrint('✅ تم تحميل ${items.length} عنصر من قاعدة البيانات المحلية');
+      return items;
     } catch (e) {
-      debugPrint('❌ خطأ في إنشاء inventoryStream: $e');
-      // إرجاع stream فارغ في حالة الخطأ
-      return Stream<List<InventoryItem>>.value(<InventoryItem>[]);
+      debugPrint('❌ خطأ في تحميل البيانات من قاعدة البيانات المحلية: $e');
+      return <InventoryItem>[];
+    }
+  }
+
+  /// مساعد: تحديث عنصر مخزون في Local DB من Firestore data
+  Future<void> _upsertInventoryToLocalDb(Map<String, dynamic> data) async {
+    try {
+      await _localDb.upsertInventoryItem(InventoryTableCompanion(
+        id: Value(data['id']?.toString() ?? ''),
+        name: Value(data['name']?.toString() ?? ''),
+        barcode: Value(data['barcode']?.toString()),
+        wholesalePrice: Value(safeParseInt(data['wholesalePrice'])),
+        retailPrice: Value(safeParseInt(data['retailPrice'])),
+        quantity: Value(safeParseInt(data['quantity'])),
+        originalQuantity: Value(safeParseInt(data['originalQuantity'] ?? 0)),
+        addedDate:
+            Value(safeParseDateTime(data['addedDate']).toIso8601String()),
+        addedTime:
+            Value(safeParseDateTime(data['addedTime']).toIso8601String()),
+        isSynced: const Value(true),
+        lastModified: Value(DateTime.now().toIso8601String()),
+      ));
+    } catch (e) {
+      debugPrint('❌ خطأ في تحديث عنصر مخزون في Local DB: $e');
     }
   }
 
@@ -201,38 +632,63 @@ class UnifiedRepository {
     }
   }
 
-  /// إضافة منتج جديد مع ضمان اتساق البيانات
+  /// إضافة منتج جديد - يذهب إلى Firestore أولاً
+  /// ✅ تطبيق CQRS: Write → Firestore, Read ← Firestore listener → Local DB
   Future<String> addProduct(Product product) async {
     try {
       final String id =
           product.id ?? DateTime.now().millisecondsSinceEpoch.toString();
       final Product productWithId = product.copyWith(id: id);
 
-      // إضافة المنتج مباشرة إلى قاعدة البيانات المحلية
-      final ProductsTableCompanion productCompanion = ProductsTableCompanion(
-        id: Value(id),
-        name: Value(productWithId.name),
-        wholesalePrice: Value(productWithId.wholesalePrice),
-        retailPrice: Value(productWithId.retailPrice),
-        savedAt: Value(productWithId.savedAt.toIso8601String()),
-        isSynced: const Value(false),
-        lastModified: Value(DateTime.now().toIso8601String()),
-      );
-      await _localDb.upsertProduct(productCompanion);
+      // التحقق من الاتصال
+      final List<ConnectivityResult> connectivity =
+          await Connectivity().checkConnectivity();
+      final bool isOnline = connectivity.any(
+          (ConnectivityResult result) => result != ConnectivityResult.none);
 
-      // إضافة العملية إلى طابور المزامنة لإرسالها إلى Firestore
-      await _addToSyncQueue(
-        'addProduct',
-        'products',
-        id,
-        productWithId.toMap(),
-      );
+      if (isOnline) {
+        try {
+          // ✅ الكتابة إلى Firestore مع ضمان platform thread safety
+          debugPrint('📤 إضافة منتج إلى Firestore: $id');
+          await PlatformThreadSafety.executeFirestoreOperation(
+            () async {
+              await _firestore
+                  .collection('products')
+                  .doc(id)
+                  .set(<String, dynamic>{
+                'id': id,
+                'name': productWithId.name,
+                'wholesalePrice': productWithId.wholesalePrice,
+                'retailPrice': productWithId.retailPrice,
+                'savedAt': productWithId.savedAt.toIso8601String(),
+                'saved_at': productWithId.savedAt.toIso8601String(),
+                'last_modified': firestore.FieldValue.serverTimestamp(),
+                'description': productWithId.description,
+                'barcode': productWithId.barcode,
+                'category': productWithId.category,
+                'supplier': productWithId.supplier,
+                'status': productWithId.status.name,
+                'app_id': 'local_app',
+              });
+            },
+            operationName: 'addProduct',
+          );
 
-      // ✅ تفعيل المزامنة الفورية
-      await _triggerImmediateSync();
-
-      debugPrint('✅ تم إضافة المنتج محلياً وإضافته لطابور المزامنة: $id');
-      return id;
+          debugPrint(
+              '✅ تم إضافة المنتج إلى Firestore (Listener سيحدث Local DB)');
+          return id;
+        } catch (e) {
+          debugPrint('⚠️ فشل الكتابة إلى Firestore: $e - الحفظ محلياً');
+          // في حالة فشل Firestore، احفظ محلياً وأضف لقائمة الانتظار
+          await _addProductOffline(productWithId);
+          return id;
+        }
+      } else {
+        // Offline: حفظ محلي + قائمة انتظار
+        debugPrint('📴 Offline mode: حفظ المنتج محلياً');
+        await _addProductOffline(productWithId);
+        return id;
+      }
     } on Exception catch (e, stackTrace) {
       await ErrorHandlerService.handleError(
         e,
@@ -249,36 +705,90 @@ class UnifiedRepository {
     }
   }
 
-  /// تحديث منتج موجود مع ضمان اتساق البيانات
+  /// إضافة منتج في وضع offline
+  Future<void> _addProductOffline(Product product) async {
+    // حفظ في Local DB
+    final ProductsTableCompanion productCompanion = ProductsTableCompanion(
+      id: Value(product.id!),
+      name: Value(product.name),
+      wholesalePrice: Value(product.wholesalePrice),
+      retailPrice: Value(product.retailPrice),
+      savedAt: Value(product.savedAt.toIso8601String()),
+      isSynced: const Value(false),
+      lastModified: Value(DateTime.now().toIso8601String()),
+    );
+    await _localDb.upsertProduct(productCompanion);
+
+    // إضافة لقائمة الانتظار
+    await _addToSyncQueue(
+      'addProduct',
+      'products',
+      product.id!,
+      product.toMap(),
+    );
+
+    debugPrint('📋 تم حفظ المنتج محلياً وإضافته لقائمة الانتظار');
+  }
+
+  /// تحديث منتج موجود - يذهب إلى Firestore أولاً
+  /// ✅ تطبيق CQRS: Write → Firestore, Read ← Firestore listener → Local DB
   Future<void> updateProduct(Product product) async {
     try {
       if (product.id == null) throw ArgumentError('معرف المنتج مطلوب');
 
-      // تحديث المنتج مباشرة في قاعدة البيانات المحلية
-      final ProductsTableCompanion productCompanion = ProductsTableCompanion(
-        id: Value(product.id!),
-        name: Value(product.name),
-        wholesalePrice: Value(product.wholesalePrice),
-        retailPrice: Value(product.retailPrice),
-        savedAt: Value(product.savedAt.toIso8601String()),
-        isSynced: const Value(false),
-        lastModified: Value(DateTime.now().toIso8601String()),
-      );
-      await _localDb.upsertProduct(productCompanion);
+      // التحقق من الاتصال
+      final List<ConnectivityResult> connectivity =
+          await Connectivity().checkConnectivity();
+      final bool isOnline = connectivity.any(
+          (ConnectivityResult result) => result != ConnectivityResult.none);
 
-      // إضافة العملية إلى طابور المزامنة لإرسالها إلى Firestore
-      await _addToSyncQueue(
-        'updateProduct',
-        'products',
-        product.id!,
-        product.toMap(),
-      );
+      if (isOnline) {
+        try {
+          // ✅ الكتابة إلى Firestore مباشرة
+          debugPrint('📤 تحديث منتج في Firestore: ${product.id}');
+          await _firestore
+              .collection('products')
+              .doc(product.id)
+              .update(<Object, Object?>{
+            'name': product.name,
+            'wholesalePrice': product.wholesalePrice,
+            'retailPrice': product.retailPrice,
+            'savedAt': product.savedAt.toIso8601String(),
+            'saved_at': product.savedAt.toIso8601String(),
+            'last_modified': firestore.FieldValue.serverTimestamp(),
+            'description': product.description,
+            'barcode': product.barcode,
+            'category': product.category,
+            'supplier': product.supplier,
+            'status': product.status.name,
+            'app_id': 'local_app',
+          });
 
-      // ✅ تفعيل المزامنة الفورية
-      await _triggerImmediateSync();
+          debugPrint('✅ تم تحديث المنتج في Firestore');
 
-      debugPrint(
-          '✅ تم تحديث المنتج محلياً وإضافته لطابور المزامنة: ${product.id}');
+          // ✅ تحديث Local DB أيضاً لضمان التزامن الفوري
+          final ProductsTableCompanion productCompanion =
+              ProductsTableCompanion(
+            id: Value(product.id!),
+            name: Value(product.name),
+            wholesalePrice: Value(product.wholesalePrice),
+            retailPrice: Value(product.retailPrice),
+            savedAt: Value(product.savedAt.toIso8601String()),
+            isSynced: const Value(true),
+            lastModified: Value(DateTime.now().toIso8601String()),
+          );
+          await _localDb.upsertProduct(productCompanion);
+
+          debugPrint('✅ تم تحديث المنتج في Local DB');
+        } catch (e) {
+          debugPrint('⚠️ فشل التحديث في Firestore: $e - الحفظ محلياً');
+          await _updateProductOffline(product);
+        }
+      } else {
+        // Offline: حفظ محلي + قائمة انتظار
+        debugPrint('📴 Offline mode: تحديث المنتج محلياً');
+        await _updateProductOffline(product);
+      }
     } on Exception catch (e, stackTrace) {
       await ErrorHandlerService.handleError(
         e,
@@ -295,45 +805,82 @@ class UnifiedRepository {
     }
   }
 
+  /// تحديث منتج في وضع offline
+  Future<void> _updateProductOffline(Product product) async {
+    // حفظ في Local DB
+    final ProductsTableCompanion productCompanion = ProductsTableCompanion(
+      id: Value(product.id!),
+      name: Value(product.name),
+      wholesalePrice: Value(product.wholesalePrice),
+      retailPrice: Value(product.retailPrice),
+      savedAt: Value(product.savedAt.toIso8601String()),
+      isSynced: const Value(false),
+      lastModified: Value(DateTime.now().toIso8601String()),
+    );
+    await _localDb.upsertProduct(productCompanion);
+
+    // إضافة لقائمة الانتظار
+    await _addToSyncQueue(
+      'updateProduct',
+      'products',
+      product.id!,
+      product.toMap(),
+    );
+
+    debugPrint('📋 تم تحديث المنتج محلياً وإضافته لقائمة الانتظار');
+  }
+
   // ========== عمليات المخزون ==========
 
-  /// إضافة عنصر مخزون جديد مع ضمان اتساق البيانات
+  /// إضافة عنصر مخزون جديد - يذهب إلى Firestore أولاً
+  /// ✅ تطبيق CQRS: Write → Firestore, Read ← Firestore listener → Local DB
   Future<String> addInventoryItem(InventoryItem item) async {
     try {
       final String id =
           item.id ?? DateTime.now().millisecondsSinceEpoch.toString();
       final InventoryItem itemWithId = item.copyWith(id: id);
 
-      // إضافة عنصر المخزون مباشرة إلى قاعدة البيانات المحلية
-      final InventoryTableCompanion itemCompanion = InventoryTableCompanion(
-        id: Value(id),
-        name: Value(itemWithId.name),
-        barcode: Value(itemWithId.barcode),
-        wholesalePrice: Value(itemWithId.wholesalePrice),
-        retailPrice: Value(itemWithId.retailPrice),
-        quantity: Value(itemWithId.quantity),
-        originalQuantity: Value(itemWithId.originalQuantity),
-        addedDate: Value(itemWithId.addedDate.toIso8601String()),
-        addedTime: Value(itemWithId.addedTime.toIso8601String()),
-        isSynced: const Value(false),
-        lastModified: Value(DateTime.now().toIso8601String()),
-      );
-      await _localDb.upsertInventoryItem(itemCompanion);
+      // التحقق من الاتصال
+      final List<ConnectivityResult> connectivity =
+          await Connectivity().checkConnectivity();
+      final bool isOnline = connectivity.any(
+          (ConnectivityResult result) => result != ConnectivityResult.none);
 
-      // إضافة العملية إلى طابور المزامنة لإرسالها إلى Firestore
-      // ✅ إرسال إلى quantities فقط (وليس inventory) عند إضافة عنصر مخزون جديد
-      await _addToSyncQueue(
-        'addInventoryItem',
-        'quantities',
-        id,
-        itemWithId.toMap(),
-      );
+      if (isOnline) {
+        try {
+          // ✅ الكتابة إلى Firestore مباشرة
+          debugPrint('📤 إضافة عنصر مخزون إلى Firestore: $id');
+          await _firestore
+              .collection('quantities')
+              .doc(id)
+              .set(<String, dynamic>{
+            'id': id,
+            'name': itemWithId.name,
+            'barcode': itemWithId.barcode,
+            'wholesalePrice': itemWithId.wholesalePrice,
+            'retailPrice': itemWithId.retailPrice,
+            'quantity': itemWithId.quantity,
+            'originalQuantity': itemWithId.originalQuantity,
+            'addedDate': itemWithId.addedDate.toIso8601String(),
+            'addedTime': itemWithId.addedTime.toIso8601String(),
+            'last_modified': firestore.FieldValue.serverTimestamp(),
+            'app_id': 'local_app',
+          });
 
-      // ✅ إضافة مزامنة فورية (سيتم إصلاح معرف المستخدم في ServiceInitializer)
-      await _triggerImmediateSync();
-
-      debugPrint('✅ تم إضافة عنصر المخزون محلياً وإضافته لطابور المزامنة: $id');
-      return id;
+          debugPrint(
+              '✅ تم إضافة عنصر المخزون إلى Firestore (Listener سيحدث Local DB)');
+          return id;
+        } catch (e) {
+          debugPrint('⚠️ فشل الكتابة إلى Firestore: $e - الحفظ محلياً');
+          await _addInventoryOffline(itemWithId);
+          return id;
+        }
+      } else {
+        // Offline: حفظ محلي + قائمة انتظار
+        debugPrint('📴 Offline mode: حفظ عنصر المخزون محلياً');
+        await _addInventoryOffline(itemWithId);
+        return id;
+      }
     } on Exception catch (e, stackTrace) {
       await ErrorHandlerService.handleError(
         e,
@@ -350,40 +897,95 @@ class UnifiedRepository {
     }
   }
 
-  /// تحديث عنصر مخزون موجود مع ضمان اتساق البيانات
+  /// إضافة عنصر مخزون في وضع offline
+  Future<void> _addInventoryOffline(InventoryItem item) async {
+    // حفظ في Local DB
+    final InventoryTableCompanion itemCompanion = InventoryTableCompanion(
+      id: Value(item.id!),
+      name: Value(item.name),
+      barcode: Value(item.barcode),
+      wholesalePrice: Value(item.wholesalePrice),
+      retailPrice: Value(item.retailPrice),
+      quantity: Value(item.quantity),
+      originalQuantity: Value(item.originalQuantity),
+      addedDate: Value(item.addedDate.toIso8601String()),
+      addedTime: Value(item.addedTime.toIso8601String()),
+      isSynced: const Value(false),
+      lastModified: Value(DateTime.now().toIso8601String()),
+    );
+    await _localDb.upsertInventoryItem(itemCompanion);
+
+    // إضافة لقائمة الانتظار
+    await _addToSyncQueue(
+      'addInventoryItem',
+      'quantities',
+      item.id!,
+      item.toMap(),
+    );
+
+    debugPrint('📋 تم حفظ عنصر المخزون محلياً وإضافته لقائمة الانتظار');
+  }
+
+  /// تحديث عنصر مخزون موجود - يذهب إلى Firestore أولاً
+  /// ✅ تطبيق CQRS: Write → Firestore, Read ← Firestore listener → Local DB
   Future<void> updateInventoryItem(InventoryItem item) async {
     try {
       if (item.id == null) throw ArgumentError('معرف عنصر المخزون مطلوب');
 
-      // تحديث عنصر المخزون مباشرة في قاعدة البيانات المحلية
-      final InventoryTableCompanion itemCompanion = InventoryTableCompanion(
-        id: Value(item.id!),
-        name: Value(item.name),
-        barcode: Value(item.barcode),
-        wholesalePrice: Value(item.wholesalePrice),
-        retailPrice: Value(item.retailPrice),
-        quantity: Value(item.quantity),
-        originalQuantity: Value(item.originalQuantity),
-        addedDate: Value(item.addedDate.toIso8601String()),
-        addedTime: Value(item.addedTime.toIso8601String()),
-        isSynced: const Value(false),
-        lastModified: Value(DateTime.now().toIso8601String()),
-      );
-      await _localDb.upsertInventoryItem(itemCompanion);
+      // التحقق من الاتصال
+      final List<ConnectivityResult> connectivity =
+          await Connectivity().checkConnectivity();
+      final bool isOnline = connectivity.any(
+          (ConnectivityResult result) => result != ConnectivityResult.none);
 
-      // إضافة العملية إلى طابور المزامنة لإرسالها إلى Firestore
-      await _addToSyncQueue(
-        'updateInventoryItem',
-        'quantities',
-        item.id!,
-        item.toMap(),
-      );
+      if (isOnline) {
+        try {
+          // ✅ الكتابة إلى Firestore مباشرة
+          debugPrint('📤 تحديث عنصر مخزون في Firestore: ${item.id}');
+          await _firestore
+              .collection('quantities')
+              .doc(item.id)
+              .update(<Object, Object?>{
+            'name': item.name,
+            'barcode': item.barcode,
+            'wholesalePrice': item.wholesalePrice,
+            'retailPrice': item.retailPrice,
+            'quantity': item.quantity,
+            'originalQuantity': item.originalQuantity,
+            'addedDate': item.addedDate.toIso8601String(),
+            'addedTime': item.addedTime.toIso8601String(),
+            'last_modified': firestore.FieldValue.serverTimestamp(),
+            'app_id': 'local_app',
+          });
 
-      // ✅ تفعيل المزامنة الفورية
-      await _triggerImmediateSync();
+          debugPrint('✅ تم تحديث عنصر المخزون في Firestore');
 
-      debugPrint(
-          '✅ تم تحديث عنصر المخزون محلياً وإضافته لطابور المزامنة: ${item.id}');
+          // ✅ تحديث Local DB أيضاً لضمان التزامن الفوري
+          final InventoryTableCompanion itemCompanion = InventoryTableCompanion(
+            id: Value(item.id!),
+            name: Value(item.name),
+            barcode: Value(item.barcode),
+            wholesalePrice: Value(item.wholesalePrice),
+            retailPrice: Value(item.retailPrice),
+            quantity: Value(item.quantity),
+            originalQuantity: Value(item.originalQuantity),
+            addedDate: Value(item.addedDate.toIso8601String()),
+            addedTime: Value(item.addedTime.toIso8601String()),
+            isSynced: const Value(true),
+            lastModified: Value(DateTime.now().toIso8601String()),
+          );
+          await _localDb.upsertInventoryItem(itemCompanion);
+
+          debugPrint('✅ تم تحديث عنصر المخزون في Local DB');
+        } catch (e) {
+          debugPrint('⚠️ فشل التحديث في Firestore: $e - الحفظ محلياً');
+          await _updateInventoryOffline(item);
+        }
+      } else {
+        // Offline: حفظ محلي + قائمة انتظار
+        debugPrint('📴 Offline mode: تحديث عنصر المخزون محلياً');
+        await _updateInventoryOffline(item);
+      }
     } on Exception catch (e, stackTrace) {
       await ErrorHandlerService.handleError(
         e,
@@ -400,27 +1002,68 @@ class UnifiedRepository {
     }
   }
 
-  /// حذف عنصر مخزون مع ضمان اتساق البيانات
+  /// تحديث عنصر مخزون في وضع offline
+  Future<void> _updateInventoryOffline(InventoryItem item) async {
+    // حفظ في Local DB
+    final InventoryTableCompanion itemCompanion = InventoryTableCompanion(
+      id: Value(item.id!),
+      name: Value(item.name),
+      barcode: Value(item.barcode),
+      wholesalePrice: Value(item.wholesalePrice),
+      retailPrice: Value(item.retailPrice),
+      quantity: Value(item.quantity),
+      originalQuantity: Value(item.originalQuantity),
+      addedDate: Value(item.addedDate.toIso8601String()),
+      addedTime: Value(item.addedTime.toIso8601String()),
+      isSynced: const Value(false),
+      lastModified: Value(DateTime.now().toIso8601String()),
+    );
+    await _localDb.upsertInventoryItem(itemCompanion);
+
+    // إضافة لقائمة الانتظار
+    await _addToSyncQueue(
+      'updateInventoryItem',
+      'quantities',
+      item.id!,
+      item.toMap(),
+    );
+
+    debugPrint('📋 تم تحديث عنصر المخزون محلياً وإضافته لقائمة الانتظار');
+  }
+
+  /// حذف عنصر مخزون - يذهب إلى Firestore أولاً
+  /// ✅ تطبيق CQRS: Write → Firestore, Read ← Firestore listener → Local DB
   Future<void> deleteInventoryItem(String itemId) async {
     try {
-      // حذف عنصر المخزون مباشرة من قاعدة البيانات المحلية
-      await (_localDb.delete(_localDb.inventoryTable)
-            ..where(($InventoryTableTable t) => t.id.equals(itemId)))
-          .go();
+      // التحقق من الاتصال
+      final List<ConnectivityResult> connectivity =
+          await Connectivity().checkConnectivity();
+      final bool isOnline = connectivity.any(
+          (ConnectivityResult result) => result != ConnectivityResult.none);
 
-      // إضافة العملية إلى طابور المزامنة لإرسالها إلى Firestore
-      await _addToSyncQueue(
-        'deleteInventoryItem',
-        'inventory',
-        itemId,
-        <String, dynamic>{'id': itemId, 'deleted': true},
-      );
+      if (isOnline) {
+        try {
+          // ✅ الحذف من Firestore مباشرة
+          debugPrint('📤 حذف عنصر مخزون من Firestore: $itemId');
+          await _firestore.collection('quantities').doc(itemId).delete();
 
-      debugPrint(
-          '✅ تم حذف عنصر المخزون محلياً وإضافته لطابور المزامنة: $itemId');
+          debugPrint('✅ تم حذف عنصر المخزون من Firestore');
 
-      // ✅ NEW: Trigger immediate sync for delete operations
-      _triggerImmediateSyncAfterDelete();
+          // ✅ حذف من Local DB أيضاً لضمان التزامن الفوري
+          await (_localDb.delete(_localDb.inventoryTable)
+                ..where(($InventoryTableTable t) => t.id.equals(itemId)))
+              .go();
+
+          debugPrint('✅ تم حذف عنصر المخزون من Local DB');
+        } catch (e) {
+          debugPrint('⚠️ فشل الحذف من Firestore: $e - الحفظ محلياً');
+          await _deleteInventoryOffline(itemId);
+        }
+      } else {
+        // Offline: حذف محلي + قائمة انتظار
+        debugPrint('📴 Offline mode: حذف عنصر المخزون محلياً');
+        await _deleteInventoryOffline(itemId);
+      }
     } on Exception catch (e, stackTrace) {
       await ErrorHandlerService.handleError(
         e,
@@ -437,26 +1080,57 @@ class UnifiedRepository {
     }
   }
 
-  /// حذف منتج مع ضمان اتساق البيانات
+  /// حذف عنصر مخزون في وضع offline
+  Future<void> _deleteInventoryOffline(String itemId) async {
+    // حذف من Local DB
+    await (_localDb.delete(_localDb.inventoryTable)
+          ..where(($InventoryTableTable t) => t.id.equals(itemId)))
+        .go();
+
+    // إضافة لقائمة الانتظار
+    await _addToSyncQueue(
+      'deleteInventoryItem',
+      'quantities',
+      itemId,
+      <String, dynamic>{'id': itemId, 'deleted': true},
+    );
+
+    debugPrint('📋 تم حذف عنصر المخزون محلياً وإضافته لقائمة الانتظار');
+  }
+
+  /// حذف منتج - يذهب إلى Firestore أولاً
+  /// ✅ تطبيق CQRS: Write → Firestore, Read ← Firestore listener → Local DB
   Future<void> deleteProduct(String productId) async {
     try {
-      // حذف المنتج مباشرة من قاعدة البيانات المحلية
-      await (_localDb.delete(_localDb.productsTable)
-            ..where(($ProductsTableTable t) => t.id.equals(productId)))
-          .go();
+      // التحقق من الاتصال
+      final List<ConnectivityResult> connectivity =
+          await Connectivity().checkConnectivity();
+      final bool isOnline = connectivity.any(
+          (ConnectivityResult result) => result != ConnectivityResult.none);
 
-      // إضافة العملية إلى طابور المزامنة لإرسالها إلى Firestore
-      await _addToSyncQueue(
-        'deleteProduct',
-        'products',
-        productId,
-        <String, dynamic>{'id': productId, 'deleted': true},
-      );
+      if (isOnline) {
+        try {
+          // ✅ الحذف من Firestore مباشرة
+          debugPrint('📤 حذف منتج من Firestore: $productId');
+          await _firestore.collection('products').doc(productId).delete();
 
-      debugPrint('✅ تم حذف المنتج محلياً وإضافته لطابور المزامنة: $productId');
+          debugPrint('✅ تم حذف المنتج من Firestore');
 
-      // ✅ NEW: Trigger immediate sync for delete operations
-      _triggerImmediateSyncAfterDelete();
+          // ✅ حذف من Local DB أيضاً لضمان التزامن الفوري
+          await (_localDb.delete(_localDb.productsTable)
+                ..where(($ProductsTableTable t) => t.id.equals(productId)))
+              .go();
+
+          debugPrint('✅ تم حذف المنتج من Local DB');
+        } catch (e) {
+          debugPrint('⚠️ فشل الحذف من Firestore: $e - الحفظ محلياً');
+          await _deleteProductOffline(productId);
+        }
+      } else {
+        // Offline: حذف محلي + قائمة انتظار
+        debugPrint('📴 Offline mode: حذف المنتج محلياً');
+        await _deleteProductOffline(productId);
+      }
     } on Exception catch (e, stackTrace) {
       await ErrorHandlerService.handleError(
         e,
@@ -473,6 +1147,24 @@ class UnifiedRepository {
     }
   }
 
+  /// حذف منتج في وضع offline
+  Future<void> _deleteProductOffline(String productId) async {
+    // حذف من Local DB
+    await (_localDb.delete(_localDb.productsTable)
+          ..where(($ProductsTableTable t) => t.id.equals(productId)))
+        .go();
+
+    // إضافة لقائمة الانتظار
+    await _addToSyncQueue(
+      'deleteProduct',
+      'products',
+      productId,
+      <String, dynamic>{'id': productId, 'deleted': true},
+    );
+
+    debugPrint('📋 تم حذف المنتج محلياً وإضافته لقائمة الانتظار');
+  }
+
   // ========== طابور المزامنة ==========
 
   /// تحويل البيانات إلى قيم قابلة للتسلسل (إزالة FieldValue)
@@ -483,34 +1175,41 @@ class UnifiedRepository {
       final String key = entry.key;
       final dynamic value = entry.value;
 
-      if (value is firestore.FieldValue) {
-        // تحويل FieldValue.serverTimestamp() إلى علامة خاصة
-        if (value == firestore.FieldValue.serverTimestamp()) {
-          serializableData[key] = '__SERVER_TIMESTAMP__';
-        } else {
-          // أنواع أخرى من FieldValue
-          serializableData[key] = '__FIELD_VALUE__';
-        }
-      } else if (value is Map<String, dynamic>) {
-        // معالجة متداخلة للخرائط
-        serializableData[key] = _makeDataSerializable(value);
-      } else if (value is List) {
-        // معالجة القوائم
-        serializableData[key] = value.map((item) {
-          if (item is Map<String, dynamic>) {
-            return _makeDataSerializable(item);
-          } else if (item is firestore.FieldValue) {
-            if (item == firestore.FieldValue.serverTimestamp()) {
-              return '__SERVER_TIMESTAMP__';
-            } else {
-              return '__FIELD_VALUE__';
-            }
+      try {
+        if (value is firestore.FieldValue) {
+          // تحويل FieldValue.serverTimestamp() إلى علامة خاصة
+          if (value == firestore.FieldValue.serverTimestamp()) {
+            serializableData[key] = '__SERVER_TIMESTAMP__';
+          } else {
+            // أنواع أخرى من FieldValue
+            serializableData[key] = '__FIELD_VALUE__';
           }
-          return item;
-        }).toList();
-      } else {
-        // القيم العادية
-        serializableData[key] = value;
+        } else if (value is Map<String, dynamic>) {
+          // معالجة متداخلة للخرائط
+          serializableData[key] = _makeDataSerializable(value);
+        } else if (value is List) {
+          // معالجة القوائم
+          serializableData[key] = value.map((item) {
+            if (item is Map<String, dynamic>) {
+              return _makeDataSerializable(item);
+            } else if (item is firestore.FieldValue) {
+              if (item == firestore.FieldValue.serverTimestamp()) {
+                return '__SERVER_TIMESTAMP__';
+              } else {
+                return '__FIELD_VALUE__';
+              }
+            }
+            return item;
+          }).toList();
+        } else {
+          // القيم العادية
+          serializableData[key] = value;
+        }
+      } catch (e) {
+        debugPrint(
+            '❌ خطأ في تحويل المفتاح $key: $e - القيمة: $value (${value.runtimeType})');
+        // استخدام قيمة آمنة في حالة الخطأ
+        serializableData[key] = value?.toString() ?? 'null';
       }
     }
 
@@ -559,13 +1258,35 @@ class UnifiedRepository {
   Future<void> _addToSyncQueue(String operation, String tableName,
       String recordId, Map<String, dynamic> data) async {
     try {
+      debugPrint('🔍 إضافة إلى طابور المزامنة: $operation - $recordId');
+      debugPrint('🔍 البيانات الأصلية: $data');
+
       // إضافة توقيتات الخادم الموثوقة
       final Map<String, dynamic> dataWithTimestamp =
           ServerTimestampService.updateDataWithServerTimestamp(data);
+      debugPrint('🔍 البيانات مع التوقيت: $dataWithTimestamp');
 
       // تحويل FieldValue إلى قيم قابلة للتسلسل
       final Map<String, dynamic> serializableData =
           _makeDataSerializable(dataWithTimestamp);
+      debugPrint('🔍 البيانات القابلة للتسلسل: $serializableData');
+
+      // تحويل إلى JSON مع معالجة الأخطاء
+      String jsonData;
+      try {
+        jsonData = jsonEncode(serializableData);
+        debugPrint('🔍 JSON النهائي: $jsonData');
+      } catch (e) {
+        debugPrint('❌ خطأ في تحويل البيانات إلى JSON: $e');
+        debugPrint('❌ البيانات التي فشل تحويلها: $serializableData');
+        // استخدام بيانات مبسطة في حالة الخطأ
+        jsonData = jsonEncode(<String, String>{
+          'operation': operation,
+          'recordId': recordId,
+          'error': 'Failed to serialize data: $e',
+          'timestamp': DateTime.now().toIso8601String(),
+        });
+      }
 
       // إضافة العملية إلى جدول العمليات
       final int result =
@@ -573,7 +1294,7 @@ class UnifiedRepository {
         operation: Value(operation),
         targetTable: Value(tableName),
         recordId: Value(recordId),
-        data: Value(jsonEncode(serializableData)),
+        data: Value(jsonData),
         timestamp: Value(DateTime.now().toIso8601String()),
         createdAt: Value(DateTime.now().toIso8601String()),
         isProcessed: const Value(false),
@@ -589,6 +1310,8 @@ class UnifiedRepository {
       }
     } on Exception catch (e) {
       debugPrint('❌ خطأ في إضافة العملية إلى طابور المزامنة: $e');
+      debugPrint(
+          '❌ تفاصيل الخطأ: operation=$operation, recordId=$recordId, data=$data');
     }
   }
 
@@ -639,7 +1362,7 @@ class UnifiedRepository {
       final DateTime? lastSyncTime =
           await SyncStateService.getLastSync('products');
 
-      // بناء استعلام Firestore باستخدام الخدمة الجديدة
+      // ✅ بناء استعلام Firestore مع platform thread safety
       final firestore.Query<Map<String, dynamic>> query =
           ServerTimestampService.createDeltaQuery(
         _firestore.collection('products'),
@@ -652,9 +1375,12 @@ class UnifiedRepository {
         debugPrint('🔄 مزامنة كاملة للمنتجات (أول مرة)');
       }
 
-      // تنفيذ الاستعلام
+      // ✅ تنفيذ الاستعلام مع platform thread safety
       final firestore.QuerySnapshot<Map<String, dynamic>> snapshot =
-          await query.get();
+          await PlatformThreadSafety.executeFirestoreOperation(
+        query.get,
+        operationName: '_syncProductsDelta_execute',
+      );
 
       debugPrint('📦 جلب ${snapshot.docs.length} منتج من Firestore');
 
@@ -708,7 +1434,7 @@ class UnifiedRepository {
       final DateTime? lastSyncTime =
           await SyncStateService.getLastSync('inventory');
 
-      // بناء استعلام Firestore باستخدام الخدمة الجديدة
+      // ✅ بناء استعلام Firestore مع platform thread safety
       final firestore.Query<Map<String, dynamic>> query =
           ServerTimestampService.createDeltaQuery(
         _firestore.collection('quantities'),
@@ -721,9 +1447,12 @@ class UnifiedRepository {
         debugPrint('🔄 مزامنة كاملة للمخزون (أول مرة)');
       }
 
-      // تنفيذ الاستعلام
+      // ✅ تنفيذ الاستعلام مع platform thread safety
       final firestore.QuerySnapshot<Map<String, dynamic>> snapshot =
-          await query.get();
+          await PlatformThreadSafety.executeFirestoreOperation(
+        query.get,
+        operationName: '_syncInventoryDelta_execute',
+      );
 
       debugPrint('📦 جلب ${snapshot.docs.length} عنصر مخزون من Firestore');
 
@@ -751,7 +1480,7 @@ class UnifiedRepository {
           retailPrice: Value(safeParseInt(repairedData['retailPrice'])),
           quantity: Value(safeParseInt(repairedData['quantity'])),
           originalQuantity:
-              Value(safeParseInt(repairedData['originalQuantity'])),
+              Value(safeParseInt(repairedData['originalQuantity'] ?? 0)),
           addedDate: Value(
               safeParseDateTime(repairedData['addedDate']).toIso8601String()),
           addedTime: Value(
@@ -817,31 +1546,6 @@ class UnifiedRepository {
     await _localDb.close();
   }
 
-  /// تشغيل مزامنة فورية
-  Future<void> _triggerImmediateSync() async {
-    try {
-      // التحقق من الاتصال بالإنترنت
-      final List<ConnectivityResult> connectivityResult =
-          await Connectivity().checkConnectivity();
-
-      if (connectivityResult.contains(ConnectivityResult.none)) {
-        debugPrint('⚠️ لا يوجد اتصال بالإنترنت - تأجيل المزامنة');
-        return;
-      }
-
-      debugPrint('🚀 بدء المزامنة الفورية...');
-
-      // استخدام UnifiedSyncManager للمزامنة
-      final UnifiedSyncManager syncManager = UnifiedSyncManager();
-      await syncManager.syncPendingOperations();
-
-      debugPrint('✅ تمت المزامنة الفورية بنجاح');
-    } catch (e) {
-      debugPrint('⚠️ خطأ في المزامنة الفورية: $e');
-      // لا نرمي الخطأ لأن المزامنة الدورية ستعالجه لاحقاً
-    }
-  }
-
   /// تشغيل مزامنة فورية مع معرف المستخدم
   Future<void> triggerImmediateSyncWithUser(String userId) async {
     try {
@@ -903,9 +1607,5 @@ class UnifiedRepository {
     }
   }
 
-  /// تشغيل مزامنة فورية بعد عمليات الحذف
-  Future<void> _triggerImmediateSyncAfterDelete() async {
-    // نفس المنطق
-    await _triggerImmediateSync();
-  }
+  // ❌ تم إزالة: _triggerImmediateSyncAfterDelete - لم تعد مطلوبة مع Firestore direct writes
 }
