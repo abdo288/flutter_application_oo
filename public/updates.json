@@ -1,7 +1,7 @@
 {
     "version": "1.3.1",
     "build_number": 5,
-    "download_url": "https://github.com/abdo288/flutter_application_oo/releases/download/v1.3.1/setup_v1.3.1.exe",
+    "download_url": "https://github.com/abdo288/flutter_application_oo/releases/download/V1.3.1/setup_v1.3.1.exe",
     "release_notes": "• إصلاحات وتحسينات\n• ميزات جديدة",
     "is_required": false
 }
