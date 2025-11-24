@@ -3,7 +3,7 @@
     "build_number": 6,
     "download_urls": {
         "windows": "https://github.com/abdo288/flutter_application_oo/releases/download/v1.5.1/setup_v1.5.1.exe",
-        "android": "https://github.com/abdo288/flutter_application_oo/releases/download/v1.5.1/app-release.apk"
+        "android": "https://github.com/abdo288/flutter_application_oo/releases/download/v1.5.1/app_v1.5.1.apk"
     },
     "download_url": "https://github.com/abdo288/flutter_application_oo/releases/download/v1.5.1/setup_v1.5.1.exe",
     "release_notes": "•هناك تحسينات  \n• قم ب التحميل الان ",
