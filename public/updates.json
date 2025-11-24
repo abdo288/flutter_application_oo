@@ -1,7 +1,11 @@
 {
     "version": "1.5.1",
     "build_number": 6,
+    "download_urls": {
+        "windows": "https://github.com/abdo288/flutter_application_oo/releases/download/v1.5.1/setup_v1.5.1.exe",
+        "android": "https://github.com/abdo288/flutter_application_oo/releases/download/v1.5.1/app-release.apk"
+    },
     "download_url": "https://github.com/abdo288/flutter_application_oo/releases/download/v1.5.1/setup_v1.5.1.exe",
-    "release_notes": "• السلام عليكم \n• ميزات جديدة",
+    "release_notes": "• السلام عليكم \n• قم ب التحميل الان ",
     "is_required": false
 }
