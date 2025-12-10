@@ -1,11 +1,11 @@
 {
-  "version": "1.5.1",
-  "build_number": 10,
+  "version": "1.4.1",
+  "build_number": 4,
   "download_urls": {
-    "windows": "https://github.com/abdo288/flutter_application_oo/releases/download/1.5.1/setup_v1.8.1..exe",
-    "android": "https://github.com/abdo288/flutter_application_oo/releases/download/v1.8.1/app_v1.8.1.apk"
+    "windows": "https://github.com/abdo288/flutter_application_oo/releases/download/1.4.1/setup_v1.4.1..exe",
+    "android": "https://github.com/abdo288/flutter_application_oo/releases/download/v1.4.1/app_v1.4.1.apk"
   },
-  "download_url": "https://github.com/abdo288/flutter_application_oo/releases/download/1.5.1/setup_v1.8.1..exe",
+  "download_url": "https://github.com/abdo288/flutter_application_oo/releases/download/1.4.1/setup_v1.4.1..exe",
   "release_notes": "",
   "is_required": false
 }
