@@ -1,0 +1,11 @@
+{
+  "version": "1.4.1",
+  "build_number": 10,
+  "download_urls": {
+    "windows": "https://github.com/abdo288/flutter_application_oo/releases/download/v1.4.1/setup_v1.4.1.exe",
+    "android": "https://github.com/abdo288/flutter_application_oo/releases/download/v1.4.1/app_v1.4.1.apk"
+  },
+  "download_url": "https://github.com/abdo288/flutter_application_oo/releases/download/v1.4.1/setup_v1.4.1.exe",
+  "release_notes": " تحسينات في سرعة الأداء والاستجابة\n إصلاح مشاكل التحميل والمزامنة\n تحسين واجهة المستخدم\n دعم أفضل للغة العربية\n إصلاحات أمنية مهمة\n تحسين استهلاك الذاكرة",
+  "is_required": false
+
